@@ -3,6 +3,8 @@
 ############################################################################
 
 site <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/Sites_Loc_DrtTrt.csv')
+source('R_scripts/functions.R')
+
 library(rnoaa)
 library(dplyr)
 
@@ -38,25 +40,45 @@ precip <- NULL
 for(i in 1:nrow(nearest_df)){
   staID <- as.character(nearest_df[i,'id'])
   sc <- as.character(nearest_df[i,'site_code'])
-  tmp <- ghcnd(staID)
-  xx <- tmp[tmp$month==2,'VALUE28']
   
+  tmp <- ghcnd(staID)
+
   tmp <- tmp[tmp$element == 'PRCP',]
   dVal <- tmp[substr(colnames(tmp),1,5) == 'VALUE']
-    for(j in 1:nrow(dVal)){
-      tmp2 <- dVal[j,]
-      
+  mSums <- apply(dVal,1,sum_na)
     
-      } 
   
-  dVal$total <- rowSums(dVal,na.rm=T)
+  # dVal$total <- rowSums(dVal,na.rm=T)
   
+  dfOut <- tmp[,c('id','year','month')]
+  dfOut$ppt <- mSums/10
+  dfOut$site_code <- sc
   
-  tmp3 <- tmp[,c('id','year','month')]
-  
-  tmp4 <- cbind(dVal,tmp3$total)
-  tmp4$site_code <- sc
-  precip <- rbind(precip,tmp4)
+  # tmp3 <- tmp[,c('id','year','month')]
+  # 
+  # tmp4 <- cbind(dVal,tmp3$total)
+  # tmp4$site_code <- sc
+  precip <- rbind(precip,dfOut)
+  print(i)
 }
 
-precipAgg <- aggregate(list(precip = precip$VALUE1),by=list(site = precip$site_code,year=precip$year),FUN='sum')
+precipFull <- precip
+precip <- na.omit(precip)
+precipAgg <- aggregate(list(ppt = precip$ppt),by=list(site_code = precip$site_code,year=precip$year),FUN='sum')
+MAP <- aggregate(list(MAP = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='mean', na.action = na.omit)
+
+CV <- function(x) sd(x)/mean(x) * 100
+pptCV <- aggregate(list(CV = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='CV')
+
+dfPpt <- merge(MAP,pptCV,by='site_code')
+#write.csv(dfPpt, 'C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190520.csv')
+
+plot(dfPpt$CV~dfPpt$MAP)
+
+sum(tapply(precip$year,precip$site_code,'max') >= 2016)
+pptNA <- precipFull %>% group_by(site_code) %>% 
+  summarise(nacount = sum(is.na(ppt))) %>% 
+  arrange(desc(nacount))
+
+pptNA <- merge(pptNA,data.frame(months=tapply(precipFull$id,precipFull$site_code,'length')),by.x='site_code',by.y=0)
+
