@@ -2,11 +2,9 @@
 ######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE CV ACROSS YEAR #######
 ############################################################################
 
-library(rnoaa)
-library(tidyverse)
-library(lubridate)
-
+site <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/Sites_Loc_DrtTrt.csv')
 source('R_scripts/functions.R')
+<<<<<<< HEAD
 CV <- function(x) sd(x)/mean(x) * 100
 
 # path to data folders
@@ -16,11 +14,16 @@ path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
 site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), as.is = TRUE)
 
 # function(s) used below
+=======
+>>>>>>> 17a84a01ce0952053c5f4fbcaa00f7c5d7e1cd40
 
+library(rnoaa)
+library(dplyr)
 
 site <- site[,c('site_code','lat','long')]
 colnames(site) <- c('id','lat','long')
 
+<<<<<<< HEAD
 # pull list of all GHCND stations (takes a while to run)
 #stations <- ghcnd_stations() #
 
@@ -28,8 +31,13 @@ colnames(site) <- c('id','lat','long')
 
 # load csv:
 stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), as.is = TRUE)
+=======
 
-stations$X <- NULL # unnecessary column created in csv
+?meteo_nearby_stations()
+>>>>>>> 17a84a01ce0952053c5f4fbcaa00f7c5d7e1cd40
+
+#stations <- ghcnd_stations()
+#write.csv(stations,'GHCND_Stations.csv')
 
 stationsPpt <- stations[stations$element == 'PRCP',]
 stationsPpt <- stationsPpt[stationsPpt$first_year <= 1980 & stationsPpt$last_year >= 2000,]
@@ -37,7 +45,6 @@ stationsPpt <- stationsPpt[stationsPpt$first_year <= 1980 & stationsPpt$last_yea
 
 nearStation <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',station_data = stationsPpt,limit=3)
 
-# extracting just the nearest station for each site
 nearest <- lapply(nearStation, function(x){
   x[1, ]
 })
@@ -52,80 +59,66 @@ nearest_df[nearest_df$distance < 20,]
 #nearest_test <- nearest_df[1:5,]
 
 precip <- NULL
-
-# for each site, getting data from nearest station, and calculating monthly
-# precip sums, if a month has > 15 NAs then it's value is NA
 for(i in 1:nrow(nearest_df)){
   staID <- as.character(nearest_df[i,'id'])
   sc <- as.character(nearest_df[i,'site_code'])
-  
+  distance <- as.numeric(as.character(nearest_df[i,'distance']))
   tmp <- ghcnd(staID)
-  
-  df_long <- tmp %>% 
-    filter(element == "PRCP") %>% # precip data only
-    select(id, year, month, contains("VALUE")) %>% # discarding other fields
-    # converting data to long form:
-    gather(key = "day_of_month", value = "ppt", matches("VALUE")) %>% 
-    # extracting number from eg value21:
-    mutate(day_of_month = str_extract(day_of_month, "\\d+$"),
-           day_of_month = as.numeric(day_of_month),
-           site_code = sc) 
 
-  precip <- rbind(precip, df_long)
+  tmp <- tmp[tmp$element == 'PRCP',]
+  dVal <- tmp[substr(colnames(tmp),1,5) == 'VALUE']
+  mSums <- apply(dVal,1,sum_na)
+    
+  
+  # dVal$total <- rowSums(dVal,na.rm=T)
+  
+  dfOut <- tmp[,c('id','year','month')]
+  dfOut$ppt <- mSums/10
+  dfOut$site_code <- sc
+  dfOut$distance <- distance
+  # tmp3 <- tmp[,c('id','year','month')]
+  # 
+  # tmp4 <- cbind(dVal,tmp3$total)
+  # tmp4$site_code <- sc
+  precip <- rbind(precip,dfOut)
   print(i)
 }
 
-# maybe we should save this raw monthly (precip) data file?
+precipFull <- precip
 
-# this is the full parsed data set since 1964
-precipFull <- precip %>% 
-  arrange(site_code, year, month, day_of_month) %>% 
-  filter(year >= 1964) %>%  # only keeping data that matches TPA time frame
-  mutate(date = make_date(year, month, day_of_month),
-         ppt = ppt/10) %>% # convert 10ths of mm to mm
-  filter(!is.na(date)) # e.g 30th day of february
+#### retain only records from the last 100 years prior to beginning of DN
+precip <- precipFull[precipFull$year >= 1915,]
 
-ppt_annual <- precipFull %>% 
-  group_by(id, site_code, year) %>% 
-  summarise(n_days = n(),# number of rows per year/site (number of observations (missing data or not))
-         n_NA = sum(is.na(ppt)), # number of days with missing data
-         ap = sum(ppt, na.rm = TRUE) #annual precipitation
-         ) 
+### remove months with NA for now
+precip <- na.omit(precip)
 
-summary(ppt_annual)
+precip
 
-# just "good years"
-ppt_annual2 <- ppt_annual %>% 
-  mutate(n_good = n_days - n_NA) %>%  # number of good observations/year
-  filter(n_good > 334)
+precipAgg <- aggregate(list(ppt = precip$ppt),by=list(site_code = precip$site_code,year=precip$year),FUN='sum')
+MAP <- aggregate(list(MAP = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='mean', na.action = na.omit)
 
-ppt_summary <- ppt_annual2 %>% 
-  group_by(id, site_code) %>% 
-  summarize(n_good_yrs = n(), # number of good years per stations
-            year_start = min(year), # first "good year"
-            year_end = max(year),# last good year
-            map = mean(ap),
-            cv = CV(ap)) 
+CV <- function(x) sd(x)/mean(x) * 100
+pptCV <- aggregate(list(CV = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='CV')
 
-sum(ppt_summary$n_good_yrs > 20)
+dfPpt <- merge(MAP,pptCV,by='site_code')
+#write.csv(dfPpt, 'C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190520.csv')
 
-ppt_summary %>% 
-  filter(n_good_yrs > 20) %>% 
-  ggplot(aes(map, cv)) + 
-  geom_point() +
-  theme_classic()
+plot(dfPpt$CV~dfPpt$MAP)
 
-plot(ppt_summary$map, ppt_summary$cv)
-hist(ppt_summary$n_good_yrs)
-
-# sites with good wx data
-good_sites <- ppt_summary$site_code[ppt_summary$n_good_yrs > 30]
-
-# sites with not sufficient good years
-bad_sites <- site$id[!site$id %in% good_sites]
-
+<<<<<<< HEAD
 saveRDS(bad_sites, "site_names_needWx_data.rds")
 #write.csv(ppt_summary, file.path(path, 'IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190521.csv'))
+=======
+sum(tapply(precip$year,precip$site_code,'max') >= 2016)
+pptNA <- precipFull %>% group_by(site_code) %>% 
+  summarise(nacount = sum(is.na(ppt))) %>% 
+  arrange(desc(nacount))
 
+pptNA <- merge(pptNA,data.frame(months=tapply(precipFull$id,precipFull$site_code,'length')),by.x='site_code',by.y=0)
+>>>>>>> 17a84a01ce0952053c5f4fbcaa00f7c5d7e1cd40
 
+pptNA$percentNA <- pptNA$nacount/pptNA$months
+
+### list of weather stations to omit
+sitesNA <- pptNA[pptNA$percentNA > 0.1,]$site_code
 
