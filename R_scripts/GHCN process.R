@@ -2,7 +2,10 @@
 ######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE CV ACROSS YEAR #######
 ############################################################################
 
+# site locations
 site <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/Sites_Loc_DrtTrt.csv')
+
+# function(s) used below
 source('R_scripts/functions.R')
 
 library(rnoaa)
@@ -11,11 +14,14 @@ library(dplyr)
 site <- site[,c('site_code','lat','long')]
 colnames(site) <- c('id','lat','long')
 
-
-?meteo_nearby_stations()
-
+# pull list of all GHCND stations (takes a while to run)
 #stations <- ghcnd_stations()
+
 #write.csv(stations,'GHCND_Stations.csv')
+
+# un-comment to load csv:
+# stations <- read.csv('~/IDE/data/GHCND_Stations.csv', as.is = TRUE)
+# stations$X <- NULL # unnecessary column created in csv
 
 stationsPpt <- stations[stations$element == 'PRCP',]
 stationsPpt <- stationsPpt[stationsPpt$first_year <= 1980 & stationsPpt$last_year >= 2000,]
@@ -37,6 +43,9 @@ nearest_df[nearest_df$distance < 20,]
 #nearest_test <- nearest_df[1:5,]
 
 precip <- NULL
+
+# for each site, getting data from nearest station, and calculating monthly
+# precip sums, if a month has > 15 NAs then it's value is NA
 for(i in 1:nrow(nearest_df)){
   staID <- as.character(nearest_df[i,'id'])
   sc <- as.character(nearest_df[i,'site_code'])
@@ -61,6 +70,8 @@ for(i in 1:nrow(nearest_df)){
   precip <- rbind(precip,dfOut)
   print(i)
 }
+
+# maybe we should save this raw monthly (precip) data file?
 
 precipFull <- precip
 precip <- na.omit(precip)
