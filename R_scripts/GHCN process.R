@@ -2,8 +2,11 @@
 ######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE CV ACROSS YEAR #######
 ############################################################################
 
+# path to data folders
+path <- 'C:/Users/peter/Dropbox/IDE Meeting_May2019'
+
 # site locations
-site <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/Sites_Loc_DrtTrt.csv')
+site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'))
 
 # function(s) used below
 source('R_scripts/functions.R')
@@ -17,11 +20,13 @@ colnames(site) <- c('id','lat','long')
 # pull list of all GHCND stations (takes a while to run)
 #stations <- ghcnd_stations()
 
-#write.csv(stations,'GHCND_Stations.csv')
+#write.csv(stations, file.path(path, 'IDE Site Info/GHCND_Stations.csv'))
 
 # un-comment to load csv:
-# stations <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/GHCND_Stations.csv', as.is = TRUE)
-# stations$X <- NULL # unnecessary column created in csv
+stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), 
+                     as.is = TRUE)
+
+stations$X <- NULL # unnecessary column created in csv
 
 stationsPpt <- stations[stations$element == 'PRCP',]
 stationsPpt <- stationsPpt[stationsPpt$first_year <= 1980 & stationsPpt$last_year >= 2000,]
@@ -29,6 +34,7 @@ stationsPpt <- stationsPpt[stationsPpt$first_year <= 1980 & stationsPpt$last_yea
 
 nearStation <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',station_data = stationsPpt,limit=3)
 
+# extracting just the nearest station for each site
 nearest <- lapply(nearStation, function(x){
   x[1, ]
 })
@@ -88,13 +94,13 @@ CV <- function(x) sd(x)/mean(x) * 100
 pptCV <- aggregate(list(CV = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='CV')
 
 dfPpt <- merge(MAP,pptCV,by='site_code')
-#write.csv(dfPpt, 'C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190520.csv')
+#write.csv(dfPpt, file.path(path, 'IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190520.csv'))
 
 plot(dfPpt$CV~dfPpt$MAP)
 
 sum(tapply(precip$year,precip$site_code,'max') >= 2016)
 
-# the number of months where precip is NA
+# the number of months where precip is NA (data checking)
 pptNA <- precipFull %>% 
   group_by(site_code) %>% 
   summarise(nacount = sum(is.na(ppt))) %>% 
