@@ -224,3 +224,11 @@ bad_sites[!bad_sites %in% bad_sitesV2]  #### nine sites were removed from 'bad' 
 sites <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), as.is = TRUE)
 
 sitesNoClim <- sites[sites$site_code %in% bad_sitesV2,]
+
+##### Add in elevation and distance to nearest climate station THIS PULLS FROM OBJECT CREATED IN SCRIPT "DN site - GHCN station options"
+##### and export sites that we feel comfortable with the data
+
+precipOut <- merge(ppt_summaryV2, near5[,c('Station_ID','site_code','Distance','elev_diff')],by.y=c('site_code','Station_ID'),by.x=c('site_code','id'),all.x=T,all.y=F)
+precipOut <- precipOut[!precipOut$site_code %in% bad_sitesV2,]
+
+#write.csv(precipOut,file.path(path,'IDE Site Info/GHCN MAP-CV data 20190521.csv'))

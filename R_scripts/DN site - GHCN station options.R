@@ -70,12 +70,12 @@ problemSites <- na.omit(problemSites)
 near5[near5$site_code == problemSites[1],]
 #### 7th nearest station to Stubai is 82 km away but has lowest elev diff (12 m higher)
 newStation <- rbind(newStation, data.frame(site_code=problemSites[1],
-                                           Station_ID = near5[near5$site_code == problemSites[2] & near5$rank==7,]$Station_ID))
+                                           Station_ID = near5[near5$site_code == problemSites[1] & near5$rank==7,]$Station_ID))
 
 near5[near5$site_code == problemSites[2],]
 #### 3rd nearest station to Hong doubles distance (136 v 65) but lowers elevation diff to 59 m
-newStation <- rbind(newStation, data.frame(site_code=problemSites[2],
-                                           Station_ID = near5[near5$site_code == problemSites[2] & near5$rank==3,]$Station_ID))
+#newStation <- rbind(newStation, data.frame(site_code=problemSites[2],
+#                                           Station_ID = near5[near5$site_code == problemSites[2] & near5$rank==3,]$Station_ID))
 
 near5[near5$site_code == problemSites[3],]
 #### 5th nearest station to Validate reduces elevation difference to 10 m (big increase in distance though - 12km to 157km)
