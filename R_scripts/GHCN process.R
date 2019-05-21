@@ -106,5 +106,11 @@ pptNA <- precipFull %>%
   summarise(nacount = sum(is.na(ppt))) %>% 
   arrange(desc(nacount))
 
+
+
 pptNA <- merge(pptNA,data.frame(months=tapply(precipFull$id,precipFull$site_code,'length')),by.x='site_code',by.y=0)
 
+pptNA$percentNA <- with(pptNA, nacount/months)
+### list of weather stations to omit
+sitesNA <- pptNA[pptNA$percentNA > 0.1, ]$site_code
+sitesNA
