@@ -1,5 +1,5 @@
 ############################################################################
-######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE CV ACROSS YEAR #######
+######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE HISTORICAL CV AND MAP ACROSS AT LEAST 30 YEARS #######
 ############################################################################
 
 library(rnoaa)
