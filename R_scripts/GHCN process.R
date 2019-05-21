@@ -40,7 +40,7 @@ precip <- NULL
 for(i in 1:nrow(nearest_df)){
   staID <- as.character(nearest_df[i,'id'])
   sc <- as.character(nearest_df[i,'site_code'])
-  
+  distance <- as.numeric(as.character(nearest_df[i,'distance']))
   tmp <- ghcnd(staID)
 
   tmp <- tmp[tmp$element == 'PRCP',]
@@ -53,7 +53,7 @@ for(i in 1:nrow(nearest_df)){
   dfOut <- tmp[,c('id','year','month')]
   dfOut$ppt <- mSums/10
   dfOut$site_code <- sc
-  
+  dfOut$distance <- distance
   # tmp3 <- tmp[,c('id','year','month')]
   # 
   # tmp4 <- cbind(dVal,tmp3$total)
@@ -63,7 +63,15 @@ for(i in 1:nrow(nearest_df)){
 }
 
 precipFull <- precip
+
+#### retain only records from the last 100 years prior to beginning of DN
+precip <- precipFull[precipFull$year >= 1915,]
+
+### remove months with NA for now
 precip <- na.omit(precip)
+
+precip
+
 precipAgg <- aggregate(list(ppt = precip$ppt),by=list(site_code = precip$site_code,year=precip$year),FUN='sum')
 MAP <- aggregate(list(MAP = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='mean', na.action = na.omit)
 
@@ -81,4 +89,9 @@ pptNA <- precipFull %>% group_by(site_code) %>%
   arrange(desc(nacount))
 
 pptNA <- merge(pptNA,data.frame(months=tapply(precipFull$id,precipFull$site_code,'length')),by.x='site_code',by.y=0)
+
+pptNA$percentNA <- pptNA$nacount/pptNA$months
+
+### list of weather stations to omit
+sitesNA <- pptNA[pptNA$percentNA > 0.1,]$site_code
 
