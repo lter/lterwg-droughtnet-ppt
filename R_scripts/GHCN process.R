@@ -20,7 +20,7 @@ colnames(site) <- c('id','lat','long')
 #write.csv(stations,'GHCND_Stations.csv')
 
 # un-comment to load csv:
-# stations <- read.csv('~/IDE/data/GHCND_Stations.csv', as.is = TRUE)
+# stations <- read.csv('C:/Users/peter/Dropbox/IDE Meeting_May2019/IDE Site Info/GHCND_Stations.csv', as.is = TRUE)
 # stations$X <- NULL # unnecessary column created in csv
 
 stationsPpt <- stations[stations$element == 'PRCP',]
@@ -75,10 +75,16 @@ for(i in 1:nrow(nearest_df)){
 
 precipFull <- precip
 precip <- na.omit(precip)
+
+# annual precip by year and site
 precipAgg <- aggregate(list(ppt = precip$ppt),by=list(site_code = precip$site_code,year=precip$year),FUN='sum')
+
+# mean annual precip by site
 MAP <- aggregate(list(MAP = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='mean', na.action = na.omit)
 
 CV <- function(x) sd(x)/mean(x) * 100
+
+# interannual CV
 pptCV <- aggregate(list(CV = precipAgg$ppt),by=list(site_code = precipAgg$site_code),FUN='CV')
 
 dfPpt <- merge(MAP,pptCV,by='site_code')
@@ -87,7 +93,10 @@ dfPpt <- merge(MAP,pptCV,by='site_code')
 plot(dfPpt$CV~dfPpt$MAP)
 
 sum(tapply(precip$year,precip$site_code,'max') >= 2016)
-pptNA <- precipFull %>% group_by(site_code) %>% 
+
+# the number of months where precip is NA
+pptNA <- precipFull %>% 
+  group_by(site_code) %>% 
   summarise(nacount = sum(is.na(ppt))) %>% 
   arrange(desc(nacount))
 
