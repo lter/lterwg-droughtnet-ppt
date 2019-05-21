@@ -22,13 +22,12 @@ site <- site[,c('site_code','lat','long')]
 colnames(site) <- c('id','lat','long')
 
 # pull list of all GHCND stations (takes a while to run)
-#stations <- ghcnd_stations()
+#stations <- ghcnd_stations() #
 
 #write.csv(stations, file.path(path, 'IDE Site Info/GHCND_Stations.csv'))
 
-# un-comment to load csv:
-stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), 
-                     as.is = TRUE)
+# load csv:
+stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), as.is = TRUE)
 
 stations$X <- NULL # unnecessary column created in csv
 
