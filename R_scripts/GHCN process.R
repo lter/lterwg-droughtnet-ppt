@@ -9,7 +9,6 @@ library(lubridate)
 source('R_scripts/functions.R')
 CV <- function(x) sd(x)/mean(x) * 100
 
-
 # path to data folders
 path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
 
@@ -126,7 +125,7 @@ good_sites <- ppt_summary$site_code[ppt_summary$n_good_yrs > 30]
 # sites with not sufficient good years
 bad_sites <- site$id[!site$id %in% good_sites]
 
-
+saveRDS(bad_sites, "site_names_needWx_data.rds")
 #write.csv(ppt_summary, file.path(path, 'IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190521.csv'))
 
 
