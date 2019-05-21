@@ -73,7 +73,7 @@ newStation <- rbind(newStation, data.frame(site_code=problemSites[1],newStation 
 
 near5[near5$site_code == problemSites[2],]
 #### 3rd nearest station to Hong doubles distance (136 v 65) but lowers elevation diff to 59 m
-newStation <- rbind(newStation, data.frame(site_code=problemSites[1],newStation = 'ITM00016008'))
+newStation <- rbind(newStation, data.frame(site_code=problemSites[1],newStation = near5[near5$site_code == problemSites[2] & ra,]))
 
 
 near5[near5$site_code == 'stubai.at',]
