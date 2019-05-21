@@ -2,20 +2,22 @@
 ######## EXTRACT CLIMATE DATA FROM HGCN AND CALCULATE CV ACROSS YEAR #######
 ############################################################################
 
-# path to data folders
-path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
-
-# site locations
-site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'))
-
-# function(s) used below
-source('R_scripts/functions.R')
-
 library(rnoaa)
 library(tidyverse)
 library(lubridate)
 
+source('R_scripts/functions.R')
 CV <- function(x) sd(x)/mean(x) * 100
+
+
+# path to data folders
+path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
+
+# site locations
+site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), as.is = TRUE)
+
+# function(s) used below
+
 
 site <- site[,c('site_code','lat','long')]
 colnames(site) <- c('id','lat','long')
@@ -121,10 +123,11 @@ hist(ppt_summary$n_good_yrs)
 # sites with good wx data
 good_sites <- ppt_summary$site_code[ppt_summary$n_good_yrs > 30]
 
-bad_sites <- site$id !%in%
+# sites with not sufficient good years
+bad_sites <- site$id[!site$id %in% good_sites]
 
 
 #write.csv(ppt_summary, file.path(path, 'IDE Site Info/GHCN MAP-CV data PRELIMINARY 20190521.csv'))
 
-# sites with no "good" years
+
 
