@@ -36,7 +36,7 @@ stationsPpt <- stations[stations$element == 'PRCP',]
 stationsPpt <- stationsPpt[stationsPpt$first_year <= 1970 & stationsPpt$last_year >= 2000,]
 
 ### select the five nearest stations
-nearStation <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',station_data = stationsPpt,limit=5)
+nearStation <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',station_data = stationsPpt,limit=10)
 
 # convert to data.frame
 near5 <- NULL
@@ -68,12 +68,55 @@ newStation <- NULL  ### create empty object to add new stations to
 
 problemSites <- na.omit(problemSites)
 near5[near5$site_code == problemSites[1],]
-#### 5th nearest station to Stubai is 72 km away but has lowest elev diff (359 m lower)
-newStation <- rbind(newStation, data.frame(site_code=problemSites[1],newStation = 'ITM00016008'))
+#### 7th nearest station to Stubai is 82 km away but has lowest elev diff (12 m higher)
+newStation <- rbind(newStation, data.frame(site_code=problemSites[1],
+                                           newStation = near5[near5$site_code == problemSites[2] & near5$rank==7,]$Station_ID))
 
 near5[near5$site_code == problemSites[2],]
 #### 3rd nearest station to Hong doubles distance (136 v 65) but lowers elevation diff to 59 m
-newStation <- rbind(newStation, data.frame(site_code=problemSites[1],newStation = near5[near5$site_code == problemSites[2] & ra,]))
+newStation <- rbind(newStation, data.frame(site_code=problemSites[2],
+                                           newStation = near5[near5$site_code == problemSites[2] & near5$rank==3,]$Station_ID))
+
+near5[near5$site_code == problemSites[3],]
+#### 5th nearest station to Validate reduces elevation difference to 10 m (big increase in distance though - 12km to 157km)
+newStation <- rbind(newStation, data.frame(site_code=problemSites[3],
+                                           newStation = near5[near5$site_code == problemSites[3] & near5$rank==5,]$Station_ID))
+
+near5[near5$site_code == problemSites[4],]
+#### No appreciable differences in elevation in 10 nearest stations. Don't add new station, first station is 879 m lower though!
+#newStation <- rbind(newStation, data.frame(site_code=problemSites[3],
+#                                           newStation = near5[near5$site_code == problemSites[3] & near5$rank==5,]$Station_ID))
+#### CONTACT PINETA.ES ABOUT BETTER STATION OPTION ####
+
+near5[near5$site_code == problemSites[5],]
+#### No appreciable differences in elevation in 10 nearest stations. Don't add new station, first station is 1003 m lower though!
+#newStation <- rbind(newStation, data.frame(site_code=problemSites[3],
+#                                           newStation = near5[near5$site_code == problemSites[3] & near5$rank==5,]$Station_ID))
+#### CONTACT TORLA.ES ABOUT BETTER STATION OPTION ####
+
+near5[near5$site_code == problemSites[6],]
+#### 8th nearest station to Passogavia reduces elevation difference to 179 m (132 km away)
+newStation <- rbind(newStation, data.frame(site_code=problemSites[6],
+                                           newStation = near5[near5$site_code == problemSites[6] & near5$rank==8,]$Station_ID))
+
+near5[near5$site_code == problemSites[7],]
+#### No appreciatvle improvement in elevation for QDTNORTH and elev difference is JUST on the cusp anyways (535 m)
+#newStation <- rbind(newStation, data.frame(site_code=problemSites[6],
+#                                           newStation = near5[near5$site_code == problemSites[6] & near5$rank==8,]$Station_ID))
+
+near5[near5$site_code == problemSites[8],]
+#### No appreciatvle improvement in elevation for QDTSOUTH and elev difference is JUST on the cusp anyways (535 m)
+#newStation <- rbind(newStation, data.frame(site_code=problemSites[6],
+#                                           newStation = near5[near5$site_code == problemSites[6] & near5$rank==8,]$Station_ID))
+
+near5[near5$site_code == problemSites[9],]
+#### 10th nearest station to Prades reduces elevation difference to 179 m but increases distance to > 200 km, no other good options
+#### CONTACT PRADES.ES ABOUT BETTER STATION OPTION ####
+
+near5[near5$site_code == problemSites[10],]
+#### 5th nearest station to Validate reduces elevation difference to 10 m (big increase in distance though - 12km to 157km)
+newStation <- rbind(newStation, data.frame(site_code=problemSites[3],
+                                           newStation = near5[near5$site_code == problemSites[3] & near5$rank==5,]$Station_ID))
 
 
 near5[near5$site_code == 'stubai.at',]
