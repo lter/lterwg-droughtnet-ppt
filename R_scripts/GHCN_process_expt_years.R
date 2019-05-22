@@ -1,5 +1,5 @@
 ###############################################################
-# GHCN data for experiment years (i.e. >= 2014)
+# GHCN data for experiment years (e.g.) >= 2014 in most cases)
 ##############################################################
 
 library(rnoaa)
@@ -26,6 +26,7 @@ stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), as.is 
 
 stations$X <- NULL # unnecessary column created in csv
 
+# note: one site started in 1999 and this filter doesn't account for that. 
 stationsPpt <- stations %>% 
   filter(element == "PRCP", first_year <= 2013, last_year > 2013)
 
@@ -63,12 +64,12 @@ precip <- ghcn_download_parse(nearest_df, return_list = TRUE)
 
 precipFull <- lapply(precip, ghcn_parse_dates)
 
-# pseudo code:
+# pseudo code for next section:
 # for a given weather station (data frame in the list)
 # check if pre-treatment year and first treatment year have good data
 # if yes, all good, move one.
 # if no, return data from the next closest site
-# repeat check, iterate for closest 5 stations?
+# repeat check, iterate for closest 5 stations(?)
 
 precipFull2 <- lapply(precipFull, function(df){
   sc <- df$site_code[1]
@@ -115,14 +116,41 @@ precipFull2 <- lapply(precipFull, function(df){
   NULL
 })
 
-sapply(precipFull2, is.null) %>% 
-  sum()
+precipFull3 <- bind_rows(precipFull2)
 
-ppt_summary <- ppt_annual2 %>% 
-  group_by(id, site_code) %>% 
-  summarize(n_good_yrs = n(), # number of good years per stations
-            year_start = min(year), # first "good year"
-            year_end = max(year),# last good year
-            map = mean(ap)) %>% 
-  arrange(desc(n_good_yrs))
+# for each site, get distance to the chosen station (in precipFull2)
+# and elevetion of the chosen station
+precip <- precipFull2[["cedarsav.us"]]
+near <- nearStation2[["cedarsav.us"]]
+
+station_distances <- map2(precipFull2, nearStation2,
+                          function(precip, near){
+  
+  if(!is.data.frame(precip)){
+    return(NULL)
+  }
+
+  if(nrow(precip) == 0){
+    return(NULL)
+  } # if no data
+  print(precip$site_code[1])  
+  # error check:
+  stopifnot(length(unique(precip$id)) == 1,
+            length(unique(precip$site_code)) == 1)
+  
+
+  df <- precip[1, ] %>% 
+    select(id, site_code) %>% 
+    left_join(near, by = c("id", "site_code")) %>% # adding info from near station chose
+    select(-c(name, latitude, longitude))
+  df
+})
+
+station_distances2 <- bind_rows(station_distances)
+station_distances2 %>% 
+  filter(distance < 100) %>% 
+  nrow()
+
+
+
 
