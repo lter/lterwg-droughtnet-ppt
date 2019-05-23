@@ -219,11 +219,14 @@ bad_sitesV2
 bad_sitesV2[!bad_sitesV2 %in% bad_sites]  #### two sites where we changed elevation are now 'bad' that weren't before
 bad_sites[!bad_sites %in% bad_sitesV2]  #### nine sites were removed from 'bad' list
 
+### add sites that had big elevation problems with no solution
+bad_sitesV2 <- c(bad_sitesV2,'torla.es','pineta.es','prades.es')
 
 #### reload site to get to site names
 sites <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), as.is = TRUE)
 
 sitesNoClim <- sites[sites$site_code %in% bad_sitesV2,]
+#write.csv(sitesNoClim,file.path(path, 'IDE Site Info/Sites missing climate data.csv'))
 
 ##### Add in elevation and distance to nearest climate station THIS PULLS FROM OBJECT CREATED IN SCRIPT "DN site - GHCN station options"
 ##### and export sites that we feel comfortable with the data
