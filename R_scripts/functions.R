@@ -19,25 +19,6 @@ sum_na <- function(x, num_nas = 15) {
   sum(x, na.rm = TRUE)
 }
 
-# make date ---------------------------------------------------------------
-
-date_make <- function(year, month, day_of_month) {
-  # args:
-  #   year (integer)
-  #   month (integer)
-  #   day_of_month (integer)
-  # returns:
-  #   date (or NA, if aren't that many days in the month)
-  # (doesn't account for leap years)
-  days <- c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-  max_day <- days[month]
-  if(day_of_month > max_day) {
-    return(NA)
-  }
-  date <- paste(year, month, day_of_month, sep = "-") %>% 
-    ymd()
-  date
-}
 
 
 # convert ghcn data to long form ------------------------------------------
@@ -74,7 +55,7 @@ ghcn_download_parse <- function(df, return_list = FALSE) {
   if (return_list) {
     precip <- list()
   }
-  for(i in 1:nrow(nearest_df)){
+  for (i in 1:nrow(nearest_df)){
     staID <- as.character(nearest_df[i,'id'])
     sc <- as.character(nearest_df[i,'site_code'])
     
@@ -103,7 +84,7 @@ ghcn_parse_dates <- function(df) {
   #   data frame (with only real dates)
   df %>% 
     arrange(site_code, year, month, day_of_month) %>% 
-    mutate(date = make_date(year, month, day_of_month),
+    mutate(date = lubridate::make_date(year, month, day_of_month),
            ppt = ppt/10) %>% # convert 10ths of mm to mm
     filter(!is.na(date)) # e.g 30th day of february
 }
@@ -121,9 +102,10 @@ good_days_per_yr <- function(df, good_days = 334) {
   #   data frame including number of good (non NA) precip measurements per year
   out <- df %>% 
     group_by(id, site_code, year) %>% 
-    summarise(n_days = n(),# number of rows per year/site (number of observations (missing data or not))
+    # number of rows per year/site (number of observations (missing data or not))
+    summarise(n_days = n(),
               n_NA = sum(is.na(ppt)), # number of days with missing data
-              ap = sum(ppt, na.rm = TRUE) #annual precipitation
+              ap = sum(ppt, na.rm = TRUE) # annual precipitation
     ) %>% 
     mutate(n_good = n_days - n_NA,
            is_good = ifelse(n_good > good_days, TRUE, FALSE))

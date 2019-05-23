@@ -1,60 +1,123 @@
 ###############################################################
-# GHCN data for experiment years (e.g.) >= 2014 in most cases)
+# GHCN data for experiment years (e.g.) >= 2013 in most cases)
 ##############################################################
+
+
+# dependencies ------------------------------------------------------------
 
 library(rnoaa)
 library(tidyverse)
 library(lubridate)
 library(purrr)
 
-
-# functions used in this script (an others)
-source('R_scripts/functions.R')
-source("R_scripts/biomass_get_dates.R")
+source('R_scripts/functions.R') # functions used in script
+source("R_scripts/biomass_get_dates.R") # biomass dates
 
 # path to data folders
 path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
 
-# site locations
-site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), as.is = TRUE)
+# parse site elevation ----------------------------------------------------
+
+siteElev <-read.csv(file.path(path, 'IDE Site Info/Site_Elev-Disturb.csv'),
+                    as.is = TRUE)
+siteElev2 <- siteElev %>% 
+  select(site_code, elev)
+
+# one site (ethadb.au) has no elevation
+siteElev2 %>% 
+  arrange(desc(elev))
+
+# load site locations -----------------------------------------------------
+
+site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), 
+                 as.is = TRUE)
 
 site <- site[,c('site_code','lat','long')]
-colnames(site) <- c('id','lat','long')
+colnames(site) <- c('id','lat','long') # names used for library(rnoaa) function
 
-# load csv:
-stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), as.is = TRUE)
+# load station data -------------------------------------------------------
+
+stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), 
+                     as.is = TRUE)
 
 stations$X <- NULL # unnecessary column created in csv
 
-# note: one site started in 1999 and this filter doesn't account for that. 
+# extract closest n stations to each site ---------------------------------
+
+# note: one site started in 1999 and this filter doesn't account for that.
+# (though can likely still find data for it)
+
 stationsPpt <- stations %>% 
   filter(element == "PRCP", first_year <= 2013, last_year > 2013)
 
-nearStation <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',station_data = stationsPpt,limit = 5)
+# stations within 100 km of each site
+nearStation0 <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long',
+                                      station_data = stationsPpt, var = "PRCP", 
+                                      radius = 100)
+near <- nearStation0[[1]]
+site_code <- names(nearStation0)[1]
 
-# adding rank of nearest stations (ranked by distance)
-names <- names(nearStation)
-nearStation2 <- map2(nearStation, names, function(df, y){
-  df %>% 
-    arrange(distance) %>% 
-    mutate(rank = 1:nrow(df),
-           site_code = y)
+
+# adding station and site elevation to all stations within 100km of a given site.
+stations_elev <- stations %>% 
+  select("id", "name", "elevation")
+
+nearStation0b <- map2(nearStation0, names(nearStation0), 
+                      function(near, site_code){
+                      out <- near %>% 
+                        # add in station elevation
+                        left_join(y = stations_elev, 
+                                  by = c("id", "name")) %>% 
+                        select(names(near), elevation) %>% 
+                        rename(station_elevation = elevation) %>% 
+                        mutate(site_code = site_code) %>% 
+                        # add in site elevation
+                        left_join(siteElev2, by = "site_code") %>% 
+                        rename(site_elevation = elev) %>% 
+                        mutate(diff_elevation = site_elevation - station_elevation) %>% 
+                        distinct() # discard duplicated rows (not sure why occur)
+                      
+                      out
+                    })
+
+# number of sites that have stations within 100km
+(sapply(nearStation0b, nrow) > 0) %>% 
+  sum()
+
+# filter out stations 500m higher/lower than site.
+
+nearStation <- lapply(nearStation0b, function(df){
+  out <- df %>%
+    # keeping site where elevation not given.
+    filter(abs(diff_elevation) < 500 | is.na(diff_elevation))
+  out
 })
 
+# number of sites that have stations within 100km and 500m elevation
+(sapply(nearStation, nrow) > 0) %>% 
+  sum()
+
+# adding rank of nearest stations (ranked by distance)
+nearStation2 <- lapply(nearStation, function(df){
+  if(nrow(df) == 0){
+    return(NULL)
+  }
+  df %>% 
+    arrange(distance) %>% 
+    # rank is nothing if no rows
+    mutate(rank = 1:nrow(df))
+})
+
+nearStation2_df <- bind_rows(nearStation2) # used later for joining distance data
 # extracting just the nearest station for each site
-nearest <- lapply(nearStation, function(x){
-  x[1, ]
+nearest <- lapply(nearStation, function(df){
+  if(nrow(df) == 0){
+    return(NULL)
+  }
+  df[1, ]
 })
 
 nearest_df <- bind_rows(nearest)
-nearest_df$site_code <- names(nearest)
-
-nearest_df[nearest_df$distance > 100,]
-
-nearest_df[nearest_df$distance < 20,]
-
-#nearest_test <- nearest_df[1:5,]
-
 
 # for each site, getting data from nearest station
 
@@ -64,20 +127,26 @@ precip <- ghcn_download_parse(nearest_df, return_list = TRUE)
 
 precipFull <- lapply(precip, ghcn_parse_dates)
 
-# pseudo code for next section:
+# code for next section:
 # for a given weather station (data frame in the list)
 # check if pre-treatment year and first treatment year have good data
 # if yes, all good, move one.
 # if no, return data from the next closest site
-# repeat check, iterate for closest 5 stations(?)
+# repeat check, iterate for next closest stations 
 
 precipFull2 <- lapply(precipFull, function(df){
+  # error checking
+  stopifnot(length(unique(df$site_code)) == 1)
+  
   sc <- df$site_code[1]
+  print(sc)
   # data on when biomass measured (from biomass_get_dates.R file)
   yrs_site <- trt_yrs %>% 
     filter(site_code == sc)
   # vector of years during which measurements taken
   years <- yrs_site$pre_treatment_year:yrs_site$last_year
+  
+  if(length(years) == 1) message("file indicates only getting 1 year data")
   
   # only precip data for when biomass measured
   df2 <- df %>% 
@@ -85,16 +154,26 @@ precipFull2 <- lapply(precipFull, function(df){
   
   annual <- good_days_per_yr(df2)
   
-  # checking if pre treat yr and first trt year are good
+  # most important years are the pre treat years, first treat year, and 
+  #   second treat year if it exists, so dataset must be good for those years
+  important_years <- if(length(years) <= 2){
+    years
+  } else {
+    years[1:3]
+  }
   is_good <- annual %>%
-    filter(year %in% years[1:2]) %>% 
+    filter(year %in% important_years) %>% 
     .$is_good
   
-  
   if(all(is_good)){
-    return(df2)
+    return(df2) # return the good station data
+    
+  } else if(nrow(nearStation2[[sc]]) < 2) {
+    
+    return(NULL) # if no additional stations to look for
+  
   } else {
-    # nearest stations (closest one already checked above)
+    # next nearest stations (closest one already checked above)
     near <- nearStation2[[sc]] 
     for (i in 2:nrow(near)){
       tmp1 <- ghcn_download_parse(near[i, ], return_list = FALSE) 
@@ -106,7 +185,7 @@ precipFull2 <- lapply(precipFull, function(df){
       
       # checking if pre treat yr and first trt year are good
       is_good <- annual %>%
-        filter(year %in% years[1:2]) %>% 
+        filter(year %in% important_years) %>% 
         .$is_good
       if(all(is_good)){
         return(tmp3)
@@ -118,39 +197,15 @@ precipFull2 <- lapply(precipFull, function(df){
 
 precipFull3 <- bind_rows(precipFull2)
 
-# for each site, get distance to the chosen station (in precipFull2)
-# and elevetion of the chosen station
-precip <- precipFull2[["cedarsav.us"]]
-near <- nearStation2[["cedarsav.us"]]
+# names of sites that have data from a station within 100 km
+precipFull3$site_code %>% 
+  unique()
+ 
+# add back info on distance/elevation to station 
+precipFull4 <- nearStation2_df %>% 
+  select(id, site_code, distance, matches("elevation")) %>% 
+  right_join(precipFull3, by = c("id", "site_code"))
 
-station_distances <- map2(precipFull2, nearStation2,
-                          function(precip, near){
-  
-  if(!is.data.frame(precip)){
-    return(NULL)
-  }
-
-  if(nrow(precip) == 0){
-    return(NULL)
-  } # if no data
-  print(precip$site_code[1])  
-  # error check:
-  stopifnot(length(unique(precip$id)) == 1,
-            length(unique(precip$site_code)) == 1)
-  
-
-  df <- precip[1, ] %>% 
-    select(id, site_code) %>% 
-    left_join(near, by = c("id", "site_code")) %>% # adding info from near station chose
-    select(-c(name, latitude, longitude))
-  df
-})
-
-station_distances2 <- bind_rows(station_distances)
-station_distances2 %>% 
-  filter(distance < 100) %>% 
-  nrow()
-
-
-
-
+# write.csv(precipFull4,
+#           file.path(path, 'IDE Site Info/GHCN_daily_precip_preliminary20190522.csv'),
+#           row.names = FALSE)
