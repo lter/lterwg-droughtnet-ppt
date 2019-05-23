@@ -129,10 +129,11 @@ precipFull <- lapply(precip, ghcn_parse_dates)
 
 # code for next section:
 # for a given weather station (data frame in the list)
-# check if pre-treatment year and first treatment year have good data
-# if yes, all good, move one.
+# check if pre-treatment year and first treatment yr and 2nd year are present and have good data
+# if yes, all good, move one return those three important years, (and following years if the data is present, regardless of whether is is complete)
 # if no, return data from the next closest site
-# repeat check, iterate for next closest stations 
+# repeat check, iterate for next closest stations (all those within 100km)
+
 
 precipFull2 <- lapply(precipFull, function(df){
   # error checking
@@ -164,8 +165,10 @@ precipFull2 <- lapply(precipFull, function(df){
   is_good <- annual %>%
     filter(year %in% important_years) %>% 
     .$is_good
+  # are all the important years in the df?
+  important_years_present <- important_years %in% df2$year 
   
-  if(all(is_good)){
+  if(all(is_good, important_years_present)){
     return(df2) # return the good station data
     
   } else if(nrow(nearStation2[[sc]]) < 2) {
@@ -176,10 +179,11 @@ precipFull2 <- lapply(precipFull, function(df){
     # next nearest stations (closest one already checked above)
     near <- nearStation2[[sc]] 
     for (i in 2:nrow(near)){
+      # download data
       tmp1 <- ghcn_download_parse(near[i, ], return_list = FALSE) 
-      tmp2 <- ghcn_parse_dates(tmp1)
+      tmp2 <- ghcn_parse_dates(tmp1) # parse
       tmp3 <- tmp2 %>% 
-        filter(year %in% years) 
+        filter(year %in% years) # filter years for experiment
       
       annual <- good_days_per_yr(tmp3)
       
@@ -187,7 +191,9 @@ precipFull2 <- lapply(precipFull, function(df){
       is_good <- annual %>%
         filter(year %in% important_years) %>% 
         .$is_good
-      if(all(is_good)){
+      # are the important years present
+      important_years_present <- important_years %in% tmp3$year
+      if(all(is_good, important_years_present)){
         return(tmp3)
       }
     }
@@ -206,6 +212,6 @@ precipFull4 <- nearStation2_df %>%
   select(id, site_code, distance, matches("elevation")) %>% 
   right_join(precipFull3, by = c("id", "site_code"))
 
-# write.csv(precipFull4,
-#           file.path(path, 'IDE Site Info/GHCN_daily_precip_preliminary20190522.csv'),
-#           row.names = FALSE)
+write.csv(precipFull4,
+          file.path(path, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
+          row.names = FALSE)
