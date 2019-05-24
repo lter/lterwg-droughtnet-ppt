@@ -19,11 +19,11 @@ bio1 <- read.csv(file.path(path, "Full biomass\\full_biomass_5-21-2019.csv"),
 # pozos.ar doesn't have biomass date. 
 # neudamm.na, only has pretreatment data
 trt_yrs <- bio1 %>% 
-  # parse date string
-  mutate(biomass_date = str_extract(biomass_date, "^[-[:digit:]]+"),
-         biomass_date = ymd(biomass_date),
-         first_treatment_date = str_extract(first_treatment_date, "^[-[:digit:]]+"),
-         first_treatment_date = ymd(first_treatment_date)) %>% 
+  # parse date string (not working)
+  # mutate(biomass_date = str_replace(biomass_date, "/n", ""),
+  #        biomass_date = parse_date(biomass_date),
+  #        first_treatment_date = str_replace(first_treatment_date, "/n", ""),
+  #        first_treatment_date = parse_date(first_treatment_date)) %>% 
   group_by(site_code) %>% 
   summarise(first_treatment_year = min(first_treatment_year),
             pre_treatment_year = first_treatment_year - 1,
