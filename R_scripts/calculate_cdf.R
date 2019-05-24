@@ -110,7 +110,7 @@ for (i in 1:nrow(site_ppt2)){
   if(is.null(f)){
     stop(paste("no tpa data was available for:", site_code))
   }
-  site_ppt2$percentile[i] <- f(ppt)
+  site_ppt2$percentile[i] <- f(ppt)*100 # convert quantile to percentile
 }
 
 site_ppt2$X <- NULL
@@ -122,7 +122,7 @@ site_ppt2$X <- NULL
 # one for drt percentile one for control percentile
 # on row for each site/year
 site_perc_wide <- site_ppt2 %>% 
-  select(-(ppt)) %>% 
+  dplyr::select(-ppt) %>% 
   nest(trt, percentile, .key = "data") %>% 
   mutate(data = map(data, spread, key = "trt", value = "percentile")) %>% 
   unnest() %>% 
@@ -130,7 +130,7 @@ site_perc_wide <- site_ppt2 %>%
 
 # making two columns (drt/control) for annual precip
 site_ppt_wide <- site_ppt2 %>% 
-  select(-(percentile)) %>% 
+  dplyr::select(-percentile) %>% 
   nest(trt, ppt, .key = "data") %>% 
   mutate(data = map(data, spread, key = "trt", value = "ppt")) %>% 
   unnest() %>% 
@@ -153,8 +153,8 @@ g1 <- ggplot(site_wide) +
   theme(plot.title = element_text(size = 13))
 
 # saves following figures (those before dev.off())
-pdf(file.path(path, "IDE Site Info/Plots/trmt_vs_drt_precip20190524.pdf"), 
-    height = 5, width = 8)
+# pdf(file.path(path, "IDE Site Info/Plots/trmt_vs_drt_precip20190524.pdf"), 
+#     height = 5, width = 8)
 
 # ctrl vs drt percentiles
 g1 + 
