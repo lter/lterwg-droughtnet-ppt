@@ -70,6 +70,11 @@ for(i in unique(siteBio$site_code)){
     bioTmp[bioTmp$year == j & bioTmp$site_code == i,]$nTrtYr <- x
       }
   
+  preDat1 <- unique(bioTmp[bioTmp$nTrtYr == 0,]$bioDat)
+  preDat1 <- max(preDat1)
+  preDat0 <- max(preDat1) - dyears(1)
+  
+  
   bioDat1 <- unique(bioTmp[bioTmp$nTrtYr == 1,]$bioDat)
   ### take latest date for sites with multiple sample dates
   bioDat1 <- max(bioDat1)
