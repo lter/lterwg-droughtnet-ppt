@@ -129,12 +129,13 @@ precipFull <- lapply(precip, ghcn_parse_dates)
 
 # code for next section:
 # for a given weather station (data frame in the list)
-# check if pre-treatment year and first treatment yr and 2nd year are present and have good data
+# check if pre-treatment year (and year before that) and first treatment yr and 2nd treat year are present and have good data
+# (i.e. 4 years)
 # if yes, all good, move one return those three important years, (and following years if the data is present, regardless of whether is is complete)
 # if no, return data from the next closest site
 # repeat check, iterate for next closest stations (all those within 100km)
 
-
+# note kiskun.hu met data problematic (years with 0 precip, but not NAs)
 precipFull2 <- lapply(precipFull, function(df){
   # error checking
   stopifnot(length(unique(df$site_code)) == 1)
@@ -144,8 +145,9 @@ precipFull2 <- lapply(precipFull, function(df){
   # data on when biomass measured (from biomass_get_dates.R file)
   yrs_site <- trt_yrs %>% 
     filter(site_code == sc)
-  # vector of years during which measurements taken
-  years <- yrs_site$pre_treatment_year:yrs_site$last_year
+  # vector of years during which measurements taken, 
+  # plus year before pre-treatment
+  years <- (yrs_site$pre_treatment_year-1):yrs_site$last_year
   
   if(length(years) == 1) message("file indicates only getting 1 year data")
   
@@ -157,10 +159,10 @@ precipFull2 <- lapply(precipFull, function(df){
   
   # most important years are the pre treat years, first treat year, and 
   #   second treat year if it exists, so dataset must be good for those years
-  important_years <- if(length(years) <= 2){
+  important_years <- if(length(years) <= 3){
     years
   } else {
-    years[1:3]
+    years[1:4]
   }
   is_good <- annual %>%
     filter(year %in% important_years) %>% 
@@ -212,6 +214,15 @@ precipFull4 <- nearStation2_df %>%
   select(id, site_code, distance, matches("elevation")) %>% 
   right_join(precipFull3, by = c("id", "site_code"))
 
-write.csv(precipFull4,
-          file.path(path, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
-          row.names = FALSE)
+# write.csv(precipFull4,
+#           file.path(path, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
+#           row.names = FALSE)
+
+# data check (comparing to mannualy calculated values)
+hw <- precipFull4 %>% 
+  filter(site_code == "hard.us") %>% 
+  group_by(year) %>% 
+  summarize(ap = sum(ppt, na.rm = TRUE))
+
+
+  
