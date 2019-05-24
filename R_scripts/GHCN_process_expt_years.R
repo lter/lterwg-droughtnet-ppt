@@ -180,7 +180,9 @@ precipFull2 <- lapply(precipFull, function(df){
   } else {
     # next nearest stations (closest one already checked above)
     near <- nearStation2[[sc]] 
-    for (i in 2:nrow(near)){
+    
+    # start at row 2 b/ row 1 (closes station), already pulled above
+    for (i in 2:nrow(near)){ 
       # download data
       tmp1 <- ghcn_download_parse(near[i, ], return_list = FALSE) 
       tmp2 <- ghcn_parse_dates(tmp1) # parse
