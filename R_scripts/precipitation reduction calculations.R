@@ -33,9 +33,9 @@ siteBio$trtDat <- as.POSIXct(siteBio$first_treatment_date,format = '%m/%d/%Y')
 #### some sites are randomly in other format
 siteBio[is.na(siteBio$trtDat),]$trtDat <- as.POSIXct(siteBio[is.na(siteBio$trtDat),]$first_treatment_date,format = '%Y-%m-%d')
 
-#### Rewrite number of treatment days based on n_treat_days
+#### Rewrite number of treatment years based on n_treat_days for early years
 
-siteBio$nTrtYr <- 0
+siteBio$nTrtYr <- siteBio$n_treat_years
 siteBio$nTrtYr <- ifelse(siteBio$n_treat_days < 370 & siteBio$n_treat_days >= 30, 1, siteBio$nTrtYr) #### slight extension to ensure sites have a 'year 1' - some are a few days past 365 for firsts sampling
 siteBio$nTrtYr <- ifelse(siteBio$n_treat_days < 731 & siteBio$n_treat_days >= 370, 2, siteBio$nTrtYr) #### slight extension to ensure sites have a 'year 2' - one site at 730 for firsts sampling
 #### call everything past 3, 3 for now as we're only working with first two treatment years
@@ -56,8 +56,9 @@ siteBio <- siteBio[!is.na(siteBio$bioDat),]
 
 
 ### calculate reduction per site in for loop
-reduct <- NULL
-ppt_by_trt <- NULL
+reduct <- NULL  ### data frame for holding treatment effect - precipitation reduction
+ppt_by_trt <- NULL ### data frame for holding precipitation amount in first two treatment years for drought and ctrl
+pptAmb <- NULL ### data frame for holding ambient precipitation 12 months prior to every sampling date
 for(i in unique(siteBio$site_code)){
   precipTmp <- precip[precip$site_code == i,]
   bioTmp <- siteBio[siteBio$site_code == i,]
@@ -68,12 +69,15 @@ for(i in unique(siteBio$site_code)){
     x <- bioTmp[bioTmp$year == j,]$nTrtYr
     x <- min(x)
     bioTmp[bioTmp$year == j & bioTmp$site_code == i,]$nTrtYr <- x
-      }
+  }
   
-  preDat1 <- unique(bioTmp[bioTmp$nTrtYr == 0,]$bioDat)
-  preDat1 <- max(preDat1)
-  preDat0 <- max(preDat1) - dyears(1)
-  
+  for(j in unique(bioTmp$nTrtYr)){
+      dat1 <- unique(bioTmp[bioTmp$nTrtYr == j,]$bioDat)
+      dat0 <- dat1 - dyears(1)
+      pptTmp <- precipTmp[precipTmp$date <dat1 & precipTmp$date >= dat0,]
+      paTmp <- data.frame(site_code = i, treatment_year = j, year = max(pptTmp$year), harvest_date = max(pptTmp$date), annual_precip = sum(pptTmp$ppt,na.rm=T))
+      pptAmb <- rbind(pptAmb,paTmp)
+    }
   
   bioDat1 <- unique(bioTmp[bioTmp$nTrtYr == 1,]$bioDat)
   ### take latest date for sites with multiple sample dates
@@ -120,9 +124,11 @@ for(i in unique(siteBio$site_code)){
 
 reduct<-reduct[reduct$ppt_drt_diff != 0,]
 ppt_by_trt <- ppt_by_trt[ppt_by_trt$ppt != 0,]
+pptAmb <- pptAmb[pptAmb$annual_precip !=0,]
 
 #write.csv(reduct,file.path(path,'IDE Site Info/Site drought precipitation reduction.csv'))
 #write.csv(ppt_by_trt,file.path(path,'IDE Site Info/Site-year precipitation by treatment.csv'))
+#write.csv(pptAmb,file.path(path,'IDE Site Info/Annual precip 12 months preceding harvest by site.csv'))
 
 range(siteBio[siteBio$site_code == 'wytham.uk',]$year)
 i <-'wytham.uk'
