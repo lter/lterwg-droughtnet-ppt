@@ -12,7 +12,6 @@
 
 path <- c("C:\\Users\\grad\\Dropbox\\IDE Meeting_May2019")
 
-
 library(tidyverse)
 
 # script that preliminarily parses full biomasses to get 
@@ -90,7 +89,7 @@ g1 <- ggplot(comb_yr4) +
   facet_wrap(~days) +
   labs(caption = paste("figure created in 'biomass-sensitivity_vs_ppt_reduction.r'",
                        "script, on", lubridate::today()),
-       y = "Mean Sensitivity (metric 3)",
+       y = expression(paste("Effect size (log(",ANPP[D],"/",ANPP[C],"))" ,sep=" ")),
        subtitle = "1st and 2nd treatment year (precip data is from 12 months prior to harvest)") +
   theme_classic() +
   theme(plot.title = element_text(size = 13))
@@ -107,7 +106,11 @@ pdf(file.path(path, "IDE Site Info/Plots/sensitivity_vs_ppt_reduction.pdf"),
 g1 + 
   point_smooth(x = "ppt_diff") +
   labs(x = "precipitation reduction (mm) (ctrl - drt)",
-       title = "Precipitation Reduction")
+       title = "Precipitation Reduction") +
+  # adding second trendline with outlier removed
+  geom_smooth(data = comb_yr4 %>% 
+                filter(mean_DS3 != min(mean_DS3)),
+              aes(x = ppt_diff, y = mean_DS3), method = "lm", se = FALSE)
 
 g1 + 
   point_smooth(x = "perc_ppt_reduct") +

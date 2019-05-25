@@ -34,12 +34,12 @@ file_names2 <- list.files(precip_folder2)
 precip1 <- lapply(file_names1, function(file_name){
   print(file_name)
   read.csv(file.path(precip_folder1, file_name), as.is = TRUE) %>% 
-    select(site_code, year, totalPRE)
+    dplyr::select(site_code, year, totalPRE)
 })
 
 precip2 <- lapply(file_names2, function(file_name){
   read.csv(file.path(precip_folder2, file_name), as.is = TRUE) %>% 
-    select(site_code, year, totalPRE)
+    dplyr::select(site_code, year, totalPRE)
 })
 
 precip3 <- c(precip1, precip2) # list of dataframes from both sites
@@ -114,7 +114,8 @@ for (i in 1:nrow(site_ppt2)){
 }
 
 site_ppt2$X <- NULL
-# write.csv(site_ppt2, file.path(path, "IDE Site Info\\Site-year precipitation by treatment_percentile_added.csv"), row.names = FALSE)
+write.csv(site_ppt2, file.path(path, "IDE Site Info\\Site-year precipitation by treatment_percentile_added.csv"), 
+          row.names = FALSE)
 
 # visualizing drought vs control ppt percentiles
 
