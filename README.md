@@ -10,7 +10,7 @@ The initial conclusion from the May 2019 meeting was that interannual CV from th
 
 ## `functions.r`
 
-This script is sourced by a couple of the other scripts. It should contain functions that were made for use in these other scripts. 
+This script is sourced by other scripts in this repository. It should contain functions that were made for use in these other scripts. 
 
 ## `GHCN process.R` 
 
@@ -27,4 +27,19 @@ Output from this script used in the `GHCN process.R` script. It was used to sele
 Short script that extracts the years that biomass was harvested. This script was than sourced in `GHCN_process_expt_years.R` script. May need to be updated/checked as new data from sites comes in. 
 
 ## `GHCN_process_expt_years.R`
+
+Used to pull daily GHCN data for the years of interest. Gets daily data for closest station (within 100 km w/ less than 500 m elevation difference) that has good data for the pre-treatment calendar year (and year before that) and first treatment yr and 2nd treatment year. If biomass was measured for additional years then the precip data was pulled for those years but it wasn't required to be "good".
+This script outputs a csv of daily precip data for all the sites where it existed. 
+
+## `precipitation reduction calculations.R`
+
+Takes output from `GHCN_process_expt_years.R` and calculates annual precipitation for the first and 2nd treatment year. That is, the precipitation was summed for the 12 months prior to the respective biomass harvest. For the drought treatments the percentage reduction that shelters impose was used to calculate precip received by drought plots, so output contains annual precip for both control and drought. 
+
+## `calculate_cdf.R`
+
+Calculates the probability density function and cumulative density function for each site, from 50 years tpa (annual) data. Then calculates what the percentiles were of the actual precipitation was at the drought/control plots for the given treatment years. 
+
+## `biomass_sensitivity_vs_ppt_reductions`
+
+Pulls in biomass effect size (likely to change as full biomass.csv changes) as calculated in a seperate script on dropbox. Makes figures of effect size vs various metrics of precipitation reductions. 
 
