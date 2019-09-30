@@ -24,7 +24,17 @@ survey1 <- read.csv(file.path(path_may, "IDE Survey/SurveyResults_9-27-2019.csv"
                     as.is = TRUE,
                     encoding = "UTF-8")
 
+# ghcn data gotten via rnoaa for sites where it was available. 
+ghcn_data1 <- read.csv(file.path(path_may, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
+                       as.is = TRUE)
 
+# info on all the sites 
+site_elev1 <-read.csv(file.path(path_may, 'IDE Site Info/Site_Elev-Disturb.csv'),
+                    as.is = TRUE)
+
+# metadata for all ghcnd stations.
+stations <- read.csv(file.path(path_may, 'IDE Site Info/GHCND_Stations.csv'), 
+                     as.is = TRUE)
 
 # process survey ----------------------------------------------------------
 
@@ -122,6 +132,7 @@ survey4 <- survey3 %>%
       station_lon)) %>%
   select(station_coords, station_lat, station_lon, everything())
 
+# lat/lon not provided in way it could be parsed above:
 survey4[survey4$site_code %in% c("ethadb.au", "ethadn.au"),]$station_lat <- 
   biogeo::dms2dd(23, 40.780, 0, "S")
 
@@ -131,3 +142,104 @@ survey4[survey4$site_code %in% c("ethadb.au", "ethadn.au"),]$station_lon <-
 # double check lat/lon calculated for all. 
 survey4 %>% 
   filter(is.na(station_coords) & (is.na(station_lat) | is.na(station_lon)))
+
+survey4 <- survey4 %>% 
+  mutate(station_lat = str_replace_all(station_lat, " ", "") %>% 
+           as.numeric(),
+         station_lon = str_replace_all(station_lon, " ", "") %>% 
+           as.numeric()
+         )
+
+# process ghcn data -------------------------------------------------------
+
+first <- function(x){
+  # return the first value of a vector, assuming all elements are the same
+  stopifnot(
+    is.vector(x),
+    length(unique(x)) == 1
+  )
+  x[1]
+}
+
+# getting ghcn station for each site:
+ghcn_stations1 <- ghcn_data1 %>% 
+  select(id:diff_elevation) %>% 
+  group_by(site_code) %>% 
+  summarise_all(.funs = first) %>% 
+  rename(ghcn_id = id, dist_ghcn_site = distance, ghcn_elev = station_elevation,
+         site_elev = site_elevation, elev_diff_ghcn_site = diff_elevation)
+
+stations2 <- stations %>% 
+  filter(element == "PRCP") %>% 
+  select(id:name) %>% 
+  group_by(id) %>% 
+  summarise_all(.funs = first)
+
+# joining in station metadata
+ghcn_stations2 <- ghcn_stations1 %>% 
+  left_join(stations2, by  = c("ghcn_id" = "id")) %>% 
+  rename(ghcn_lat = latitude, ghcn_lon = longitude, ghcn_name = name) %>% 
+  select(-state, - elevation)
+
+
+# process site data -------------------------------------------------------
+
+site_elev2 <- site_elev1 %>% 
+  select(site_name:longitud, elev) %>% 
+  rename(site_lat = latitud, site_lon = longitud, site_elev = elev)
+
+
+# combine tables ----------------------------------------------------------
+
+# check--shouldn't be any rows
+anti_join(ghcn_stations2, site_elev2, by = "site_code") 
+
+
+missing <- anti_join(survey4, site_elev2, by = "site_code") %>% 
+  select(site_code) %>% 
+  filter(!str_detect(site_code, "data")) %>% 
+  pull() 
+missing
+
+if(length(missing > 1)) {
+  warning("not all sites from survey are in the site_elev file")
+}
+  
+# site and station info
+site_stn1 <- ghcn_stations2 %>% 
+  select(-site_elev) %>% 
+  right_join(site_elev2, by = "site_code")
+names(site_stn1)
+
+names(survey4)
+
+# pi_stn is meant to denote pi selected weather station
+site_stn2 <- survey4 %>% 
+  rename(pi_stn_lat = station_lat, 
+         pi_stn_lon = station_lon,
+         pi_stn_id = station_id,
+         pi_stn_acces = station_access,
+         elev_diff_site_pi_stn = elev_diff,
+         dist_site_pi_stn = distance_cor,
+         pi_stn_coords = station_coords
+         ) %>% 
+  select(site_code, matches("pi_stn")) %>% 
+  right_join(site_stn1, by = "site_code")
+
+
+# calculated distances ----------------------------------------------------
+
+# distance between GHCN selected station and pi specified station
+site_stn2$dist_ghcn_pi_stn <- geosphere::distHaversine(
+  p1 = as.matrix(site_stn2[, c("pi_stn_lon", "pi_stn_lat")]),
+  p2 = as.matrix(site_stn2[, c("ghcn_lon", "ghcn_lat")])
+)/1000 #(convert m to km)
+
+
+# figures -----------------------------------------------------------------
+site_stn3 <- site_stn2
+
+ggplot(site_stn3) + 
+  geom_point(aes(dist_ghcn_site, dist_site_pi_stn, size = dist_ghcn_pi_stn),
+             alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 1)
