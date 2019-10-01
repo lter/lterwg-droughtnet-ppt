@@ -38,8 +38,7 @@ trt_yrs$site_code %>%
   unique() %>% 
   length() # should equal number of sites
 
-# CAUTION: following line of code may not be needed/could be wrong
-# if database updated. 
+# note: for pne.br first treatment year and first biomass collection occured in 2018. 
 trt_yrs$pre_treatment_year[trt_yrs$site_code == "pne.br"] <- 2017 # filling in missing value. 
-
+trt_yrs$first_treatment_year[trt_yrs$site_code == "pne.br"] <- 2018
 

@@ -186,5 +186,5 @@ wthr5 <- bind_rows(wthr4)
 dim(wthr5)
 
 # daily weather for all submitted stations
-write_csv(wthr5, 
-          file.path(path_oct, 'data/precip/submitted_daily_weater_2019-10-01.csv'))
+# write_csv(wthr5, 
+#           file.path(path_oct, 'data/precip/submitted_daily_weater_2019-10-01.csv'))
