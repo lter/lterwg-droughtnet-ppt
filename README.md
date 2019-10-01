@@ -39,7 +39,14 @@ Takes output from `GHCN_process_expt_years.R` and calculates annual precipitatio
 
 Calculates the probability density function and cumulative density function for each site, from 50 years tpa (annual) data. Then calculates what the percentiles were of the actual precipitation was at the drought/control plots for the given treatment years. 
 
-## `biomass_sensitivity_vs_ppt_reductions`
+## `biomass_sensitivity_vs_ppt_reductions.R`
 
 Pulls in biomass effect size (likely to change as full biomass.csv changes) as calculated in a seperate script on dropbox. Makes figures of effect size vs various metrics of precipitation reductions. 
+
+## `station_distances.R`
+
+Created to look at the distances between automatically selected GHCN stations and IDE sites and PI selected/provided weather stations. Will need to redone once all the data has been submitted. 
+
+
+
 
