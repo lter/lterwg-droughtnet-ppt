@@ -29,7 +29,7 @@ survey1 <- read.csv(file.path(path_may, "IDE Survey/SurveyResults_9-27-2019_dist
                     encoding = "UTF-8")
 
 # ghcn data gotten via rnoaa for sites where it was available. 
-ghcn_data1 <- read.csv(file.path(path_may, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
+ghcn_data1 <- read.csv(file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-09-30.csv'),
                        as.is = TRUE)
 
 # info on all the sites 
@@ -226,13 +226,14 @@ site_stn2 <- survey4 %>%
   rename(pi_stn_lat = station_lat, 
          pi_stn_lon = station_lon,
          pi_stn_id = station_id,
-         pi_stn_acces = station_access,
+         pi_stn_access = station_access,
          elev_diff_site_pi_stn = elev_diff,
          dist_site_pi_stn = distance,
          pi_stn_coords = station_coords
          ) %>% 
   select(site_code, matches("pi_stn")) %>% 
   right_join(site_stn1, by = "site_code")
+
 
 
 # calculated distances ----------------------------------------------------
@@ -243,6 +244,15 @@ site_stn2$dist_ghcn_pi_stn <- geosphere::distHaversine(
   p2 = as.matrix(site_stn2[, c("ghcn_lon", "ghcn_lat")])
 )/1000 #(convert m to km)
 
+
+# sanity checks -----------------------------------------------------------
+
+missing_ghcn <- site_stn2 %>% 
+  filter(is.na(ghcn_lat) & (pi_stn_access == "Yes")) %>% 
+  select(site_code) %>% 
+  pull()
+
+missing_ghcn # sites that can provide data but we didn't GHCN data for. 
 
 # figures -----------------------------------------------------------------
 site_stn3 <- site_stn2
@@ -263,6 +273,22 @@ ggplot(site_stn3) +
        subtitle = "Coordinates of PI selected stations is from Survey",
        caption = caption)+
   guides(size=guide_legend(title="Distance (PI station to GHCN)"))
+
+ggplot(site_stn3) + 
+  geom_histogram(aes(dist_ghcn_site), bins = 20) +
+  labs(x = "Distance (IDE site to GHCN station, km)",
+       title = "Distances between IDE sites and GHCN (automatically selected) stations",
+       caption = caption) 
+
+ggplot(site_stn3) + 
+  geom_histogram(aes(dist_site_pi_stn), bins = 20) +
+  labs(x = "Distance (IDE site to PI selected station, km)",
+       title = "Distances between IDE sites and PI selected stations",
+       subtitle = "Distances are from Survey",
+       caption = caption)+
+  coord_cartesian(xlim = c(0, max(site_stn3$dist_ghcn_site, na.rm = TRUE)))
+  
+
 
 dev.off()
 
