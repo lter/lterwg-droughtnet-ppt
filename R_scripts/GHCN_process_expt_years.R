@@ -13,12 +13,13 @@ library(purrr)
 source('R_scripts/functions.R') # functions used in script
 source("R_scripts/biomass_get_dates.R") # biomass dates
 
-# path to data folders
-path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
+# paths to data folders
+path <- 'E:/Dropbox/IDE Meeting_May2019'
+path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # parse site elevation ----------------------------------------------------
 
-siteElev <-read.csv(file.path(path, 'IDE Site Info/Site_Elev-Disturb.csv'),
+siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_9-30-2019.csv'),
                     as.is = TRUE)
 siteElev2 <- siteElev %>% 
   select(site_code, elev)
@@ -29,11 +30,14 @@ siteElev2 %>%
 
 # load site locations -----------------------------------------------------
 
-site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), 
-                 as.is = TRUE)
+# using siteElev file (updated) instead of this one
+# site <- read.csv(file.path(path, 'IDE Site Info/Sites_Loc_DrtTrt.csv'), 
+#                  as.is = TRUE)
 
-site <- site[,c('site_code','lat','long')]
-colnames(site) <- c('id','lat','long') # names used for library(rnoaa) function
+site <- siteElev %>% 
+  select(site_code, latitud, longitud) %>% 
+  # names used for library(rnoaa) function:
+  rename(id = site_code, lat = latitud, long = longitud) 
 
 # load station data -------------------------------------------------------
 
@@ -216,15 +220,16 @@ precipFull4 <- nearStation2_df %>%
   select(id, site_code, distance, matches("elevation")) %>% 
   right_join(precipFull3, by = c("id", "site_code"))
 
-# write.csv(precipFull4,
-#           file.path(path, 'IDE Site Info/GHCN_daily_precip_20190523.csv'),
-#           row.names = FALSE)
+write.csv(precipFull4,
+          file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-09-30.csv'),
+          row.names = FALSE)
 
 # data check (comparing to mannualy calculated values)
 hw <- precipFull4 %>% 
   filter(site_code == "hard.us") %>% 
   group_by(year) %>% 
   summarize(ap = sum(ppt, na.rm = TRUE))
+hw
 
 
   
