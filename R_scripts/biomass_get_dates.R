@@ -10,9 +10,10 @@ library(stringr)
 library(lubridate)
 
 # path to data folders
-path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
+path <- 'E:/Dropbox/IDE Meeting_May2019'
+path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019' 
 
-bio1 <- read.csv(file.path(path, "Full biomass\\full_biomass_5-21-2019.csv"),
+bio1 <- read.csv(file.path(path_oct, "Full biomass\\full_biomass_9-30-2019.csv"),
                  as.is = TRUE, na.strings = c("NULL"))
 
 # extract year of measurement
