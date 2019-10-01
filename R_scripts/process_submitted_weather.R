@@ -5,7 +5,7 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS
+# WORK IN PROGRESS, more checks on whether values aren't matching in joins are needed
 
 # packages etc ------------------------------------------------------------
 
