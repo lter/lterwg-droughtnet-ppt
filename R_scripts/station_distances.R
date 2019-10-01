@@ -13,14 +13,18 @@
 # packages etc ------------------------------------------------------------
 
 library(tidyverse)
+theme_set(theme_classic())
+
 
 # directory to may 2019 meeting folder
 path_may <- "E:/Dropbox/IDE Meeting_May2019"
+path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 # load data ---------------------------------------------------------------
 
 # survey of who has access to weather station data etc.
-survey1 <- read.csv(file.path(path_may, "IDE Survey/SurveyResults_9-27-2019.csv"),
+# NOTE: this is not the newest version of file (newest doesn't yet have site_codes)
+survey1 <- read.csv(file.path(path_may, "IDE Survey/SurveyResults_9-27-2019_distance_corrected.csv"),
                     as.is = TRUE,
                     encoding = "UTF-8")
 
@@ -29,7 +33,7 @@ ghcn_data1 <- read.csv(file.path(path_may, 'IDE Site Info/GHCN_daily_precip_2019
                        as.is = TRUE)
 
 # info on all the sites 
-site_elev1 <-read.csv(file.path(path_may, 'IDE Site Info/Site_Elev-Disturb.csv'),
+site_elev1 <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_9-30-2019.csv'),
                     as.is = TRUE)
 
 # metadata for all ghcnd stations.
@@ -49,11 +53,15 @@ survey2 <- survey1 %>%
     station_access = Do.you.have.access.to.daily.weather.data.for.your.site.from.a.weather.station.,
     station_coords = What.are.the.coordinates.for.your.weather.station.,
     elev_diff = What.is.the.approximate.elevation.difference..m..from.the.closest.weather.station.to.your.site.,
-    distance = What.is.the.approximate.distance..km..from.the.closest.weather.station.to.your.site.,
+    distance = distance_cor,
     station_id = Provide.the.station.code..if.applicable.,
     source = What.is.the.source.of.your.daily.weather.) %>% 
   select(site_code, site_name, site_coords, pi, station_access, distance,
          station_coords, elev_diff, source, station_id, Comments)
+
+survey2 %>% 
+  filter(!site_name %in% site_elev1$site_name) %>% 
+  select(site_name)
 
 # no decimal included in the coords, but not sure what correct value should be 
 # survey2[survey2$site_code == "torla.es", ]$station_coords <- "74.1213  47.25902"
@@ -220,7 +228,7 @@ site_stn2 <- survey4 %>%
          pi_stn_id = station_id,
          pi_stn_acces = station_access,
          elev_diff_site_pi_stn = elev_diff,
-         dist_site_pi_stn = distance_cor,
+         dist_site_pi_stn = distance,
          pi_stn_coords = station_coords
          ) %>% 
   select(site_code, matches("pi_stn")) %>% 
@@ -239,7 +247,23 @@ site_stn2$dist_ghcn_pi_stn <- geosphere::distHaversine(
 # figures -----------------------------------------------------------------
 site_stn3 <- site_stn2
 
+caption <- paste0("Figure generated in station_distances.R script on ", 
+                  lubridate::today())
+
+# pdf(file.path(path_oct, "figures/precip/station_distances_2019-09-30.pdf"),
+#     height = 5, width = 8)
+
 ggplot(site_stn3) + 
   geom_point(aes(dist_ghcn_site, dist_site_pi_stn, size = dist_ghcn_pi_stn),
              alpha = 0.5) +
-  geom_abline(slope = 1, intercept = 1)
+  geom_abline(slope = 1, intercept = 1) +
+  labs(x = "Distance (IDE site to GHCN station, km)",
+       y = "Distance (IDE site to PI selected station, km)",
+       title = "Distances between IDE sites and weather stations",
+       subtitle = "Coordinates of PI selected stations is from Survey",
+       caption = caption)+
+  guides(size=guide_legend(title="Distance (PI station to GHCN)"))
+
+dev.off()
+
+
