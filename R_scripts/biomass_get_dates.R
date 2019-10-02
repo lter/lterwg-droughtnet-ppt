@@ -13,8 +13,9 @@ library(lubridate)
 path <- 'E:/Dropbox/IDE Meeting_May2019'
 path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019' 
 
-bio1 <- read.csv(file.path(path_oct, "Full biomass\\full_biomass_9-30-2019.csv"),
-                 as.is = TRUE, na.strings = c("NULL"))
+bio1 <- read.csv(
+  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_10-01-2019.csv"),
+  as.is = TRUE, na.strings = c("NULL"))
 
 # extract year of measurement
 # pozos.ar doesn't have biomass date. 
@@ -38,7 +39,4 @@ trt_yrs$site_code %>%
   unique() %>% 
   length() # should equal number of sites
 
-# note: for pne.br first treatment year and first biomass collection occured in 2018. 
-trt_yrs$pre_treatment_year[trt_yrs$site_code == "pne.br"] <- 2017 # filling in missing value. 
-trt_yrs$first_treatment_year[trt_yrs$site_code == "pne.br"] <- 2018
 

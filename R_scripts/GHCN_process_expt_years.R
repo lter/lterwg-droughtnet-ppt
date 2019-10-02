@@ -19,8 +19,12 @@ path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # parse site elevation ----------------------------------------------------
 
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_9-30-2019.csv'),
+siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
                     as.is = TRUE)
+
+# exluding sites not in biomass file
+siteElev <- siteElev[siteElev$site_code %in% trt_yrs$site_code, ]
+
 siteElev2 <- siteElev %>% 
   select(site_code, elev)
 
@@ -221,7 +225,7 @@ precipFull4 <- nearStation2_df %>%
   right_join(precipFull3, by = c("id", "site_code"))
 
 write.csv(precipFull4,
-          file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-09-30.csv'),
+          file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-10-01.csv'),
           row.names = FALSE)
 
 # data check (comparing to mannualy calculated values)
