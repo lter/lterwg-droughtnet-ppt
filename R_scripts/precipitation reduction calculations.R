@@ -2,19 +2,100 @@
 ###### Calculate precipitation reduction based on daily precip and shelter installation  ####
 #############################################################################################
 
+# NOTE: THIS SCRIPT HAS NOT YET BEEN SUFFICIENTLY UPDATED TO WORK WITH NEW (OCT 2019) DATA
+
+
+# packages etc ------------------------------------------------------------
+
+
 library(tidyverse)
 library(stringr)
 library(lubridate)
 
-path <- 'C:/Users/peter/Dropbox/IDE Meeting_May2019'
+path <- 'E:/Dropbox/IDE Meeting_May2019'
+path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
-precip <- read.csv(file.path(path,'IDE Site Info/GHCN_daily_precip_20190523.csv'))
-precip$date <- as.Date(as.character(precip$date))
+
+# reading in data ---------------------------------------------------------
+
+# GHCN data
+precip <- read.csv(file.path(path_oct,'data/precip/GHCN_daily_precip_2019-10-01.csv'),
+                   as.is = TRUE)
+
+# submitted data
+precip_submitted <- read.csv(file.path(path_oct,'data/precip/submitted_daily_weather_2019-10-01.csv'),
+                   as.is = TRUE)
+
 
 siteDrt <- read.csv(file.path(path,'IDE Site Info/Sites_Loc_DrtTrt.csv'))
-siteBio <- read.csv(file.path(path, "Full biomass\\full_biomass_5-21-2019.csv"),
-                            as.is = TRUE, na.strings = c("NULL"))
+
+siteBio <- read.csv(
+  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_10-01-2019.csv"),
+  as.is = TRUE, na.strings = c("NULL"))
+
 siteBio <- siteBio[!siteBio$trt %in% c('NPK','NPK_Drought'),]
+
+
+# combine precip ----------------------------------------------------------
+
+names(precip_submitted)
+
+precip_submitted2 <- precip_submitted %>% 
+  rename(station_elevation = elev,
+         ppt = precip) %>% 
+  mutate(pi_submitted = TRUE) %>% #PI submitted data
+  select(-min_temp, -max_temp, -note_station, -Note_treatments, -source, -url) 
+names(precip)
+
+precip2 <- precip %>% 
+  mutate(pi_submitted = FALSE, # not pi submitted
+         station_name = NA) %>% 
+  rename(station_id = id) %>% 
+  select(-site_elevation, -year, -month, - diff_elevation, "day_of_month")
+names(precip2)
+
+# both submitted and GHCN
+precip3 <- bind_rows(precip2, precip_submitted2) %>% 
+  select(site_code, station_id, pi_submitted, ppt, everything())
+names(precip3)
+
+
+# site level information --------------------------------------------------
+
+min <- function(x){
+  # return first element (assuming all elements are the same)
+  stopifnot(
+    is.vector(x),
+    length(unique(x)) == 1
+  )
+  if(length(unique(x)) != 1) {
+    warning("more than 1 unique value")
+  }
+  
+  min(x, na.rm = TRUE)
+}
+
+lu <- function(x) length(unique(x))
+
+# sites with more than one start treatment year etc
+# STOP: NEED TO FIGURE OUT HOW TO DEAL WITH SITES WITH MULTIPLE START DATES
+siteBio %>% 
+  group_by(site_code, first_treatment_date) %>% 
+  summarize_at(vars(first_treatment_year, 
+                    IfNot365.WhenShelterSet, IfNot365.WhenShelterRemove),
+               .funs = lu) %>% View()
+
+sites1 <- siteBio %>% 
+  group_by(site_code, first_treatment_date) %>% 
+  summarize_at(vars(first_treatment_year, 
+                    IfNot365.WhenShelterSet, IfNot365.WhenShelterRemove),
+               .funs = lu) 
+
+siteBio %>% 
+  filter(site_code == "bayrdrt.de") %>% View
+
+siteBio %>% 
+  filter(site_code == "brandjberg.dk") 
 
 ## filter out sites without precip data
 siteBio <- siteBio[siteBio$site_code %in% precip$site_code,]
