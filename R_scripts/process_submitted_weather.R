@@ -20,8 +20,9 @@ path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 # site info ---------------------------------------------------------------
 
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_9-30-2019.csv'),
+siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
                     as.is = TRUE)
+
 site_name_code <- siteElev %>% 
   select(site_name, site_code)
 
@@ -39,6 +40,8 @@ names(file_paths) <- file_names2
 
 sheets1 <- lapply(file_paths, excel_sheets)
 names(sheets1) <- file_names2
+
+sheets1
   
 # load site tab ----------------------------------------------------------
 
@@ -121,7 +124,7 @@ stns4 <- bind_rows(stns3)
 stns4 %>%  filter(is.na(site_code)) %>% 
   select(site, site_code)
 
-# NOTE: couldn't find code for Hongyuan...this needs to be fixed
+# Hongyuan doesn't have site code (b/ not biomass data as of yet)
 
 # adding in missing codes
 stns4[stns4$site == "Syferkuil South Africa", ]$site_code <- "syferkuil.za"
@@ -185,6 +188,16 @@ lapply(wthr4, function(x) x[1, ]) %>%
 wthr5 <- bind_rows(wthr4)
 dim(wthr5)
 
-# daily weather for all submitted stations
-# write_csv(wthr5, 
-#           file.path(path_oct, 'data/precip/submitted_daily_weater_2019-10-01.csv'))
+
+# checks ------------------------------------------------------------------
+
+wthr5$station_name %>% unique()
+wthr5$site_code %>% unique()
+
+
+# save file ---------------------------------------------------------------
+
+# daily weather for all submitted stations [not yet including a couple sites that need extra processing]
+
+# write_csv(wthr5,
+#           file.path(path_oct, 'data/precip/submitted_daily_weather_2019-10-01.csv'))
