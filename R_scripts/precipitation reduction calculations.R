@@ -22,42 +22,27 @@ path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 precip <- read.csv(file.path(path_oct,'data/precip/GHCN_daily_precip_2019-10-01.csv'),
                    as.is = TRUE)
 
-# submitted data
-precip_submitted <- read.csv(file.path(path_oct,'data/precip/submitted_daily_weather_2019-10-01.csv'),
-                   as.is = TRUE)
 
 # may not need this?
-siteDrt <- read.csv(file.path(path,'IDE Site Info/Sites_Loc_DrtTrt.csv'))
+siteDrt_A <- read.csv(file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv"),
+                      as.is = TRUE, na.strings = c("", "NA", "<NA>"))
 
 siteBio_A <- read.csv(
   file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_10-01-2019.csv"),
   as.is = TRUE, na.strings = c("NULL"))
 
+"matta.il" %in% siteBio_A$site_code
 siteBio_A <- siteBio_A[!siteBio_A$trt %in% c('NPK','NPK_Drought'),]
 
 
-# combine precip ----------------------------------------------------------
+# extract drought treatment -----------------------------------------------
 
-names(precip_submitted)
+siteDrt_B <- siteDrt_A %>% 
+  select(site_code, drought_trt) %>% 
+  mutate(drought_trt = str_replace(drought_trt, "%", ""),
+         drought_trt = as.numeric(drought_trt)/100)
 
-precip_submitted2 <- precip_submitted %>% 
-  rename(station_elevation = elev,
-         ppt = precip) %>% 
-  mutate(pi_submitted = TRUE) %>% #PI submitted data
-  select(-min_temp, -max_temp, -note_station, -Note_treatments, -source, -url) 
-names(precip)
-
-precip2 <- precip %>% 
-  mutate(pi_submitted = FALSE, # not pi submitted
-         station_name = NA) %>% 
-  rename(station_id = id) %>% 
-  select(-site_elevation, -year, -month, - diff_elevation, "day_of_month")
-names(precip2)
-
-# both submitted and GHCN
-precip3 <- bind_rows(precip2, precip_submitted2) %>% 
-  select(site_code, station_id, pi_submitted, ppt, everything())
-names(precip3)
+siteDrt_B
 
 
 # siteBio--process dates --------------------------------------------------
@@ -117,145 +102,90 @@ siteBio_B %>%
 # STOP: here I am taking the min first_treatment date--should more carefully
 # consider fi this is a good decision
 sites1 <- siteBio_B %>% 
-  group_by(site_code) %>% 
+  filter(site_code %in% precip$site_code) %>% #only sites with precip data
+  filter(!is.na(bioDat)) %>% # stop: rows when missing biodat (eg. year given only)
+  group_by(site_code, year) %>% 
   summarize(first_treatment_year = min(first_treatment_year, na.rm = TRUE), 
-            trtDat = min(trtDat), 
+            n_treat_years = min(n_treat_years, na.rm = TRUE), # STOP--min is temporary fix 
+            bioDat = min(bioDat, na.rm = TRUE), 
+            trtDat = min(trtDat), # first treat date
             IfNot365.WhenShelterSet = first(IfNot365.WhenShelterSet),
             IfNot365.WhenShelterRemove = first(IfNot365.WhenShelterRemove),
-            X365day.trt = first(X365day.trt))
+            X365day.trt = first(X365day.trt)) %>% 
+  left_join(siteDrt_B, by = "site_code") %>% 
+  ungroup()
 
 
 
 
-# trying different method--joining with precip data -----------------------
-names(sites1)
-precip4 <- precip3 %>% 
-  left_join(sites1, by = "site_code") %>% 
-  mutate(n_treat_days = difftime(date, trtDat, units="days"))
+siteBio_A$site_code[!siteBio_A$site_code %in% siteDrt_B$site_code] # should be none
 
+sum(is.na(siteDrt_B$drought_trt)) # 2 NAs--not sure why
 
-str(precip4)
+sites2 <- sites1 %>% 
+  mutate(bioDat = as.Date(bioDat),
+         trtDat = as.Date(trtDat),
+         ppt_drought = NA_real_,
+         ppt_ambient = NA_real_,
+         ppt_num_NA = NA_real_, 
+         num_drought_days = NA_real_)
+precip1 <- precip %>% 
+  mutate(date = as.Date(date))
 
+# calculating precip/year:
 
-
-#running until this point....
-
-# ## filter out sites without precip data
-# siteBio <- siteBio[siteBio$site_code %in% precip$site_code,]
-#### Rewrite number of treatment years based on n_treat_days for early years
-
-siteBio$nTrtYr <- siteBio$n_treat_years
-siteBio$nTrtYr <- ifelse(siteBio$n_treat_days < 370 & siteBio$n_treat_days >= 30, 1, siteBio$nTrtYr) #### slight extension to ensure sites have a 'year 1' - some are a few days past 365 for firsts sampling
-siteBio$nTrtYr <- ifelse(siteBio$n_treat_days < 731 & siteBio$n_treat_days >= 370, 2, siteBio$nTrtYr) #### slight extension to ensure sites have a 'year 2' - one site at 730 for firsts sampling
-#### call everything past 3, 3 for now as we're only working with first two treatment years
-siteBio$nTrtYr <- ifelse(siteBio$n_treat_days >= 731, 3, siteBio$nTrtYr)
-
-### ORE and santa cruz sites are slightly later than 370, so we will adjust there first year independently
-siteBio$nTrtYr <- ifelse(siteBio$site_code %in% c('oreaa.us','oreac.us', 'scruzm.us') & siteBio$n_treat_days < 390 & siteBio$n_treat_days >= 30,
-                         1, siteBio$nTrtYr) 
-siteBio$nTrtYr <- ifelse(siteBio$site_code %in% c('oreaa.us','oreac.us') & siteBio$n_treat_days  < 760 & siteBio$n_treat_days >= 390,
-                         2, siteBio$nTrtYr) 
-
-### wytham sampled late in 2nd year, adjusting treatment year
-siteBio$nTrtYr <- ifelse(siteBio$site_code %in% c('wytham.uk') & siteBio$year  ==2018,
-                         2, siteBio$nTrtYr) 
-
-#### remove site (pozos.ar) with no date for now
-siteBio <- siteBio[!is.na(siteBio$bioDat),]
-
-
-### calculate reduction per site in for loop
-reduct <- NULL  ### data frame for holding treatment effect - precipitation reduction
-ppt_by_trt <- NULL ### data frame for holding precipitation amount in first two treatment years for drought and ctrl
-pptAmb <- NULL ### data frame for holding ambient precipitation 12 months prior to every sampling date
-for(i in unique(siteBio$site_code)){
-  precipTmp <- precip[precip$site_code == i,]
-  bioTmp <- siteBio[siteBio$site_code == i,]
+for (i in 1:nrow(sites2)) {
+  print(i)
+  row <- sites2[i, ]
+  print(row$site_code)
+  site_ppt <- precip1[precip1$site_code == row$site_code,]
+  start_date <- as.Date(row$bioDat-365)
+  site_ppt2 <- site_ppt %>% 
+    filter(date >= start_date & date < row$bioDat) %>% 
+    mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
   
-  #### some sites have multiple biomass harvests, so always use the first one to designate treatment year (EUROPE ONLY - CAUSES PROBLEMS FOR SOME DRY DRY SITES THAT HAVE SPORADIC SAMPLING)
-  
-  if(siteDrt[siteDrt$site_code==i,]$continent == 'Europe') for(j in unique(bioTmp$year)){
-    x <- bioTmp[bioTmp$year == j,]$nTrtYr
-    x <- min(x)
-    bioTmp[bioTmp$year == j & bioTmp$site_code == i,]$nTrtYr <- x
+  # when did the shelter come off:
+  shelter_off_start <- if (row$X365day.trt == "No") {
+    min_year <- min(year(site_ppt2$date))
+    dmy(paste(row$IfNot365.WhenShelterRemove, min_year))
+  } else {
+    NA
   }
+  # when did the shelter go back off
+  shelter_off_end <- if (row$X365day.trt == "No") {
+    max_year <- max(year(site_ppt2$date))
+    dmy(paste(row$IfNot365.WhenShelterSet, max_year))
+  } else {
+    NA
+  }
+  is_trt365 <- rep(row$X365day.trt == "Yes", nrow(site_ppt2))
+  site_ppt2 <- site_ppt2 %>% 
+    mutate(
+      # is drought occuring
+      is_drought = ifelse(n_treat_days < 0,
+                                 0,
+                                 ifelse(is_trt365,
+                                        1,
+                                        ifelse(date < shelter_off_start | date > shelter_off_end | is.na(shelter_off_start),
+                                        1,
+                                        0)
+                                 )),
+      drought_ppt = ifelse(is_drought,
+                           (ppt*(1 - row$drought_trt)),
+                           ppt)
+    )
+  sites2[i,]$ppt_num_NA <-  sum(is.na(site_ppt2$ppt))
+  sites2[i,]$num_drought_days <- sum(site_ppt2$is_drought)
   
-  for(j in unique(bioTmp$nTrtYr)){
-      dat1 <- unique(bioTmp[bioTmp$nTrtYr == j,]$bioDat)
-      dat0 <- dat1 - dyears(1)
-      pptTmp <- precipTmp[precipTmp$date <dat1 & precipTmp$date >= dat0,]
-      paTmp <- data.frame(site_code = i, treatment_year = j, year = max(pptTmp$year), harvest_date = max(pptTmp$date), annual_precip = sum(pptTmp$ppt,na.rm=T))
-      pptAmb <- rbind(pptAmb,paTmp)
-    }
+  sites2[i,]$ppt_ambient <-  sum(site_ppt2$ppt, na.rm = TRUE)
+  sites2[i,]$ppt_drought <-  sum(site_ppt2$drought_ppt, na.rm = TRUE)
   
-  bioDat1 <- unique(bioTmp[bioTmp$nTrtYr == 1,]$bioDat)
-  ### take latest date for sites with multiple sample dates
-  bioDat1 <- max(bioDat1)
-  bioDat0 <- bioDat1 - dyears(1)
-  
-  ### repeat for year 2
-  bioDat2 <- unique(bioTmp[bioTmp$nTrtYr == 2,]$bioDat)
-  bioDat2 <- max(bioDat2)
-  
-  trtTmp <- bioTmp$trtDat[1]
-  trtTmp <- as.POSIXct(trtTmp)
-  trtRed <- siteDrt[siteDrt$site_code == i,]$drought_trt
-  
-  ### pare preciptation down to needed dates splitting between pre shelter and post shelter
-  precipyr1_pre <- precipTmp[precipTmp$date  <= trtTmp & precipTmp$date >= bioDat0,]
-  precipyr1_post <- precipTmp[precipTmp$date  > trtTmp & precipTmp$date <= bioDat1,]
-  
-  
-  ### calculate control precipitation for year 1
-  pptCtrl1 <- sum(precipyr1_pre$ppt,na.rm=T) + sum(precipyr1_post$ppt,na.rm=T)
-  
-  ### sum full precip before shelters, and reduced precip for after shelter installation
-  pptDrt1 <- sum(precipyr1_pre$ppt,na.rm=T) + sum(precipyr1_post$ppt,na.rm=T)*(1-trtRed/100)
-  
-  
-  ### pare preciptation down to needed dates splitting between pre shelter and post shelter
-  precipyr2 <- precipTmp[precipTmp$date  >= bioDat1 & precipTmp$date < bioDat2,]
-  
-  ### calculate control precipitation for year 2
-  pptCtrl2 <- sum(precipyr2$ppt,na.rm=T)
-  
-  ### sum full precip before shelters, and reduced precip for after shelter installation
-  pptDrt2 <- sum(precipyr2$ppt,na.rm=T)*(1-trtRed/100)
-  
-  dfTmp <- data.frame(site_code=i,trt=c('Ctrl','Drt','Ctrl','Drt'),trt_year=c(1,1,2,2),ppt=c(pptCtrl1,pptDrt1,pptCtrl2,pptDrt2))
-  ppt_by_trt <- rbind(ppt_by_trt,dfTmp)
-  
-  diffTmp <- data.frame(site_code=i,trt_year=c(1,2),ppt_drt_diff=c(pptDrt1-pptCtrl1,pptDrt2-pptCtrl2))
-  reduct <- rbind(reduct,diffTmp)
-  
-  }  
+}
 
 
-reduct<-reduct[reduct$ppt_drt_diff != 0,]
-ppt_by_trt <- ppt_by_trt[ppt_by_trt$ppt != 0,]
-pptAmb <- pptAmb[pptAmb$annual_precip !=0,]
-
-#write.csv(reduct,file.path(path,'IDE Site Info/Site drought precipitation reduction.csv'))
-#write.csv(ppt_by_trt,file.path(path,'IDE Site Info/Site-year precipitation by treatment.csv'))
-#write.csv(pptAmb,file.path(path,'IDE Site Info/Annual precip 12 months preceding harvest by site.csv'))
-
-range(siteBio[siteBio$site_code == 'wytham.uk',]$year)
-i <-'wytham.uk'
-
-
-#### baddrt.de is missing precip data
-#### bivensarm.us starts treatment in 2013 but doesn't report biomass until 2015
-#### broken hill has sporadic sampling, for now data is based on installation of shelter
-#### brookdale has only one year sampling date
-#### falls.au only has one year treatment
-#### hoide had 2017 data not entered, should correct when new biomass is output
-#### hyide is still missing 2016 and 2017 data and needs to be entered
-#### Jena biomass went missing in 2016 - no year one data
-#### JIlpanger only has two years of data
-#### kiskun.hu weather station is reporting zeros for precip after a certain date - need to find better data
-#### ORE sites treatment years were adjusted due to timing of shelter installation
-#### scruz.us has sporadic sampling - year one was adjusted to have a longer period post treatment installation
-#### sevforest only has one year of data
-#### SGS only has one year of data (despite pretreatment occurring in 2014)
-#### thompson.us only has one year of data
-#### plattev.us only has pre-treatment year
+sites3 <- sites2 %>% 
+  rename(biomass_date = bioDat,
+         first_treatment_date = trtDat)
+dim(sites3)
+write_csv(sites3,
+          file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-10-02.csv'))
