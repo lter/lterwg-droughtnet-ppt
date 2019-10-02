@@ -24,16 +24,16 @@ path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 # survey of who has access to weather station data etc.
 # NOTE: this is not the newest version of file (newest doesn't yet have site_codes)
-survey1 <- read.csv(file.path(path_may, "IDE Survey/SurveyResults_9-27-2019_distance_corrected.csv"),
+survey1 <- read.csv(file.path(path_oct, "Full Biomass/SurveyResults_10-01-2019_SiteswithData.csv"),
                     as.is = TRUE,
                     encoding = "UTF-8")
 
 # ghcn data gotten via rnoaa for sites where it was available. 
-ghcn_data1 <- read.csv(file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-09-30.csv'),
+ghcn_data1 <- read.csv(file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-10-01.csv'),
                        as.is = TRUE)
 
 # info on all the sites 
-site_elev1 <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_9-30-2019.csv'),
+site_elev1 <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
                     as.is = TRUE)
 
 # metadata for all ghcnd stations.
@@ -46,21 +46,20 @@ head(survey1)
 names(survey1)
 survey2 <- survey1 %>% 
   rename(
-    site_name = What.is.your.site.name.,
+    site_name = SiteSurvey,
     pi = What.is.the.PI.s.name.,
-    site_name = What.is.your.site.name.,
     site_coords = What.are.your.site.s.coordinates.,
     station_access = Do.you.have.access.to.daily.weather.data.for.your.site.from.a.weather.station.,
     station_coords = What.are.the.coordinates.for.your.weather.station.,
     elev_diff = What.is.the.approximate.elevation.difference..m..from.the.closest.weather.station.to.your.site.,
-    distance = distance_cor,
+    distance = What.is.the.approximate.distance..km..from.the.closest.weather.station.to.your.site.,
     station_id = Provide.the.station.code..if.applicable.,
     source = What.is.the.source.of.your.daily.weather.) %>% 
   select(site_code, site_name, site_coords, pi, station_access, distance,
          station_coords, elev_diff, source, station_id, Comments)
 
 survey2 %>% 
-  filter(!site_name %in% site_elev1$site_name) %>% 
+  filter(!site_code %in% site_elev1$site_code) %>% 
   select(site_name)
 
 # no decimal included in the coords, but not sure what correct value should be 
@@ -113,7 +112,42 @@ survey3 <- survey2 %>%
   select(matches("coord"), matches("lat_"), matches("lon_"),  
          matches("station_"), everything())
 
-survey4 <- survey3 %>% 
+# parsing distance
+survey3$distance_cor <- survey3$distance %>% 
+  str_replace(",", "\\.") %>% 
+  str_extract("\\d+\\.*\\d*") %>% 
+  as.numeric()
+
+mile <- survey3$distance %>% 
+  str_detect("mile")
+
+meter <- survey3$distance %>% 
+  str_detect(., "[^a-z]meter|(\\d|\\s)m(?!i)")
+
+distance <- 
+  ifelse(mile, 
+         survey3$distance_cor*1.6, 
+         ifelse(meter,
+                survey3$distance_cor/1000,
+                survey3$distance_cor
+  ))
+
+# check if parsed correctly
+# cbind(distance, survey3$distance) %>% View()
+
+# sites that say "on site"
+distance[str_detect(survey3$distance, "[Oo]n\\s*site") & is.na(survey3$distance_cor)] <- 0
+
+distance[distance == 2018] # date interpreted as distance
+
+
+distance[distance == 2018] <- NA
+
+survey4 <- survey3
+survey4$distance <- distance
+
+survey4 <- survey4 %>% 
+  select(-distance_cor) %>% 
   mutate(lat_ns = ifelse(dec_deg,
                          NA,
                          str_extract(station_coords, "[NnSs]")), 
@@ -252,15 +286,30 @@ missing_ghcn <- site_stn2 %>%
   select(site_code) %>% 
   pull()
 
+
 missing_ghcn # sites that can provide data but we didn't GHCN data for. 
 
-# figures -----------------------------------------------------------------
+# number of sites we should at least in theory be able to get station data for
+site_stn2 %>% 
+  filter(!is.na(ghcn_lat) | (pi_stn_access == "Yes")) %>% 
+  .$site_code %>% 
+  length()
+
+
+# saving data -------------------------------------------------------------
+
 site_stn3 <- site_stn2
+
+# write_csv(site_stn3, 
+#           file.path(path_oct, "data/precip/station_distances_2019-10-01.csv"))
+
+# figures -----------------------------------------------------------------
+
 
 caption <- paste0("Figure generated in station_distances.R script on ", 
                   lubridate::today())
 
-# pdf(file.path(path_oct, "figures/precip/station_distances_2019-09-30.pdf"),
+# pdf(file.path(path_oct, "figures/precip/station_distances_2019-10-01.pdf"),
 #     height = 5, width = 8)
 
 ggplot(site_stn3) + 
