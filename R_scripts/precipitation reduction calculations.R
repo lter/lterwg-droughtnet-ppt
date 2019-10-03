@@ -151,7 +151,7 @@ for (i in 1:nrow(sites2)) {
   } else {
     NA
   }
-  # when did the shelter go back off
+  # when did the shelter go back on
   shelter_off_end <- if (row$X365day.trt == "No") {
     max_year <- max(year(site_ppt2$date))
     dmy(paste(row$IfNot365.WhenShelterSet, max_year))
@@ -159,6 +159,8 @@ for (i in 1:nrow(sites2)) {
     NA
   }
   is_trt365 <- rep(row$X365day.trt == "Yes", nrow(site_ppt2))
+  # some sites say drought X365day.trt == "No" but don't give shelter on/off dates
+  # in those cases I just treated them as having year round shelter on.
   site_ppt2 <- site_ppt2 %>% 
     mutate(
       # is drought occuring
