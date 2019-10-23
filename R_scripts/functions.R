@@ -113,3 +113,24 @@ good_days_per_yr <- function(df, good_days = 334) {
 }
 
 
+# check column names ------------------------------------------------------
+
+check_names <- function(x, names) {
+  # args:
+  #   x--list
+  #   names <- string of list element names in alphabetical order 
+  #     (seperated by ,)
+  # returns:
+  #  logical of whether x has (and only has) elements with those specified names
+  stopifnot(
+    is.list(x),
+    is.character(names),
+    length(names) == 1
+  )
+  x <- names(x)
+  x <- sort(x)
+  collapsed <- paste(x, collapse = ",")
+  out <- collapsed == names
+  out
+}
+
