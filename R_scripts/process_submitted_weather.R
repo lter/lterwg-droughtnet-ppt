@@ -17,7 +17,7 @@
 # 3c check content of site sheet
 # 4a check if proper columns in station sheet are present
 # 4b fix so all have appropriate columns
-# 4c check content of station sheet (e.g. fix lat/lon))
+# 4c check/fix content of station sheet (e.g. parse lat/lon))
 # 5a check if proper columns in weather sheet are present
 # 5b fix so all have appropriate columns
 # 5c preliminary data check--column classes are correct, dates parsed, example data from template removed
@@ -402,7 +402,7 @@ stn3 <- stn2 %>%
   ) %>% 
   mutate_at(vars(station_latitud, station_longitud),
             .funs = as.numeric) %>% 
-  select(names(all5$hardware_ranch$station)) # just keeping the main cols
+  select(stn_col_names) # just keeping the main cols
 
 # CHECK: shouldn't be any NAs in lat/lon if parsed correctly
 stn3 %>% 
@@ -428,9 +428,30 @@ stn4 <- stn3 %>%
          elev = as.numeric(elev)
          ) 
 
-# check--all rows now have site/station name
+###########################################################################
+############     Process Weather data   ###################################
 
 
+all6 <- all5
+
+
+# checking weather col names ----------------------------------------------
+
+wthr_col_names <- c("station_name", "date", "precip", "min_temp", "max_temp", 
+                   "note_weather")
+
+wthr_col_string <- "date,max_temp,min_temp,note_weather,precip,station_name"
+
+wthr_names_good <- map_lgl(all6, function(x) {
+  # do columns match these names?
+  check_names(x$weather, names = wthr_col_string) 
+}) 
+
+# files that need fixing
+names(all6[!wthr_names_good])
+
+
+map(all6[!wthr_names_good], function(x) names(x$weather))
 
 # START HERE
 
@@ -445,6 +466,9 @@ stn4 <- stn3 %>%
 
 
 
+
+
+# OLD code below
 
 
 # process tab ----------------------------------------------------------
