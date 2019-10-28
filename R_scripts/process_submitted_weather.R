@@ -5,11 +5,26 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS, more checks on whether values aren't matching in joins are needed
-# Next steps
-# load all sheets of all files
-# work on files that don't have the normal sheets
-# once all have proper sheets go through and work on site sheet, station sheet, then weather sheet. 
+# WORK IN PROGRESS
+
+# once finished this script is meant to:
+
+# 1 Load each spreadsheet
+# 2a Check whether appropriate sheets (site, station, weather) are present
+# 2b Fix if not all sheets present
+# 3a check if proper columns in site sheet are present
+# 3b fix so all have appropriate columns
+# 3c check content of site sheet
+# 4a check if proper columns in station sheet are present
+# 4b fix so all have appropriate columns
+# 4c check content of station sheet (e.g. fix lat/lon))
+# 5a check if proper columns in weather sheet are present
+# 5b fix so all have appropriate columns
+# 5c preliminary data check--column classes are correct, dates parsed, example data from template removed
+#     solve specific known issues for a given site (NAs will be filled in a subsequent script)
+# 6 combine into one master file
+# 7 added in site codes
+# 8 save file
 
 # packages etc ------------------------------------------------------------
 
@@ -56,7 +71,7 @@ file_names3 <-
   file_names2 %>% 
   str_replace_all("weather|template*|IDE", "") %>% 
   str_replace_all("(^_+)|(^\\s+)|(_+$)|(\\s+$)", "") %>% # leading/trailing
-  str_replace_all("\\s+|[,)(]", "_") %>% 
+  str_replace_all("\\s+|[-,)(]", "_") %>% 
   str_replace_all("_{2,}", "_")
 file_names3  
 
@@ -77,7 +92,7 @@ sheets1
 all1 <- map2(file_paths, sheets1, function(path, sheets_of_path){
   # inner 'loop' load in each sheet of that file
   out <- map(sheets_of_path, function(sheet){ 
-    read_xlsx(path = path, sheet = sheet) # not parsing all dates correctly
+    read_xlsx(path = path, sheet = sheet, na = c("", "NA")) # not parsing all dates correctly
   })
   names(out) <- sheets_of_path
   out
@@ -127,50 +142,9 @@ map(all1$wayqecha_met_summary, head)
 
 head(all1$wayqecha_met_summary$`daily rainfall`)
 
-# precip data:
-
-# col names are year (year number only given for the first month of year)
-rain_yrs1 <- names(all1$wayqecha_met_summary$`daily rainfall`) %>% 
-  str_extract('\\d{4}')
-
-# filling in the NAs of years
-rain_yrs2 <- rain_yrs1
-value <- NA
-for (i in 2:length(rain_yrs1)) {
-  if (!is.na(rain_yrs1[i])) {
-    value <- rain_yrs1[i]
-  }
-  rain_yrs2[i] <- value
-}
-rain_yrs1
-rain_yrs2
-
-rain_mon <- all1$wayqecha_met_summary$`daily rainfall`[1, ] # months
-rain_mon_yr <- paste(rain_mon, rain_yrs2, sep = "_")
-
-wayqecha_rain <- all1$wayqecha_met_summary$`daily rainfall`[-1, ]
-
-names(wayqecha_rain) <- rain_mon_yr
-
-wayqecha_rain <- wayqecha_rain %>% 
-  gather(key = "mon_yr", value = "precip", matches("[a-z]+_\\d{4}$")) %>% 
-  mutate(month = str_extract(mon_yr, "^[a-z]+"),
-         year = str_extract(mon_yr, "\\d{4}$"),
-         date_char = paste(`Day of month_NA`, month, year, sep = "-"),
-         date = dmy(date_char))
-
-# dates that didn't parse are just impossible dates (e.g 30-feb-2008)
-wayqecha_rain %>% 
-  filter(is.na(date))
-
-wayqecha_rain <- wayqecha_rain %>% 
-  filter(!is.na(wayqecha_rain$date)) %>% 
-  select(date, precip)
-
-max(wayqecha_rain$date) # this is (2010) ~5 years prior to experiment so not useful
-# STOP: if new data becomes available this will need to be completed for now discard
-
-all2$wayqecha_met_summary <- NULL
+# this data is from 5 years prior to experiment so not using here. 
+# [note: code to parse this data can be found in older commit (mid Oct 2019) of this file]
+all2$wayqecha_met_summary <- NULL 
 
 anom_sheets1
 
@@ -183,32 +157,33 @@ all2_sheets_check <- map_lgl(all2, check_names,
 if (!all(all2_sheets_check)) warning("Not all list elements have correct tables")
 
 ##########################################################################
-################ process site tables #####################################
+################ process sites tables #####################################
 
 all3 <- all2
 
-# map(all3, function(x) head(x$site))
+# map(all3, function(x) head(x$sites))
 
-# fix site column names ---------------------------------------------------
+# fix sites column names ---------------------------------------------------
 
-site_col_names <- map(all2, function(x) names(x$site))
+site_col_names <- map(all2, function(x) names(x$sites))
 
-# files were site table don't have usual col names ~~~
+# files were sites table don't have usual col names ~~~
 which_sites_anom <- map_lgl(all2, function(x) {
   # do columns match these names?
-  check_names(x$site, names = "pi,site,site_latitud,site_longitud") 
+  check_names(x$sites, names = "pi,site,site_latitud,site_longitud") 
 }) %>% 
   .[.== FALSE]
 
 anom_sites <- site_col_names[names(which_sites_anom)] # column names of those sites
 anom_sites
 
-
+# Syferkuil_South_Africa ~~~~
 # see remark
 all3$Syferkuil_South_Africa$sites$Remarks
 
 all3$Syferkuil_South_Africa$sites$Remarks <- NULL
 
+# SonoraAgrilifeResearchStation ~~~
 all3$SonoraAgrilifeResearchStation$sites
 
 all3$SonoraAgrilifeResearchStation$sites <- 
@@ -216,49 +191,247 @@ all3$SonoraAgrilifeResearchStation$sites <-
   select(pi, site, latitude, longitude) %>% 
   rename(site_latitud = latitude, site_longitud = longitude)
 
+# ethabuka ~~~
+notes <- all3$ethabuka_2014_2019$sites$..5 
+notes
+
+# adding note to station sheet instead
+all3$ethabuka_2014_2019$station$note_station
+all3$ethabuka_2014_2019$station$note_station <- 
+  paste(all3$ethabuka_2014_2019$station$note_station, notes[1:2], sep = ". ")
+
+all3$ethabuka_2014_2019$sites$..5 <- NULL
+all3$ethabuka_2014_2019$sites <- all3$ethabuka_2014_2019$sites %>% 
+  filter(complete.cases(.)) # removing 1 row of NAs
+
 # check if all col names fixed
-if(!all(
-    map_lgl(all3, function(x) {
-      check_names(x$site, names = "pi,site,site_latitud,site_longitud") 
-    }))
-   ) {
-  warning("Not all site tables have the correct column names")
-}
+check_names_in_list(list = all3, element_name = "sites",
+                    names = "pi,site,site_latitud,site_longitud",
+                    warning = "Not all sites tables have the correct column names")
 
 
-# check site table contents -----------------------------------------------
+# check sites table contents -----------------------------------------------
 
-map(all3, function(x) head(x$site))
+# map(all3, function(x) head(x$sites))
 
 all3 <- map(all3, function(x){
-  x$site <- x$site[x$site$site != "Nowhere", ] # removing example row where necessary
+  x$sites <- x$sites[x$sites$site != "Nowhere", ] # removing example row where necessary
   x
 })
 
 # all have non NA rows?
 at_least_1row <- map_lgl(all3, function(x){
-  nrow(x$site[!is.na(x$site$site), ]) >=1
+  nrow(x$sites[!is.na(x$sites$site), ]) >=1
 })
 
 if(!all(at_least_1row)) warning("some files have no site information")
+
+# convert all columns to character--so can
+all3 <- map(all3, function(x){
+  x$sites <- mutate_all(x$sites, as.character)
+  x
+})
+
+# bind_rows(map(all3, function(x) x$sites)) %>% View()
 
 ##########################################################################
 ################ process station tables ##################################
 
 all4 <- all3
 
-
 # check/fix station table col names -----------------------------------------
 
 station_col_names <- map(all3, function(x) names(x$station))
 
+station_cols <- "distance,elev,note_station,site,source,station_id,station_latitud,station_longitud,station_name,url"
 # files were station tables don't have usual col names ~~~
 station_names_good <- map_lgl(all3, function(x) {
   # do columns match these names?
-  check_names(x$station, names = "distance,elev,note_station,site,source,station_id,station_latitud,station_longitud,station_name,url") 
+  check_names(x$station, names = station_cols) 
 }) 
 
 anom_col_names <- station_col_names[!station_names_good]
+
+# SonoraAgrilifeResearchStation ~~~~~
+all4$SonoraAgrilifeResearchStation$station
+
+stn_col_names <- names(all4$hardware_ranch$station)
+all4$SonoraAgrilifeResearchStation$station <- 
+  all4$SonoraAgrilifeResearchStation$station %>% 
+  rename(source = provider, 
+         station_id = `Station ID`, 
+         station_latitud = latitude, 
+         station_longitud = longitude,
+         url = link) %>% 
+  mutate(elev = `elevation (ft)`*0.3048, # convert to m
+         distance = NA, # not provided
+         site = all4$SonoraAgrilifeResearchStation$sites$site,
+         station_name = station_id, # station name not given so using this
+         note_station = NA) %>% 
+  select(stn_col_names) # just keeping normal columns
+
+# check if all col names fixed
+check_names_in_list(
+  list = all4,  element_name = "station", names = station_cols,
+  warning = "Not all station tables have the correct column names"
+)
+
+
+# check/fix station sheet contents ----------------------------------------
+all5 <- all4
+
+# convert all cols to characte4
+all5 <- map(all5, function(x){
+  x$station <- mutate_all(x$station, as.character)
+  x
+})
+
+# removing rows of all NAs from station
+all5 <- map(all5, function(x) {
+  num_missing <- rowSums(is.na(x$station))
+  x$station <- x$station[num_missing != ncol(x$station), ]
+  x
+})
+
+# adding the list element name as a column--for when binding together
+all5 <- map2(all5, names(all5), function(x, name){
+  x$station$file_name <- name
+  x
+})
+
+# files where some rows of station sheet contain no station_name/site name
+station_rows_complete <- map_lgl(all5, function(x){
+  good_row <- rowSums(!is.na(x$station[, c("site", "station_name")])) == 2
+  all(good_row)
+})
+
+names(all5[!station_rows_complete])
+
+# viewing the data
+map(all5[!station_rows_complete], function(x) x$station)
+
+# filling in blank site name
+all5$Ciempozuelos$station$site[2] <- all5$Ciempozuelos$station$site[1]
+
+# Syferkuil--notes were on multiple lines
+syf_stn <- all5$Syferkuil_South_Africa$station
+syf_stn$note_station[1] <- 
+  paste(syf_stn$note_station, collapse = " ")
+
+all5$Syferkuil_South_Africa$station <- 
+  syf_stn %>% 
+  filter(!is.na(station_name))
+
+# kranzberg--notes on multiple lines
+kranz_stn <- all5$Kranzberg$station
+kranz_stn$note_station[1] <- 
+  paste(kranz_stn$note_station, collapse = " ")
+
+all5$Kranzberg$station <- 
+  kranz_stn %>% 
+  filter(!is.na(station_name))
+
+# check--all rows now have site/station name
+
+if(!all(
+  map_lgl(all5, function(x){
+    good_row <- rowSums(!is.na(x$station[, c("site", "station_name")])) == 2
+    all(good_row)
+  })
+)) {
+  warning("site or station name still missing from some rows")
+}
+
+
+# parsing station lat/lon -------------------------------------------------
+
+# adding E/W labels
+all5$Potrok_Aike_Patagonia_Peri_Toledo_$station <- 
+  all5$Potrok_Aike_Patagonia_Peri_Toledo_$station %>% 
+  mutate(station_longitud = paste(station_longitud, "W"),
+         station_latitud = paste(station_latitud, "S"))
+
+# all station data now in 1 df
+stn1 <- bind_rows(map(all5, function(x) x$station))
+stn1
+stn1$station_latitud
+stn1$station_longitud
+stn2 <- stn1
+
+# look at ones not in decimal degrees:
+stn1$station_latitud[str_detect(stn1$station_latitud, "[°ºA-z]")]
+stn1$station_longitud[str_detect(stn1$station_longitud, "[°ºA-z]")]
+
+biogeo::dmsparsefmt("107°44`00.007W", "ddd°mm`ssL") 
+stn2 <- stn2 %>% 
+  mutate(
+    lat = station_latitud,
+    lon = station_longitud,
+    lat = str_replace(lat, "'", "`"), # making one second demarcator
+    lon = str_replace(lon, "'", "`"),
+    lat = str_replace(lat, "º", "°"),
+    lon = str_replace(lon, "º", "°"),
+    lat = str_replace_all(lat, "[\\s\"\\)\\(]", ""),
+    lon = str_replace_all(lon, "[\\s\"\\)\\(]", ""),
+    lon = str_replace_all(lon, "[\\s\"\\)\\(]|(°$)", ""), # just dd but adding deg symbol
+    # when dd but N/E still used, getting rid of the letter (ie when no degree symbol:
+    lat = str_replace(lat, "(?<!°.{0,10})N", ""), 
+    lon = str_replace(lon, "(?<!°.{0,10})E", ""), 
+    deg_lat = str_extract(lat, "^-*\\d+(?=°)"), # numbers before degree symbol
+    min_lat = str_extract(lat, "(?<=°)\\d+"),
+    sec_lat = str_extract(lat, "(?<=`)\\d+\\.*\\d*"),
+    deg_lon = str_extract(lon, "^-*\\d+(?=°)"), # numbers before degree symbol
+    min_lon = str_extract(lon, "(?<=°)\\d+"),
+    sec_lon = str_extract(lon, "(?<=`)\\d+\\.*\\d*"),
+    lat_ns = str_extract(lat, "[NSns]"),
+    lon_ew = str_extract(lon, "[EeWw]"),
+    is_lat_dms = str_detect(lat, "°"),
+    is_lon_dms = str_detect(lon, "°"),
+  ) 
+
+stn3 <- stn2 %>% 
+  mutate_at(vars(matches("sec_|min_|deg_")),
+             .funs = as.numeric) %>% 
+  mutate(
+    station_latitud = ifelse(is_lat_dms,
+                             biogeo::dms2dd(deg_lat, min_lat, sec_lat, lat_ns),
+                             lat),
+    station_longitud = ifelse(is_lon_dms,
+                              biogeo::dms2dd(deg_lon, min_lon, sec_lon, lon_ew),
+                              lon),
+  ) %>% 
+  mutate_at(vars(station_latitud, station_longitud),
+            .funs = as.numeric) %>% 
+  select(names(all5$hardware_ranch$station)) # just keeping the main cols
+
+# CHECK: shouldn't be any NAs in lat/lon if parsed correctly
+stn3 %>% 
+  filter(is.na(station_longitud) | is.na(station_latitud) | is.na(site) 
+         | is.na(station_name))
+
+
+# parsing distance/elv -------------------------------------------------------
+
+stn3$distance # examine for characters e.g (miles etc)
+stn4$elev
+
+# redo if throws as.numeric parsing error
+stn4 <- stn3 %>% 
+  mutate(distance = str_replace(distance, "km", ""),
+         is_dist_m = str_detect(distance, "(?<![A-z])m(?![A-z])"), # just solitary m for meter
+         distance = str_replace(distance, "(?<![A-z])m(?![A-z])", ""),
+         distance = as.numeric(distance), 
+         distance = ifelse(is_dist_m,
+                           distance/1000, # m to km
+                           distance),
+         elev = str_replace(elev, "(?<![A-z])m(?![A-z])", ""), # ok to just remove m
+         elev = as.numeric(elev)
+         ) 
+
+# check--all rows now have site/station name
+
+
+
 # START HERE
 
 

@@ -134,3 +134,33 @@ check_names <- function(x, names) {
   out
 }
 
+
+
+# test if all dfs in list have proper cols --------------------------------
+
+
+check_names_in_list <- function(list, element_name, names, warning) {
+  # args:
+  #   list--a list element
+  #   element_name--name of element in sublist
+  #   names--string--column names to check for match (in sublist)
+  #   warning--warning to return if doesn't match
+  # returns:
+  #   warning or all ok message (ie did the df of interest have the proper column names)
+  stopifnot(
+    is.list(list),
+    is.character(element_name),
+    is.character(names),
+    is.character(warning)
+  )
+  
+  if(!all(
+    map_lgl(list, function(x) {
+      check_names(x[[element_name]], names = names) 
+    }))
+  ) {
+    warning(warning)
+  } else {
+    message("check passed")
+  }
+}
