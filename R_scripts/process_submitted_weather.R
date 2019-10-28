@@ -24,7 +24,7 @@
 #     solve specific known issues for a given site (NAs will be filled in a subsequent script)
 # 6 combine into one master file
 # 7 added in site codes
-# 8 save file
+# 8 save file of all the submitted data
 
 # packages etc ------------------------------------------------------------
 
@@ -92,7 +92,8 @@ sheets1
 all1 <- map2(file_paths, sheets1, function(path, sheets_of_path){
   # inner 'loop' load in each sheet of that file
   out <- map(sheets_of_path, function(sheet){ 
-    read_xlsx(path = path, sheet = sheet, na = c("", "NA")) # not parsing all dates correctly
+    read_xlsx(path = path, sheet = sheet, 
+              na = c("", "NA", "-", "Missing data, not registered", "ND")) 
   })
   names(out) <- sheets_of_path
   out
@@ -428,11 +429,9 @@ stn4 <- stn3 %>%
          elev = as.numeric(elev)
          ) 
 
+
 ###########################################################################
 ############     Process Weather data   ###################################
-
-
-all6 <- all5
 
 
 # checking weather col names ----------------------------------------------
@@ -442,18 +441,183 @@ wthr_col_names <- c("station_name", "date", "precip", "min_temp", "max_temp",
 
 wthr_col_string <- "date,max_temp,min_temp,note_weather,precip,station_name"
 
-wthr_names_good <- map_lgl(all6, function(x) {
+wthr_names_good <- map_lgl(all5, function(x) {
   # do columns match these names?
   check_names(x$weather, names = wthr_col_string) 
 }) 
 
 # files that need fixing
-names(all6[!wthr_names_good])
+names(all5[!wthr_names_good])
 
 
-map(all6[!wthr_names_good], function(x) names(x$weather))
+map(all5[!wthr_names_good], function(x) names(x$weather))
 
-# START HERE
+
+# fixing weather col names ------------------------------------------------
+
+all6 <- all5
+
+# some missing note column so adding--to make later checks easier
+all6 <- map2(all6, names(all6), function(x, name){
+  if (!"note_weather" %in% names(x$weather)) {
+    x$weather[["note_weather"]] <-  NA
+    message(paste("note_weather column added to:", name, "\n"))
+  }
+  x
+})
+
+# creating date columns
+head(all6$Pineta2014_2019$weather)
+
+all6$Pineta2014_2019$weather <- all6$Pineta2014_2019$weather %>% 
+  mutate(date = ymd(paste(Year, month, day, sep = "-"))) %>% 
+  select(wthr_col_names)
+
+# head(all6$Torla_Ordesa2014_2019$weather)
+all6$Torla_Ordesa2014_2019$weather <- all6$Torla_Ordesa2014_2019$weather %>% 
+  mutate(date = ymd(paste(Year, month, day, sep = "-"))) %>% 
+  select(wthr_col_names)
+
+all6$cap_whitetank$weather <- all6$cap_whitetank$weather %>% 
+  rename(precip = PRCP)
+
+# Syferkuil --combining 2 note columns
+all6$Syferkuil_South_Africa$weather$note_weather %>% unique()
+all6$Syferkuil_South_Africa$weather$Note_treatments %>% unique()
+
+all6$Syferkuil_South_Africa$weather <- 
+  all6$Syferkuil_South_Africa$weather %>% 
+  mutate(note_weather = paste(note_weather, Note_treatments, sep = ". ")) %>% 
+  select(-Note_treatments) 
+
+# potrok
+all6$Potrok_Aike_Patagonia_Peri_Toledo_$weather <- 
+  all6$Potrok_Aike_Patagonia_Peri_Toledo_$weather %>% 
+  rename(date = DATAS,
+         precip = Rainfall,
+         min_temp = `Mín. Temp`,
+         max_temp = `Máx. Temp`,
+         mean_temp = `Temp Mean`) # keeping provided mean temp data for now
+
+# IMGERS
+all6$IMGERS$weather$..7 <- NULL
+
+# OR
+all6$OR_Byrne$weather <- all6$OR_Byrne$weather[, wthr_col_names]
+
+# PassoGavia ~~~
+# keeping only data from the station with year round data
+# not the on site summer only station. 
+
+all6$PassoGavia$station$note_station
+all6$PassoGavia$weather <- all6$PassoGavia$weather %>% 
+  select(note_weather:max_temp2) %>% 
+  rename(station_name = station_name2,
+         date = date..8,
+         precip = precip_2,
+         min_temp = min_temp2,
+         max_temp = max_temp2) %>% 
+  select(wthr_col_names)
+
+# sonora ~~~~~~~~~~~~~~~~~~~~~~~
+# fix col names and data:
+
+# sub daily temp (F) and accumulated precip (in)
+son_wthr1 <- all6$SonoraAgrilifeResearchStation$weather %>% 
+  .[-1, ] # first row isn't data
+
+son_wthr1 
+  
+accum <- son_wthr1$precip_accum_set_1 %>% 
+  as.numeric()
+sum(is.na(accum)) # not many NAs so treating them as 0 rain
+
+# converting accumulated rain (year to date) to rain at that time
+previous <- accum[1]
+precip <- rep(NA, length(accum))
+for(i in 1:length(accum)) {
+  precip[i] <- if(accum[i] == 0 | is.na(accum[i])) {
+    0
+  } else {
+    accum[i] - previous
+  }
+  # amount accumulated precip of previous period (for next loop iteration)
+  previous <- if (is.na(accum[i])) {
+    previous
+  } else {
+    accum[i]
+  }
+}
+precip_in_calc <- precip
+all6$SonoraAgrilifeResearchStation$weather  <- son_wthr1 %>%
+  mutate(precip_in = precip_in_calc,
+         precip = precip_in*25.4, # in to mm
+         date = as.Date(Date_Time),
+         station_name = Station_ID,# using ID for name
+         air_temp_set_1 = as.numeric(air_temp_set_1),
+         temp = (32 * air_temp_set_1 - 32) * 5/9  # F to C
+         ) %>% 
+  group_by(date, station_name) %>% 
+  summarise(precip = sum(precip, na.rm = TRUE),  # converting sub daily to daily
+            min_temp = min(temp, na.rm = TRUE),
+            max_temp = max(temp, na.rm = TRUE),
+            note_weather = NA) %>% 
+  ungroup()
+
+# checking column consistency: 
+
+# adding in temp_mean column to all files that don't have it
+# doing this for consistency b/ there are sites that provided temp_mean
+
+all7 <- all6
+all7 <- map2(all7, names(all6), function(x, name){
+  if (!"mean_temp" %in% names(x$weather)) {
+    x$weather$mean_temp <-  NA_real_
+  } else {
+        message(paste("mean_temp column already present in:", name, "\n"))
+    }
+  x
+})
+
+wthr_col_names2 <- c(wthr_col_names, "mean_temp")
+wthr_col_string2 <- wthr_col_names2 %>% sort() %>% paste(collapse = ",")
+
+# check if all col names fixed
+check_names_in_list(
+  list = all7,  element_name = "weather", names = wthr_col_string2,
+  warning = "Not all weather tables have the correct column names"
+)
+
+
+# weather table--correct data types ------------------------------------------
+
+
+
+# for converting col types
+parse_wthr_cols <- function(x) {
+  x$weather <- x$weather %>% 
+    mutate_all(as.character) %>% # first all to character
+    mutate_at(vars(precip, min_temp, max_temp, mean_temp),
+              .funs = as.numeric)
+  x
+}
+
+# so can get warnings on what which don't parse:
+parse_wthr_cols_warn <- quietly(parse_wthr_cols) 
+
+# try parsing and look at warnings
+parse_warnings1 <- map(all7, function(x) {
+  parse_wthr_cols_warn(x)$warning
+})
+
+# sites that had warnings (i.e need to look at these) [should be none]
+discard(parse_warnings1, function(x) length(x) == 0)
+
+all8 <- all7
+
+all8 <- map(all8, parse_wthr_cols) # shouldn't be any parsing warnings. 
+
+
 
 
 

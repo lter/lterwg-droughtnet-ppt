@@ -155,8 +155,10 @@ check_names_in_list <- function(list, element_name, names, warning) {
   )
   
   if(!all(
-    map_lgl(list, function(x) {
-      check_names(x[[element_name]], names = names) 
+    map2_lgl(list, names(list), function(x, element) {
+      out <- check_names(x[[element_name]], names = names)
+      if(!out) warning (paste("issue with:",element)) # print if check names False
+      out
     }))
   ) {
     warning(warning)
