@@ -166,3 +166,24 @@ check_names_in_list <- function(list, element_name, names, warning) {
     message("check passed")
   }
 }
+
+
+# extract list tables and combine -----------------------------------------
+
+
+extract_elements_2df <- function(list, element) {
+  # list--a list (ie list of lists)
+  # element--name of table in each list element that interested in
+  # returns:
+  #    tibble, of combined list elements, with new col added (of name of list elements)
+  stopifnot(
+    is.list(list),
+    is.character(element)
+  )
+  bind_rows(
+    map2(list, names(list), function(x, name) {
+      x[[element]] %>% 
+        mutate(file_name = name)
+    }) 
+  )
+}

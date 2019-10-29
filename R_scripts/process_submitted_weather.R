@@ -526,7 +526,7 @@ all6$PassoGavia$weather <- all6$PassoGavia$weather %>%
 son_wthr1 <- all6$SonoraAgrilifeResearchStation$weather %>% 
   .[-1, ] # first row isn't data
 
-son_wthr1 
+#son_wthr1 
   
 accum <- son_wthr1$precip_accum_set_1 %>% 
   as.numeric()
@@ -552,6 +552,7 @@ precip_in_calc <- precip
 all6$SonoraAgrilifeResearchStation$weather  <- son_wthr1 %>%
   mutate(precip_in = precip_in_calc,
          precip = precip_in*25.4, # in to mm
+         Date_Time = mdy_hm(Date_Time),
          date = as.Date(Date_Time),
          station_name = Station_ID,# using ID for name
          air_temp_set_1 = as.numeric(air_temp_set_1),
@@ -591,8 +592,6 @@ check_names_in_list(
 
 # weather table--correct data types ------------------------------------------
 
-
-
 # for converting col types
 parse_wthr_cols <- function(x) {
   x$weather <- x$weather %>% 
@@ -617,16 +616,108 @@ all8 <- all7
 
 all8 <- map(all8, parse_wthr_cols) # shouldn't be any parsing warnings. 
 
+# remove example template rows -----------------------------------------------
+
+# map(all8, function(x) x$weather[1:3, ]) %>% 
+#   bind_rows() %>% View()
+
+# rows where example station listed--
+# check this because some sites may enter "example station" for actuall data rows
+map(all8, function(x) {
+  x$weather %>% 
+    filter(station_name == 'example station')
+}) %>% 
+  discard(function(x) nrow(x) ==0)
+
+# potrok [actual data rows--just no station_name given]
+all8$Potrok_Aike_Patagonia_Peri_Toledo_$weather$station_name <- 
+  all8$Potrok_Aike_Patagonia_Peri_Toledo_$station$station_name
+
+# only run once checked above that ok to discard these rows
+all8 <- map(all8, function(x) {
+  x$weather <- x$weather %>% 
+    filter(station_name != 'example station')
+  x
+})
+
+# check missing date/station_name -----------------------------------------
+
+# all rows should have a station_name and a date
+
+# combine all weather sheets into one df
+wthr1 <- extract_elements_2df(all8, element = "weather")
+
+# files where there are NAs in date/station_name
+wthr1 %>% 
+  filter(is.na(date)| is.na(station_name)) %>% 
+  group_by(file_name) %>% 
+  summarise(n = n())
 
 
+# cimpozuelos ~~~~~~~~~~~
+
+# issue here is that half the dates were in date format in excel
+# the others were in text, those didn't parse in readxl
+
+ciemp_wthr_aranj <- read_xlsx(
+  file_paths["Ciempozuelos"],
+  sheet = "weather",
+  # forcing date to read in as text
+  col_types = c("text", "text", "numeric", "numeric", "numeric", "text"))  %>% 
+  filter(station_name == "Aranjuez Station")
+
+ciemp_wthr_vald <- all8$Ciempozuelos$weather %>% 
+  filter(station_name == "Valdemoro Station")
+
+all8$Ciempozuelos$weather <- bind_rows(ciemp_wthr_vald, ciemp_wthr_aranj) 
+  
+
+# Lamb ~~~~~~~~~~~~~~~~
+# note no precip data from Saskatoon_INT station [PI may submit it in future]
+
+all8$Lamb_Oct112_19$station$note_station
+
+# saskatoon dates not parsed
+lamb_wthr_sas <- read_xlsx(
+  file_paths["Lamb_Oct112_19"],
+  sheet = "weather",
+  # forcing date to read in as text
+  col_types = c("text", "text", "numeric", "numeric", "numeric", "text")) %>% 
+  filter(station_name == "Saskatoon_INT")
+
+lamb_wthr_other <- all8$Lamb_Oct112_19$weather %>% 
+  filter(station_name != "Saskatoon_INT")
+
+all8$Lamb_Oct112_19$weather <- bind_rows(lamb_wthr_other, lamb_wthr_sas)
+
+# rhijnauwen ~~~~~~~~~~~~~
+
+# only first couple dates provided, they said they were sequential
+first_date <- all8$rhijnauwen$weather$date[1]
+n <- length(all8$rhijnauwen$weather$precip)
+
+all8$rhijnauwen$weather$date <- seq(from = ymd(first_date), 
+                                    length.out = n,
+                                    by = "day") %>% 
+  as.character()
+
+# see if all missing values fixed:
+missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
+  filter(is.na(date)| is.na(station_name)) %>% 
+  group_by(file_name) %>% 
+  summarise(n = n())
+
+if(nrow(missing_date_name) > 0) {
+  warning("some files still missing date/station_names")
+}
 
 
+# parse dates -------------------------------------------------------------
 
-
-
-
-
-
+# next:
+# determine which dates won't parse
+# fix those individually
+# end up with all date class and no NAs in date cols
 
 
 
