@@ -187,3 +187,43 @@ extract_elements_2df <- function(list, element) {
     }) 
   )
 }
+
+# see if date will parse --------------------------------------------------
+
+parse_date_warn <- function(x) {
+  # args:
+  #   x--vector to parse to date
+  # returns:
+  #   warning or lack there of from parse_date
+  #   the point is to see whether this vector will parse without a warning
+  parse_date_quietly <- quietly(ymd)
+  out <- parse_date_quietly(x)$warning
+  out
+}
+
+
+# convert 5 digit date from excel -----------------------------------------
+
+# excel  returns date as a number (days since origin)--so when read into R just that number is given
+# Note there is some risk here b/ Excel 2008 for Mac and earlier Excel for Mac 
+# versions calculate dates based on the 1904 date system (not 1900 like every thing else)
+# first check origin of file by using openxlsx::getDateOrigin
+
+parse_if_5digit_date <- function(x) {
+  # args:
+  #   x--char vector
+  # returns:
+  #   character vector--if value is a 5 digit number, returns date
+  #   otherwise returns original value
+  stopifnot(is.character(x))
+  
+  is_5digit <- str_detect(x, "^\\d{5}$")
+
+  out <- x
+  # see https://stat.ethz.ch/pipermail/r-help/2011-March/270455.html
+  out[is_5digit] <- as.character(as_date(as.numeric(x[is_5digit]), 
+                                         origin = "1899-12-30"))
+  
+  out
+}
+

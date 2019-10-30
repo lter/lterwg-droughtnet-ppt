@@ -41,6 +41,7 @@ path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 # site info ---------------------------------------------------------------
 
+# make sure using most recent file
 siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
                     as.is = TRUE)
 
@@ -414,7 +415,7 @@ stn3 %>%
 # parsing distance/elv -------------------------------------------------------
 
 stn3$distance # examine for characters e.g (miles etc)
-stn4$elev
+stn3$elev
 
 # redo if throws as.numeric parsing error
 stn4 <- stn3 %>% 
@@ -651,7 +652,8 @@ wthr1 <- extract_elements_2df(all8, element = "weather")
 wthr1 %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
   group_by(file_name) %>% 
-  summarise(n = n())
+  summarise(n = n()) %>% 
+  ungroup()
 
 
 # cimpozuelos ~~~~~~~~~~~
@@ -705,7 +707,8 @@ all8$rhijnauwen$weather$date <- seq(from = ymd(first_date),
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
   group_by(file_name) %>% 
-  summarise(n = n())
+  summarise(n = n()) %>% 
+  ungroup()
 
 if(nrow(missing_date_name) > 0) {
   warning("some files still missing date/station_names")
@@ -714,161 +717,98 @@ if(nrow(missing_date_name) > 0) {
 
 # parse dates -------------------------------------------------------------
 
-# next:
-# determine which dates won't parse
-# fix those individually
-# end up with all date class and no NAs in date cols
+all9 <- all8
 
+# checking date origin in excel spreadsheets 
+# (some older mac versions of excel have different origin so good to check)
+origins <- map_chr(file_paths, openxlsx::getDateOrigin)
+if(!all(origins == "1900-01-01")){
+  warning("not all origins in excel files the same")
+}
 
-
-
-
-# OLD code below
-
-
-# process tab ----------------------------------------------------------
-
-
-sites1 <- lapply(file_paths, read_xlsx, sheet = "sites")
-names(sites1) <- file_names2
-# load station tab ------------------------------------------------------
-
-stns1 <- lapply(file_paths, read_xlsx, sheet = "station")
-names(stns1) <- file_names2
-
-# load weather tab -------------------------------------------------------
-
-safely_read_xlsx <- safely(read_xlsx) # not all files have weather tab
-
-wthr1 <- lapply(file_paths, function(x){
-  out <- safely_read_xlsx(x, sheet = "weather", na = c("NA", "", "N/A"))
-  out$result
-})
-
-names(wthr1) <- file_names2
-
-map_lgl(wthr1, is.null) # sites that don't have weather sheet
-
-
-
-
-# process site info -------------------------------------------------------
-
-# example rows left in some
-sites2 <- lapply(sites1, function(x){
-  
-  stopifnot("pi" %in% names(x))
-  
-  out <- x %>% 
-    filter(pi != "Doe; John")
-  out
-})
-
-# process station info ---------------------------------------------------
-stns1
-
-# example rows left in some files
-stns2 <- lapply(stns1, function(x){
-  
-  stopifnot("station_name" %in% names(x))
-  
-  out <- x %>% 
-    filter(station_name != "example station", !is.na(station_name)) %>% 
-    mutate_all(as.character) # so can bind rows later
-  out
-})
-
-lapply(stns2, names)
-
-stns2
-
-# bringing in site code
-stns3 <- lapply(stns2, function(x) {
-  out <- left_join(x, site_name_code, by = c("site" = "site_name"))
-  out
-})
-
-
-stns4 <- bind_rows(stns3) 
-
-# sites where site name doesn't have match with siteElev file
-stns4 %>%  filter(is.na(site_code)) %>% 
-  select(site, site_code)
-
-# Hongyuan doesn't have site code (b/ not biomass data as of yet)
-
-# adding in missing codes
-stns4[stns4$site == "Syferkuil South Africa", ]$site_code <- "syferkuil.za"
-stns4[stns4$site == "Mar Chiquita", ]$site_code <- "marcdrt.ar"
-
-
-# process weather tables ---------------------------------------------------
-
-
-# rhijnauwen ~~~~~~~~~
-
-# only first couple dates provided, they said they were sequential
-first_date <- wthr1$IDE_weather_rhijnauwen$date[1]
-n <- length(wthr1$IDE_weather_rhijnauwen$precip)
-dates <- seq(from = lubridate::ymd(first_date), length.out = n,
-             by = "day") %>% 
-  as.character()
-
-wthr1$IDE_weather_rhijnauwen$date <- dates
-
-# ~~~~~~~
-
-wthr1 <- lapply(wthr1, function(x){
-  x %>% 
-    filter(station_name != "example station") # getting rid of example row
-}) 
-
-# check that date formats look ok
-map_chr(wthr1, function(x){
-  x$date[1] %>% 
-    as.character
-})
-
-# parse dates
-wthr2 <- lapply(wthr1, function(x){
-  x <- x %>% 
-    mutate(date = as.character(date),
-           date = parse_date(date))
-  print(x[1, ])
-  return(x)
-})
-
-# parse numeric cols
-wthr3 <-lapply(wthr2, function(x){
-
-  x <- x %>% 
-    mutate_at(vars(precip, min_temp, max_temp),
-           .funs = as.numeric)
+# if date is 5 digits (days since origin) convert to date
+all9 <- map(all9, function(x) {
+  x$weather$date <- parse_if_5digit_date(x$weather$date)
   x
-}) 
-
-# add in station/site info
-wthr4 <- lapply(wthr3, function(x){
-  left_join(x, stns4, by = "station_name")
 })
 
-# check join was ok
-lapply(wthr4, function(x) x[1, ]) %>% 
-  bind_rows()
+# warnings from parsing to date
+parse_warnings2 <- map(all9, function(x){
+  parse_date_warn(x$weather$date)
+})
 
-wthr5 <- bind_rows(wthr4)
-dim(wthr5)
+# look at sites that got warnings
+bad_dates <- discard(parse_warnings2, function(x) length(x) == 0)
+bad_dates
+names(bad_dates)
+
+# checking out what the non-standard date formats are looking like
+map(all9[names(bad_dates)], function(x) {
+  x$weather$date[!str_detect(x$weather$date, "\\d{4}-\\d{2}-\\d{2}")] %>% 
+    unique() 
+})
+
+# yarramund ~~~~~~~~~~
+# some dates in m/d/yyyy format
+yar_date <- all9$Yarramundi_on_site_met_data_2014_2019$weather$date
+yar_is_mdy <- str_detect(yar_date, "^\\d{1,2}/\\d{1,2}/\\d{4}$")
+yar_date[yar_is_mdy] <- mdy(yar_date[yar_is_mdy]) %>% 
+  as.character()
+all9$Yarramundi_on_site_met_data_2014_2019$weather$date <- yar_date
+
+# check that all dates now parsable--
+
+all_parsable <- map(all9, function(x){
+  parse_date_warn(x$weather$date)
+}) %>% 
+  every(function(x) length(x) == 0)
+
+if (!all_parsable) warning("some dates still can't parse")
+
+# now convert to date
+all9 <- map(all9, function(x){
+  x$weather$date <- ymd(x$weather$date)
+  x
+})
 
 
-# checks ------------------------------------------------------------------
+# fixing known temp/precip anomolies ---------------------------------------
+all10 <- all9
 
-wthr5$station_name %>% unique()
-wthr5$site_code %>% unique()
+# PI confirmed at this site NAs are 0. No actual missing data
+all10$IMGERS$weather$precip[is.na(all10$IMGERS$weather$precip)] <- 0
 
 
-# save file ---------------------------------------------------------------
 
-# daily weather for all submitted stations [not yet including a couple sites that need extra processing]
+# merging in site codes ---------------------------------------------------
 
-# write_csv(wthr5,
-#           file.path(path_oct, 'data/precip/submitted_daily_weather_2019-10-01.csv'))
+# so merging issues aren't caused by erronious spaces/all caps
+# make sure stn4 is highest number stn object (i.e. if code changed above)
+stn4$site_name_4merge <- stn4$site %>% 
+  str_to_lower() %>% 
+  str_replace_all("\\s", "")
+
+site_name_code$site_name_4merge <- site_name_code$site_name %>% 
+  str_to_lower() %>% 
+  str_replace_all("\\s", "") 
+
+stn5 <- stn4 %>% 
+  left_join(site_name_code, by = "site_name_4merge")
+
+# sites that matched
+stn5 %>% 
+  filter(!is.na(site_code)) %>% 
+  pull(site) %>% 
+  unique() %>% 
+  sort()
+
+# sites that did not match
+stn5 %>% 
+  filter(is.na(site_code)) %>% 
+  pull(site) %>% 
+  unique() %>% 
+  sort()
+
+
+
+
