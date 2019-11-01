@@ -227,3 +227,50 @@ parse_if_5digit_date <- function(x) {
   out
 }
 
+
+
+# monthly to daily precip -------------------------------------------------
+
+# here daily precip is calculated as the amount of precip in that month 
+# divided by number of days in that month
+# this is so that we can get say get total precip in the 12 months prior to say Aug 15 2018
+# in analyses in downstream pipelines, and make the data fit into those pipelines.
+
+
+monthly2daily_precip <- function(df, year, month, precip) {
+  # args:
+  #   df--data frame of monthly precip
+  #   year--string name of year column
+  #   month --string name of month column
+  #   precip--string name of precip column
+  # returns:
+  #   data frame that contains mean daily precip (of the month)
+  #     for each date in each month. Has Two columns, date and precip
+  #     will be in original units that precip given in
+  stopifnot(
+    is.data.frame(df),
+    # proper col names given
+    all(c(year, month, precip) %in% names(df)),
+    nrow(df) > 0,
+    # no duplicate months
+    all(!duplicated(df[, c(year, month)])),
+    is.numeric(df[[precip]])
+  )
+  
+  df1 <- df[ , c(year, month, precip)]
+  
+  df1$first_date_month <- lubridate::ymd(paste(df1[[year]], df1[[month]], "1", sep = "-"))
+  df1$days_in_month <- lubridate::days_in_month(df1$first_date_month)
+  new_list <- list()
+  for (i in 1:nrow(df1)) {
+    n <- df1$days_in_month[i]
+    dates <- seq(from = df1$first_date_month[i],
+        length.out = n,
+        by = "day")
+    daily_precip <- df1[i, ][[precip]]/n
+    
+    new_list[[i]] <- data.frame(date = dates, precip = daily_precip)
+  }
+  out <- dplyr::bind_rows(new_list)
+  out
+}

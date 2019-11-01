@@ -5,7 +5,7 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS
+# WORK IN PROGRESS--NEXT load in GCN file list
 
 # once finished this script is meant to:
 
@@ -57,7 +57,8 @@ file_names <- all_names %>%
   str_replace("^~\\$", "") %>% # dealing with temporary ~$filename for opened files
   .[!duplicated(.)]
 
-# file_names[file_names != "IDE_weather_rhijnauwen.xlsx"] # PW seperately cleaning this one
+# only use BadLauchstaedt_weather_complete.xlsx (2nd file they sent)
+file_names <- file_names[file_names != "BadLauchstaedt_weather.xlsx"]
 
 # what files/folders aren't we loading here?
 all_names[!all_names %in% file_names]
@@ -282,9 +283,11 @@ check_names_in_list(
 # check/fix station sheet contents ----------------------------------------
 all5 <- all4
 
-# convert all cols to characte4
+# convert all cols to character and remove example rows
 all5 <- map(all5, function(x){
-  x$station <- mutate_all(x$station, as.character)
+  x$station <- mutate_all(x$station, as.character) %>% 
+    filter((is.na(site) |site != "Nowhere")  & 
+             (is.na(station_name) | station_name != "example station"))
   x
 })
 
@@ -778,6 +781,9 @@ all10 <- all9
 # PI confirmed at this site NAs are 0. No actual missing data
 all10$IMGERS$weather$precip[is.na(all10$IMGERS$weather$precip)] <- 0
 
+# STILL NEED TO DO:
+# combine GCN precip from sites that supplied both daily and monthly data seperately
+
 
 
 # merging in site codes ---------------------------------------------------
@@ -803,12 +809,54 @@ stn5 %>%
   sort()
 
 # sites that did not match
-stn5 %>% 
+not_matching <- stn5 %>% 
   filter(is.na(site_code)) %>% 
   pull(site) %>% 
   unique() %>% 
   sort()
+not_matching %>% 
+  paste(collapse = "' = ,'")
 
+# manually looked for associated site_codes
+not_matching_lookup <- c('AA' = 'oreaa.us',
+                         'AC' = 'oreac.us',
+                         'Ämtvik' = 'unknown',
+                         'Bad Lauchstaedt' = 'baddrt.de',
+                         'cap_mcdowell' = 'capmcd.us',
+                         'cap_whitetank' = 'capwhite.us',
+                         'EEA_Ufrgs' = 'eea.br',
+                         'GCN-Xilinhot' = 'unknown',
+                         'GCN-Youyu' = 'unknown',
+                         'gmdrc_granitecove' = 'gmgranite.us',
+                         'gmdrc_molarjunction' = 'gmmolar.us',
+                         'Hongyuan' = 'unknown',
+                         'KAEFS-OK' = 'oklah.us',
+                         'Kranzberg' = 'unknown',
+                         'Mar Chiquita' = 'marcdrt.ar',
+                         'Potrok Aike' = "paike.ar",
+                         'Prades' = 'prades.es',
+                         'Puerto Pirámides-Estancia La Adela' = 'unknown',
+                         'Swift Current' = 'swift.ca',
+                         'Syferkuil South Africa' = 'syferkuil.za',
+                         'Tovetorp' = "unknown",
+                         'Yarramundi' = 'yarradrt.au')
+
+# sites that I  couldn't find a code for
+not_matching_lookup[not_matching_lookup == "unknown"] %>% 
+  names() 
+
+stn6 <- stn5
+stn6 <- stn6 %>% 
+  mutate(site_code = ifelse(is.na(site_code),
+                            not_matching_lookup[site],
+                            site_code)) %>% 
+  select(-site_name_4merge, -site_name)
+
+stn3 %>% names()
+if(any(is.na(stn6$site_code))) warning("some site codes NA")
+
+# next: merge weather and station info together, check for sites that aren't merging properly
+#
 
 
 
