@@ -5,7 +5,7 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS--NEXT load in GCN file list
+# WORK IN PROGRESS--NEXT load in files from processed folder
 
 # once finished this script is meant to:
 
@@ -74,7 +74,8 @@ file_names3 <-
   str_replace_all("weather|template*|IDE", "") %>% 
   str_replace_all("(^_+)|(^\\s+)|(_+$)|(\\s+$)", "") %>% # leading/trailing
   str_replace_all("\\s+|[-,)(]", "_") %>% 
-  str_replace_all("_{2,}", "_")
+  str_replace_all("_{2,}", "_") %>% 
+  str_replace_all("^_", "")
 file_names3  
 
 file_paths <- file.path(path_may, "IDE_weather/submitted_data", file_names)
@@ -103,10 +104,24 @@ all1 <- map2(file_paths, sheets1, function(path, sheets_of_path){
 
 all2 <- all1
 
+# load seperately prepped GCN data:
+# (created in pre-process_GCN_weather.R script)
+
+gcn1 <- readRDS(
+  file.path(path_may, 
+            "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-10-31.rds")
+)
+
+names(gcn1) 
+
+all2 <- c(all2, gcn1)
+
+if(sum(duplicated(names(all2))) != 0) warning("duplicate names")
+
 # files with anomolous sheets ---------------------------------------------
 
 # check for anomolous sites that don't have the usual 4 sheets 
-not_anom <- map_dbl(all1, check_names, # check_names is fun in functions.R
+not_anom <- map_dbl(all2, check_names, # check_names is fun in functions.R
                     names = "metadata,sites,station,weather")
 anom_sheets1 <- sheets1[!not_anom] # files with anomolous tables 
 names(anom_sheets1)
@@ -149,8 +164,24 @@ head(all1$wayqecha_met_summary$`daily rainfall`)
 # [note: code to parse this data can be found in older commit (mid Oct 2019) of this file]
 all2$wayqecha_met_summary <- NULL 
 
-anom_sheets1
+# GCN_Suihua 
+# temp data is daily mean
 
+all2$GCN_Suihua
+
+all2$GCN_Suihua$weather <- bind_rows(all2$GCN_Suihua$weather2018,
+                                     all2$GCN_Suihua$weather2018) %>% 
+  rename(precip = `precip(mm)`,
+         mean_temp = "temp(℃)") %>% 
+  select(-"RH(%)")
+
+# many "temp C" values of 100.0--so assuming this data is corrupted somehow
+# hist(as.numeric(all2$GCN_Suihua$weather$mean_temp))
+
+all2$GCN_Suihua$weather$mean_temp <- NA
+all2$GCN_Suihua$weather$note_weather <- "mean temp data suspect so discarded in processing (MH)"
+all2$GCN_Suihua$weather2018 <- NULL
+all2$GCN_Suihua$weather2019 <- NULL
 
 # check if all sheets present -----------------------------------------------
 
@@ -235,6 +266,15 @@ all3 <- map(all3, function(x){
   x
 })
 
+# sanpablo ~~~~~~~
+# site name not entered in station table
+all3$sanpablovaldes$sites
+all3$sanpablovaldes$sites$site <- "San Pablo Valdes Drt"
+all3$sanpablovaldes$station$site <- "San Pablo Valdes Drt"
+
+
+
+
 # bind_rows(map(all3, function(x) x$sites)) %>% View()
 
 ##########################################################################
@@ -272,6 +312,15 @@ all4$SonoraAgrilifeResearchStation$station <-
          station_name = station_id, # station name not given so using this
          note_station = NA) %>% 
   select(stn_col_names) # just keeping normal columns
+
+#GCN_Suihua
+
+all4$GCN_Suihua$station <- all4$GCN_Suihua$station %>% 
+  mutate(distance = `distance(m)`/1000) %>% 
+  rename(elev = `elev(m)`) %>% 
+  select(-`distance(m)`)
+
+
 
 # check if all col names fixed
 check_names_in_list(
@@ -336,6 +385,10 @@ all5$Kranzberg$station <-
   kranz_stn %>% 
   filter(!is.na(station_name))
 
+# bamboo drought ~~~
+all5$Bamboo_drought_$sites$site <- 	"Bamboo drought China"
+all5$Bamboo_drought_$station$site <- 	"Bamboo drought China"
+
 # check--all rows now have site/station name
 
 if(!all(
@@ -357,7 +410,7 @@ all5$Potrok_Aike_Patagonia_Peri_Toledo_$station <-
          station_latitud = paste(station_latitud, "S"))
 
 # all station data now in 1 df
-stn1 <- bind_rows(map(all5, function(x) x$station))
+stn1 <- extract_elements_2df(all5, "station")
 stn1
 stn1$station_latitud
 stn1$station_longitud
@@ -367,7 +420,6 @@ stn2 <- stn1
 stn1$station_latitud[str_detect(stn1$station_latitud, "[°ºA-z]")]
 stn1$station_longitud[str_detect(stn1$station_longitud, "[°ºA-z]")]
 
-biogeo::dmsparsefmt("107°44`00.007W", "ddd°mm`ssL") 
 stn2 <- stn2 %>% 
   mutate(
     lat = station_latitud,
@@ -407,9 +459,9 @@ stn3 <- stn2 %>%
   ) %>% 
   mutate_at(vars(station_latitud, station_longitud),
             .funs = as.numeric) %>% 
-  select(stn_col_names) # just keeping the main cols
+  select(stn_col_names, "file_name") # just keeping the main cols
 
-# CHECK: shouldn't be any NAs in lat/lon if parsed correctly
+# CHECK: shouldn't be any NAs in lat/lon if parsed correctly--other than the 8 GCN sites
 stn3 %>% 
   filter(is.na(station_longitud) | is.na(station_latitud) | is.na(site) 
          | is.na(station_name))
@@ -431,7 +483,41 @@ stn4 <- stn3 %>%
                            distance),
          elev = str_replace(elev, "(?<![A-z])m(?![A-z])", ""), # ok to just remove m
          elev = as.numeric(elev)
-         ) 
+         ) %>% 
+  select(-is_dist_m)
+
+# now putting stn table back into the lists
+
+all5 <- map2(all5, names(all5), function(x, name) {
+  x$station <- stn4[stn4$file_name == name, ]
+  x
+})
+
+# checking site names
+
+# checking if all sites listed in the sites table are also in the station tables
+
+# name incorrect in sites sheet (but coordinates correct):
+all5$Pineta2014_2019$sites$site <- all5$Pineta2014_2019$station$site
+
+# just written differently:
+all5$Freiburg$sites$site <- all5$Freiburg$station$site
+
+
+# from coordinates and other naming it is clear there was just a mix up in names
+all5$Garraf_daylydata$station$site <- all5$Garraf_daylydata$sites$site
+
+
+site_name_present <- map_lgl(all5, function(x) {
+  site_in_station <- x$sites$site %in% x$station$site
+  station_in_site <- x$station$site %in% x$sites$site
+  all(c(site_in_station, station_in_site))
+})
+
+site_name_present[!site_name_present]
+
+if(!all(site_name_present)) warning("fix site name issues")
+
 
 
 ###########################################################################
@@ -640,7 +726,7 @@ all8$Potrok_Aike_Patagonia_Peri_Toledo_$weather$station_name <-
 # only run once checked above that ok to discard these rows
 all8 <- map(all8, function(x) {
   x$weather <- x$weather %>% 
-    filter(station_name != 'example station')
+    filter(station_name != 'example station' |is.na(station_name))
   x
 })
 
@@ -706,6 +792,15 @@ all8$rhijnauwen$weather$date <- seq(from = ymd(first_date),
                                     by = "day") %>% 
   as.character()
 
+# Pineta
+all8$Pineta2014_2019$weather <- all8$Pineta2014_2019$weather %>% 
+  mutate(station_name = ifelse(is.na(station_name),
+                               all8$Pineta2014_2019$station$station_name,
+                               station_name))
+# bamboo
+all8$Bamboo_drought_$weather$station_name <- 
+  all8$Bamboo_drought_$station$station_name
+  
 # see if all missing values fixed:
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
@@ -759,6 +854,19 @@ yar_date[yar_is_mdy] <- mdy(yar_date[yar_is_mdy]) %>%
   as.character()
 all9$Yarramundi_on_site_met_data_2014_2019$weather$date <- yar_date
 
+# GCN_Suihua ~~~
+all9$GCN_Suihua$weather$date <- ymd_hms(all9$GCN_Suihua$weather$date) %>% 
+  as_date() %>% 
+  as.character()
+
+# bamboo ~~~
+bam_date <- all9$Bamboo_drought_$weather$date
+# two feb 29 not leap years, discarding those rows
+bam_not_parsed <- is.na(ymd(bam_date))
+bam_date[bam_not_parsed] 
+
+all9$Bamboo_drought_$weather <- all9$Bamboo_drought_$weather[!bam_not_parsed, ]
+
 # check that all dates now parsable--
 
 all_parsable <- map(all9, function(x){
@@ -781,15 +889,29 @@ all10 <- all9
 # PI confirmed at this site NAs are 0. No actual missing data
 all10$IMGERS$weather$precip[is.na(all10$IMGERS$weather$precip)] <- 0
 
-# STILL NEED TO DO:
 # combine GCN precip from sites that supplied both daily and monthly data seperately
+names(gcn1)
 
+# Youyu ~~~~
+
+range(all10$GCN_Youyu_1_$weather$date) # daily data
+range(all10$GCN_Youyu$weather$date) # from submitted monthly data
+
+# the data from monthly precip doesn't have any extra dates so can discard
+all10$GCN_Youyu$weather %>% 
+  filter(!date %in% all10$GCN_Youyu_1_$weather$date) %>% 
+  nrow()
+all10$GCN_Youyu <- NULL
 
 
 # merging in site codes ---------------------------------------------------
 
 # so merging issues aren't caused by erronious spaces/all caps
 # make sure stn4 is highest number stn object (i.e. if code changed above)
+#STOP pull stn back out
+
+stn4 <- extract_elements_2df(all10, "station")
+
 stn4$site_name_4merge <- stn4$site %>% 
   str_to_lower() %>% 
   str_replace_all("\\s", "")
@@ -814,13 +936,12 @@ not_matching <- stn5 %>%
   pull(site) %>% 
   unique() %>% 
   sort()
-not_matching %>% 
-  paste(collapse = "' = ,'")
+not_matching
 
 # manually looked for associated site_codes
 not_matching_lookup <- c('AA' = 'oreaa.us',
                          'AC' = 'oreac.us',
-                         'Ämtvik' = 'unknown',
+                         'Ämtvik' = 'unknown', # unknown site
                          'Bad Lauchstaedt' = 'baddrt.de',
                          'cap_mcdowell' = 'capmcd.us',
                          'cap_whitetank' = 'capwhite.us',
@@ -831,28 +952,37 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
                          'Hongyuan' = 'unknown',
                          'KAEFS-OK' = 'oklah.us',
-                         'Kranzberg' = 'unknown',
+                         'Kranzberg' = 'unknown', # haven't submitted bio data
                          'Mar Chiquita' = 'marcdrt.ar',
+                         'NP' = 'nplatte.us',
                          'Potrok Aike' = "paike.ar",
                          'Prades' = 'prades.es',
-                         'Puerto Pirámides-Estancia La Adela' = 'unknown',
                          'Swift Current' = 'swift.ca',
                          'Syferkuil South Africa' = 'syferkuil.za',
-                         'Tovetorp' = "unknown",
-                         'Yarramundi' = 'yarradrt.au')
+                         'Tovetorp' = "unknown", # haven't sent in bio data
+                         'Yarramundi' = 'yarradrt.au',
+                         'GCN-Suihua' = "unknown",
+                         'GCN-Hulunber' = "unknown",
+                         'GCN-Urat' = "unknown",
+                         'GCN-Yanchi' = "unknown",
+                         'GCN-Haibei' = "unknown",
+                         'GCN-Hongyuan' = "unknown",
+                         'GCN-Naqu' = "unknown",
+                         'GCN-Dangxiong' = "unknown")
 
 # sites that I  couldn't find a code for
 not_matching_lookup[not_matching_lookup == "unknown"] %>% 
-  names() 
+  names() %>% 
+  sort()
 
 stn6 <- stn5
+
 stn6 <- stn6 %>% 
   mutate(site_code = ifelse(is.na(site_code),
                             not_matching_lookup[site],
                             site_code)) %>% 
   select(-site_name_4merge, -site_name)
 
-stn3 %>% names()
 if(any(is.na(stn6$site_code))) warning("some site codes NA")
 
 # next: merge weather and station info together, check for sites that aren't merging properly
