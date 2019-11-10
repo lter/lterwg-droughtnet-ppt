@@ -78,6 +78,9 @@ file_names3 <-
   str_replace_all("^_", "")
 file_names3  
 
+# shorter name
+file_names3[file_names3 == "ECN_Wytham_DAILY_met_data_2015_2019_for_DroughtNet"] <- "ECN_Wytham"
+
 file_paths <- file.path(path_may, "IDE_weather/submitted_data", file_names)
 names(file_paths) <- file_names3
 
@@ -126,6 +129,15 @@ not_anom <- map_dbl(all2, check_names, # check_names is fun in functions.R
 anom_sheets1 <- sheets1[!not_anom] # files with anomolous tables 
 names(anom_sheets1)
 
+wthr_col_names <- c("station_name", "date", "precip", "min_temp", "max_temp", 
+                    "note_weather")
+
+# make a empty template
+template <- map(all2$hardware_ranch, function(x) {
+  x[1, ] %>% 
+    mutate_all(function(x) NA) # fill with NAs
+})
+template$metadata <- all2$hardware_ranch$metadata
 
 # Nielsen ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -183,10 +195,55 @@ all2$GCN_Suihua$weather$note_weather <- "mean temp data suspect so discarded in 
 all2$GCN_Suihua$weather2018 <- NULL
 all2$GCN_Suihua$weather2019 <- NULL
 
+# ECN_Wytham ~~~
+# weather sheet
+ecn_weather <- all2$ECN_Wytham$`2015-2019_calculated_DAILY`[-(1:5),]
+
+ecn_weather2 <- ecn_weather[-1, ]
+names(ecn_weather2) <- as.character(ecn_weather[1, ]) %>% 
+  str_replace_all("[^A-z]", "")
+
+all2$ECN_Wytham$weather <- ecn_weather2 %>% 
+  mutate(first = paste0(Year, "-01-01")) %>% # first day of year
+  group_by(first) %>% 
+  # converting DOY to date
+  mutate(date = as.Date(as.numeric(DayofYear) -1, origin = unique(first)),
+         station_name = "ECN Automated Weather Station on Upper Seeds") %>% 
+  ungroup() %>% 
+  rename(precip = `SumofRainfalltotal[mm]`,
+         max_temp = `MaxofAirtempmax[C]`,
+         min_temp = `MinofAirtempminimum[C]`,
+         mean_temp = `AverageofAirtempAv[C]`,
+         note_weather = DataQualityComment) %>% 
+  select(wthr_col_names)
+
+# station sheet
+all2$ECN_Wytham$metadata <- template$metadata
+
+# no info and distance/elev provided
+all2$ECN_Wytham$station <- template$station %>% 
+  mutate(site = "Wytham_RainDrop",
+         station_name = "ECN Automated Weather Station on Upper Seeds", 
+         station_latitud = 51.7706267,
+         station_longitud = -1.3324990,
+         source = "Environmental Change Network site at Wytham",
+         note_station = paste("must cite, see citation agreement. Environmental", 
+                              "Change Network at Wytham (site run by Stefanie Schäfer",
+                              "and Denise Pallett from the Centre for Ecology & Hyrdology).")
+         )
+
+all2$ECN_Wytham$sites <- template$sites %>% 
+  mutate(site = "Wytham_RainDrop",
+         pi = "Andrew Hector")
+
+all2$ECN_Wytham$Sheet5 <- NULL
+all2$ECN_Wytham$`2015-2019_calculated_DAILY` <- NULL
+
 # check if all sheets present -----------------------------------------------
 
 all2_sheets_check <- map_lgl(all2, check_names, 
                              names = "metadata,sites,station,weather") 
+all2_sheets_check[!all2_sheets_check]
 
 if (!all(all2_sheets_check)) warning("Not all list elements have correct tables")
 
@@ -525,9 +582,6 @@ if(!all(site_name_present)) warning("fix site name issues")
 
 
 # checking weather col names ----------------------------------------------
-
-wthr_col_names <- c("station_name", "date", "precip", "min_temp", "max_temp", 
-                   "note_weather")
 
 wthr_col_string <- "date,max_temp,min_temp,note_weather,precip,station_name"
 
