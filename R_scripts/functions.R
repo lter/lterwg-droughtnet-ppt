@@ -237,12 +237,13 @@ parse_if_5digit_date <- function(x) {
 # in analyses in downstream pipelines, and make the data fit into those pipelines.
 
 
-monthly2daily_precip <- function(df, year, month, precip) {
+monthly2daily_precip <- function(df, year, month, precip, station_name = FALSE) {
   # args:
   #   df--data frame of monthly precip
   #   year--string name of year column
   #   month --string name of month column
   #   precip--string name of precip column
+  #   station_name --logical is there a station_name column to return ?
   # returns:
   #   data frame that contains mean daily precip (of the month)
   #     for each date in each month. Has Two columns, date and precip
@@ -252,12 +253,18 @@ monthly2daily_precip <- function(df, year, month, precip) {
     # proper col names given
     all(c(year, month, precip) %in% names(df)),
     nrow(df) > 0,
-    # no duplicate months
-    all(!duplicated(df[, c(year, month)])),
     is.numeric(df[[precip]])
   )
   
-  df1 <- df[ , c(year, month, precip)]
+  if(any(duplicated(df[, c(year, month)]))) {
+    warning("duplicated year/month combinations")
+  }
+  
+  if(!station_name) {
+    df1 <- df[ , c(year, month, precip)]
+  } else {
+    df1 <- df[ , c("station_name", year, month, precip)]
+  }
   
   df1$first_date_month <- lubridate::ymd(paste(df1[[year]], df1[[month]], "1", sep = "-"))
   df1$days_in_month <- lubridate::days_in_month(df1$first_date_month)
@@ -269,8 +276,158 @@ monthly2daily_precip <- function(df, year, month, precip) {
         by = "day")
     daily_precip <- df1[i, ][[precip]]/n
     
-    new_list[[i]] <- data.frame(date = dates, precip = daily_precip)
+    if(!station_name) {
+      new_list[[i]] <- data.frame(date = dates, precip = daily_precip)
+    } else {
+      new_list[[i]] <- data.frame(station_name = df1[i, ][["station_name"]],
+                                  date = dates, 
+                                  precip = daily_precip)
+    }
+    
   }
   out <- dplyr::bind_rows(new_list)
   out
 }
+
+
+
+# daily temp from monthly values ------------------------------------------
+
+
+monthly2daily_temp <- function(df, year, month, temp) {
+  # args:
+  #   df--data frame of monthly values of temp
+  #   year--string name of year column
+  #   month --string name of month column
+  #   precip--string name of temp column
+  # returns:
+  #   vector of temp data (should be used after monthl2daily_precip--which creates the df)
+  #   assigning monthly value of temp to each day in that month
+  
+  stopifnot(
+    is.data.frame(df),
+    # proper col names given
+    all(c(year, month, temp) %in% names(df)),
+    nrow(df) > 0,
+    is.numeric(df[[temp]])
+  )
+  
+  if(any(duplicated(df[, c(year, month)]))) {
+    warning("duplicated year/month combinations")
+  }
+  
+  df1 <- df[ , c(year, month, temp)]
+  
+  df1$first_date_month <- lubridate::ymd(paste(df1[[year]], df1[[month]], "1", sep = "-"))
+  df1$days_in_month <- lubridate::days_in_month(df1$first_date_month)
+  new_list <- list()
+  for (i in 1:nrow(df1)) {
+    n <- df1$days_in_month[i]
+    dates <- seq(from = df1$first_date_month[i],
+                 length.out = n,
+                 by = "day")
+    # assigning monthly value of temp to each day in that month
+    temp_values <- df1[i, ][[temp]]
+    
+    new_list[[i]] <- data.frame(date = dates, new_vals = temp_values)
+  }
+  out <- dplyr::bind_rows(new_list)
+  out[["new_vals"]]
+}
+
+
+# check station names -----------------------------------------------------
+
+check_station_names <- function(list) {
+  # args:
+  #   list--list from process_submitted_weather.R script 
+  #       (each list element has contents of submitted spreadhseet 'spreadsheet')
+  # returns:
+  #   list 3 elements--all_good: any problems with station names?
+  #        not_in_weather--vector of station_names not in weather sheet but in station sheet
+  #        not_in_station--vector of station_names not in station sheet but in weather sheet
+  new_list <- map2(list, names(list), function(x, name) {
+    
+    stopifnot(
+      is.list(list),
+      !is.null(x$station),
+      !is.null(x$weather)
+    )
+    station_in_weather <- x$station$station_name %in% x$weather$station_name
+    weather_in_station <- x$weather$station_name %in% x$station$station_name
+    
+    out <- list()
+    out$all_good <- all(c(station_in_weather, weather_in_station))
+    if(!out$all_good) {
+      warning(paste("Issue with:", name))
+    }
+    
+    out$not_in_weather <- x$station$station_name[!station_in_weather] %>% 
+      unique()
+    
+    out$not_in_station <- x$weather$station_name[!weather_in_station] %>% 
+      unique()
+    
+    out
+    })
+  new_list
+}
+
+
+# combine primary and secondary station data -----------------------------
+
+
+# function for process_submitted_weather.R script
+
+comb_primary_secondary_stns <- function(df1, df2) {
+  # args:
+  #   df1--df of data from primary (preferred) station
+  #   df2--df of secondary station (data to use if primary has NA for that date)
+  # returns:
+  #   df with precip/temp from df1 unless they are NA then from df2
+  #   station_name is the station name from which precip data pulled 
+  #    (from df1 unless df1 has NA precip)
+  wthr_col_names2 <- c("station_name", "date", "precip", "min_temp", "max_temp",
+                       "note_weather", "mean_temp")
+  
+  stopifnot(
+    is.data.frame(df1),
+    is.data.frame(df2),
+    all(wthr_col_names2 %in% names(df1)),
+    all(wthr_col_names2 %in% names(df2)),
+    length(unique(df1$station_name)) == 1,
+    length(unique(df2$station_name)) == 1
+  )
+  
+  out <- full_join(df1, df2, by = "date",
+            suffix = c("_1", "_2")) %>% 
+    mutate(precip = ifelse(is.na(precip_1),
+                           precip_2,
+                           precip_1),
+           min_temp = ifelse(is.na(min_temp_1),
+                             min_temp_2,
+                             min_temp_1),
+           max_temp = ifelse(is.na(max_temp_1),
+                             max_temp_2, # this max_temp_2 data looks weird
+                             max_temp_1),
+           # station name will refer to what ever station was used for precip,
+           # note will be added if temp from different source
+           station_name = ifelse(is.na(precip_1),
+                                 station_name_2,
+                                 station_name_1),
+           note_weather = ifelse(is.na(min_temp_1) & !is.na(min_temp_2) &
+                                   station_name == station_name_1,
+                                 paste("min_temp from", station_name_2),
+                                 note_weather_1),
+           note_weather = ifelse(is.na(max_temp_1) & !is.na(max_temp_2) &
+                                   station_name == station_name_1,
+                                 paste0("max_temp from ", station_name_2,". ", 
+                                        note_weather),
+                                 note_weather),
+           mean_temp = ifelse(is.na(mean_temp_1), # usually all NA anyway
+                              mean_temp_2,
+                              mean_temp_1)
+    )
+  out[, wthr_col_names2]
+}
+
