@@ -42,7 +42,7 @@ path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 # site info ---------------------------------------------------------------
 
 # make sure using most recent file
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
+siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_11-07-2019.csv'),
                     as.is = TRUE)
 
 site_name_code <- siteElev %>% 
@@ -58,7 +58,9 @@ file_names <- all_names %>%
   .[!duplicated(.)]
 
 # only use BadLauchstaedt_weather_complete.xlsx (2nd file they sent)
-file_names <- file_names[file_names != "BadLauchstaedt_weather.xlsx"]
+# IDE_weather_rhijnauwen.xlsx cleaned here so not using processed file
+file_names <- file_names[!file_names %in% c("BadLauchstaedt_weather.xlsx",
+                         "IDE_weather_rhijnauwen processed.xlsx")]
 
 # what files/folders aren't we loading here?
 all_names[!all_names %in% file_names]
@@ -145,6 +147,9 @@ template$metadata <- all2$hardware_ranch$metadata
 nielson_sheets <- sheets1$Nielsen_Australian_Outback_sites %>%
   .[str_detect(., "_weather$")]
 
+# wrong station_name repeated here by mistake
+all1$Nielsen_Australian_Outback_sites$Charleville_weather$station_name <- "Charleville" 
+
 all2$Nielsen_Australian_Outback_sites$weather <- 
   all1$Nielsen_Australian_Outback_sites[nielson_sheets] %>% 
   bind_rows()
@@ -179,10 +184,8 @@ all2$wayqecha_met_summary <- NULL
 # GCN_Suihua 
 # temp data is daily mean
 
-all2$GCN_Suihua
-
 all2$GCN_Suihua$weather <- bind_rows(all2$GCN_Suihua$weather2018,
-                                     all2$GCN_Suihua$weather2018) %>% 
+                                     all2$GCN_Suihua$weather2019) %>% 
   rename(precip = `precip(mm)`,
          mean_temp = "temp(℃)") %>% 
   select(-"RH(%)")
@@ -709,6 +712,26 @@ all6$SonoraAgrilifeResearchStation$weather  <- son_wthr1 %>%
             note_weather = NA) %>% 
   ungroup()
 
+# cusack_panama (monthly data)
+
+pan_wthr1 <- all6$Cusack_Panama$weather
+names(pan_wthr1)
+pan_wthr1$month %>% unique() #years
+pan_wthr1$Year %>% unique()
+pan_wthr1$note_weather %>% unique()
+pan_wthr2 <- pan_wthr1 %>% 
+  rename(month = Year, year = month) %>% 
+  filter_all(any_vars(!is.na(.))) # two rows contained all NAs
+pan_wthr3 <- monthly2daily_precip(pan_wthr2, "year", "month", "precip",
+                                  station_name = TRUE)
+
+# daily data taken as monthly mean value
+pan_wthr3$min_temp  <- monthly2daily_temp(pan_wthr2, "year", "month", "min_temp")
+pan_wthr3$max_temp  <- monthly2daily_temp(pan_wthr2, "year", "month", "max_temp")
+pan_wthr3$note_weather <- "Values of temp and precip taken from Monthly values"
+
+all6$Cusack_Panama$weather <- pan_wthr3
+
 # checking column consistency: 
 
 # adding in temp_mean column to all files that don't have it
@@ -958,13 +981,204 @@ all10$GCN_Youyu$weather %>%
 all10$GCN_Youyu <- NULL
 
 
+# check station_name matching ---------------------------------------------
+
+# first look for duplicated rows in station table
+dup_stn_rows <- map_dbl(all10, function(x) {
+  x$station %>% 
+    select(site, station_name) %>% 
+    .[duplicated(.), ] %>% 
+    nrow()
+})
+dup_stn_rows[dup_stn_rows > 0]
+
+# making distinct names for the two stations
+all10$BadLauchstaedt_complete$station$note_station
+all10$BadLauchstaedt_complete$station$station_name <- 
+  c("Bad Lauchstaedt 1", "Bad Lauchstaedt 2") 
+
+#two stations for two different date ranges
+all10$BadLauchstaedt_complete$weather <- all10$BadLauchstaedt_complete$weather %>% 
+  mutate(year = year(date),
+         station_name = ifelse(year <= 2017,
+                               "Bad Lauchstaedt 1", 
+                               "Bad Lauchstaedt 2")
+         ) %>% 
+  select(-year)
+  
+
+
+# make sure all station names are present in both weather and station tables
+
+station_name_present <-  check_station_names(all10)
+
+# files with issues:
+station_issues <- keep(station_name_present, function(x) !x$all_good)
+station_issues
+names(station_issues)
+
+# fixing individual sites:
+
+# sites where just spelling between the two sheets 
+# (put weather sheet version in station sheet). 
+
+# manually checked that these name swaps make sense
+dif_spell <- c('IMGERS', 'EEA_Ufrgs', 'GCN_Suihua', 'Lamb_Oct112_19')
+
+all10[dif_spell] <- 
+  map2(all10[dif_spell], station_issues[dif_spell], function(x, y) {
+    x$station$station_name[x$station$station_name == y$not_in_weather] <- 
+      y$not_in_station
+    x
+}) 
+
+# manually deal with the others:
+
+# Kiskunsag ~~~
+
+# site name put instead of station name
+all10$Kiskunsag$weather$station_name %>% unique()
+all10$Kiskunsag$weather$station_name <- all10$Kiskunsag$station$station_name
+
+# PassoGavia ~~~~
+
+# data from station that only collects in summer  not kept 
+all10$PassoGavia$station <- all10$PassoGavia$station %>% 
+  filter(station_name == 'Careser')
+
+# check station names now rectified:
+
+still_bad <- keep(check_station_names(all10), function(x) !x$all_good)
+
+if(length(still_bad) > 0) {warning("still have station name inconsistencies")}
+
+# check data from multiple stations ---------------------------------------
+
+all11 <- all10
+# sometimes data from multiple stations was provided for a given site
+# not a problem if they have different date ranges
+# need to properly deal with it when they have overlapping dates
+
+# duplicated dates for a given station
+dup_stn_dates <- map_dbl(all11, function(x) {
+  # duplicated site/date combo
+  num_duplicated <- x$weather %>% 
+    select(station_name, date) %>% 
+    .[duplicated(.), ] %>% 
+    nrow()
+  num_duplicated
+})
+
+dup_stn_dates[dup_stn_dates > 0]
+
+# if just 1 duplicated date, just discard it
+one_dup <- names(dup_stn_dates[dup_stn_dates == 1])
+all11[one_dup] <- map(all11[one_dup], function(x) {
+  # remove duplicated site/date combo
+  x$weather <- x$weather %>% 
+    .[!duplicated(x$weather[, c("station_name", "date")]), ]
+  x
+})
+
+# North platte
+
+# looks like month and day were switched for 10 consecutive dates
+np_dup_dates <- all11$NP_north_platte$weather %>% 
+  select(station_name, date) %>% 
+  .[duplicated(.), ] %>% 
+  pull(date)
+
+index <- which(((all11$NP_north_platte$weather$date %in% np_dup_dates) & 
+        all11$NP_north_platte$weather$station_name == "north_platte"))
+
+# these are actually consecutive days in feb
+all11$NP_north_platte$weather[index[1:10], ]$date <- ydm(np_dup_dates)
+
+# duplicated sites/date (i.e. multiple stations/site causing duplication):
+
+dup_site_dates1 <- map2_dbl(all11, names(all11), function(x, name) {
+  out <- x
+  out$weather <- left_join(x$weather, x$station, by = "station_name")
+  if (any(is.na(out$weather$site))) {
+    warning(paste(name, " had join issue"))
+  }
+  
+  # duplicated site/date combo
+  num_duplicated <- out$weather %>% 
+    select(site, date) %>% 
+    .[duplicated(.), ] %>% 
+    nrow()
+  num_duplicated
+})
+
+dup_site_dates1[dup_site_dates1 > 0]
+
+# Cowichan ~~~~~
+
+all11$Cowichan_2019_11_5$weather$note_weather %>% unique()
+# all11$Cowichan_2019_11_5$weather %>% summary()
+
+ncc_stn <- all11$Cowichan_2019_11_5$weather %>% 
+  filter(station_name == "CowichanNCC") # preferred station
+
+NCow_stn <- all11$Cowichan_2019_11_5$weather %>% 
+  filter(station_name == "NCowichanStation")
+
+
+# my thinking here is to use the station data from the site,
+# unless it is NA, then use the other site:
+
+all11$Cowichan_2019_11_5$weather <- comb_primary_secondary_stns(ncc_stn, NCow_stn) 
+
+# cusack ~~~~~~
+
+# see note:
+all11$Cusack_Panama$station$note_station
+
+gig_bci <- all11$Cusack_Panama$weather %>% 
+  filter(station_name == 'BCI')
+
+gig_barb <- all11$Cusack_Panama$weather %>% 
+  filter(station_name == 'Barbacoa') %>%  # preferred station for gigant
+  filter(!is.na(precip)) # no temp data anyways
+
+
+gig_wthr1 <- left_join(gig_barb, gig_bci, by = "date", suffix = c("_1", "_2")) %>% 
+  mutate(station_name = station_name_1,
+         precip = precip_1,
+         min_temp = min_temp_2,
+         max_temp = max_temp_2,
+         mean_temp = mean_temp_2,
+         note_weather = paste("Temp from BCI Station. ", note_weather_1)) %>% 
+  select(wthr_col_names2)
+
+# adding back in the 'barbacoa' data with temp from BCI added in
+all11$Cusack_Panama$weather <- all11$Cusack_Panama$weather %>%
+  filter(station_name != 'Barbacoa') %>% 
+  bind_rows(gig_wthr1) 
+
+# HY_and_HO ~~~~
+
+# two stations one sites (primary) and an offsite secondary station to fill missing data
+all11$HY_and_HO$station$station_name %>% unique()
+
+HY_obs <- all11$HY_and_HO$weather %>% 
+  filter(station_name == "observation on site")
+
+HY_hid <- all11$HY_and_HO$weather %>% 
+  filter(station_name == "Hiddensee-Vitte") # secondary station
+
+HY_wthr1 <- comb_primary_secondary_stns(HY_obs, HY_hid)
+
+all11$HY_and_HO$weather <- HY_wthr1
+
 # merging in site codes ---------------------------------------------------
 
 # so merging issues aren't caused by erronious spaces/all caps
 # make sure stn4 is highest number stn object (i.e. if code changed above)
 #STOP pull stn back out
 
-stn4 <- extract_elements_2df(all10, "station")
+stn4 <- extract_elements_2df(all11, "station")
 
 stn4$site_name_4merge <- stn4$site %>% 
   str_to_lower() %>% 
@@ -993,15 +1207,20 @@ not_matching <- stn5 %>%
 not_matching
 
 # manually looked for associated site_codes
+# this will need to be updated as new site codes are created
 not_matching_lookup <- c('AA' = 'oreaa.us',
                          'AC' = 'oreac.us',
                          'Ämtvik' = 'unknown', # unknown site
                          'Bad Lauchstaedt' = 'baddrt.de',
                          'cap_mcdowell' = 'capmcd.us',
                          'cap_whitetank' = 'capwhite.us',
+                         'Cedar Creek sIDE' = 'cedarsav.us',
+                         'Cedar Creek tIDE' = 'cedartrait.us',
+                         'Cowichan' = 'cowidtr.ca',
                          'EEA_Ufrgs' = 'eea.br',
                          'GCN-Xilinhot' = 'unknown',
                          'GCN-Youyu' = 'unknown',
+                         'Gigante' = 'unknown',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
                          'Hongyuan' = 'unknown',
@@ -1009,8 +1228,11 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'Kranzberg' = 'unknown', # haven't submitted bio data
                          'Mar Chiquita' = 'marcdrt.ar',
                          'NP' = 'nplatte.us',
+                         'P12' = 'unknown',
+                         'P13' = 'unknown',
                          'Potrok Aike' = "paike.ar",
                          'Prades' = 'prades.es',
+                         'ShermanCrane' = 'unknown',
                          'Swift Current' = 'swift.ca',
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown", # haven't sent in bio data
@@ -1029,18 +1251,99 @@ not_matching_lookup[not_matching_lookup == "unknown"] %>%
   names() %>% 
   sort()
 
-stn6 <- stn5
-
-stn6 <- stn6 %>% 
+stn6 <- stn5 %>% 
   mutate(site_code = ifelse(is.na(site_code),
                             not_matching_lookup[site],
-                            site_code)) %>% 
-  select(-site_name_4merge, -site_name)
+                            site_code),
+         # now using 'official' site_name when I have it
+         site_name = ifelse(is.na(site_name), 
+                            site,
+                            site_name)) %>% 
+  select(-site_name_4merge) 
+
+stn6 %>% 
+  filter(is.na(site_code))
 
 if(any(is.na(stn6$site_code))) warning("some site codes NA")
 
-# next: merge weather and station info together, check for sites that aren't merging properly
-#
+# merge into master file df -------------------------------------------------
+all12 <- all11
+
+# now putting stn table back into the lists
+all12 <- map2(all12, names(all12), function(x, name) {
+  x$station <- stn6[stn6$file_name == name, ]
+  x
+})
+
+# adding site_code etc to weather data so it is identifiable
+all13 <- map2(all12, names(all12), function(x, name) {
+  out <- x
+  stn <- x$station %>% 
+    select(site_name, site_code, station_name, site)
+  out$weather <- left_join(x$weather, stn, by = "station_name")
+  
+  if (nrow(out$weather) > nrow(x$weather)) {
+    # occurs when two sites have same station_code
+    message(paste("left join added rows for:", name))
+  }
+  out
+})
+
+# create wthr master file
+all_wthr1 <- map(all13, function(x) x$weather) %>% 
+  bind_rows()
+
+dim(all_wthr1)
+
+# sites where duplicated dates of data are occuring
+dup_site_dates2 <- all_wthr1 %>% 
+  select(date, site_name, station_name, precip) %>% 
+  nest(date, station_name, precip) %>% 
+  mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
+         ) %>% 
+  filter(n_dup > 0)
+
+dup_site_dates2 
+
+# Gigante ~~~~
+
+# data from two stations provided (one of them is closer/better)
+# the other station (BIC) is the best station for some other sites
+dup_site_dates2$data[[1]]$station_name %>% unique()
+
+# dates for which the better station has data
+bar_dates <- all_wthr1 %>% 
+  filter(station_name == "Barbacoa") %>% 
+  pull(date)
+
+all_wthr2 <- all_wthr1 %>% 
+  filter(!(station_name == 'BCI' & site == "Gigante" & date %in% bar_dates)) 
+
+nrow(all_wthr1)- nrow(all_wthr2)
+
+dup_site_dates3 <- all_wthr2 %>% 
+  select(date, site_name, station_name, precip) %>% 
+  nest(date, station_name, precip) %>% 
+  mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
+  ) %>% 
+  filter(n_dup > 0)
+
+if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 
 
+# saving CSVs -------------------------------------------------------------
 
+all_wthr_2save <- all_wthr2 %>% 
+  select(-site)
+
+# write_csv(all_wthr_2save, 
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-16.csv"))
+
+stn2save <- stn6 %>% 
+  select(site_code, site_name, everything(), -site, -file_name) %>% 
+  rename(station_elev = elev)
+
+# write_csv(stn2save, 
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-16.csv"))
+  
+  
