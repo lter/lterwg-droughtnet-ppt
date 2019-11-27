@@ -5,7 +5,7 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS--NEXT load in files from processed folder
+# WORK IN PROGRESS--
 
 # once finished this script is meant to:
 
@@ -241,6 +241,30 @@ all2$ECN_Wytham$sites <- template$sites %>%
 
 all2$ECN_Wytham$Sheet5 <- NULL
 all2$ECN_Wytham$`2015-2019_calculated_DAILY` <- NULL
+
+# purdue ~~~
+
+pur_wthr1 <- all2$Purdue_daily_data_for$`Purdue - Daily Weather Data`
+pur_stn1 <- all2$Purdue_daily_data_for$Metadata
+names(pur_stn1) <- c("name", "value")
+all2$Purdue_daily_data_for$weather <- pur_wthr1 %>% 
+  select(wthr_col_names)
+
+all2$Purdue_daily_data_for$station <- template$station %>% 
+  mutate(
+    site = pur_wthr1$site_name[1],
+    station_name = pur_wthr1$station_name[1],
+    station_latitud = pur_stn1$value[pur_stn1$name == "Latitude"],
+    station_longitude = pur_stn1$value[pur_stn1$name == "Longitude"],
+    source = pur_stn1$name[1])
+
+all2$Purdue_daily_data_for$sites <- template$sites %>% 
+  mutate(site = pur_wthr1$site_name[1])
+
+all2$Purdue_daily_data_for$metadata <- template$metadata
+
+all2$Purdue_daily_data_for$Metadata <- NULL
+all2$Purdue_daily_data_for$`Purdue - Daily Weather Data` <- NULL
 
 # check if all sheets present -----------------------------------------------
 
@@ -1336,14 +1360,14 @@ if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 all_wthr_2save <- all_wthr2 %>% 
   select(-site)
 
-# write_csv(all_wthr_2save, 
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-16.csv"))
+# write_csv(all_wthr_2save,
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-26.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
-# write_csv(stn2save, 
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-16.csv"))
+# write_csv(stn2save,
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-26.csv"))
   
   
