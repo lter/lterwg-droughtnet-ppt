@@ -48,6 +48,14 @@ siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED
 site_name_code <- siteElev %>% 
   select(site_name, site_code)
 
+# survey results
+sites_wthrdata1 <- read_xlsx(file.path(path_may, 
+                    "IDE_weather/Sites_WeatherStationData_11-26-2019.xlsx"))
+
+sites_wthrdata2 <- sites_wthrdata1 %>% 
+  rename(site_name = `What is your site name?`) %>% 
+  select(site_name, site_code)
+
 # check xlsx sheets -------------------------------------------------------
 
 all_names <- list.files(file.path(path_may, "IDE_weather/submitted_data"))
@@ -1208,12 +1216,25 @@ stn4$site_name_4merge <- stn4$site %>%
   str_to_lower() %>% 
   str_replace_all("\\s", "")
 
-site_name_code$site_name_4merge <- site_name_code$site_name %>% 
+# some sites from siteelev aren't in sites_wthrdata and vice versa so combining
+# to increase chance of getting a match
+site_name_code2 <- bind_rows(sites_wthrdata2, site_name_code) %>% 
+  .[!duplicated(.), ] %>% 
+  arrange(site_code)
+
+dup_codes <- with(site_name_code2, site_code[duplicated(site_code)])
+
+# sites that have site_names spelled differently in different places. 
+site_name_code2 %>% 
+  filter(site_code %in% dup_codes) %>% 
+  arrange(site_code) 
+
+site_name_code2$site_name_4merge <- site_name_code2$site_name %>% 
   str_to_lower() %>% 
   str_replace_all("\\s", "") 
 
-stn5 <- stn4 %>% 
-  left_join(site_name_code, by = "site_name_4merge")
+
+
 
 # sites that matched
 stn5 %>% 
