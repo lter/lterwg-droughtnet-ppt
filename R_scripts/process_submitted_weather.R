@@ -685,18 +685,30 @@ all6$IMGERS$weather$..7 <- NULL
 all6$OR_Byrne$weather <- all6$OR_Byrne$weather[, wthr_col_names]
 
 # PassoGavia ~~~
-# keeping only data from the station with year round data
-# not the on site summer only station. 
+# using on site station whe data present otherwise using off site station
+# the on site station only has summer data.(but the off site station also has 
+# some missing values)
+
+passo_primary <- all6$PassoGavia$weather %>% 
+  rename(date = `date..2`) %>% 
+  select(wthr_col_names) %>% 
+  mutate(mean_temp = NA)
+  
 
 all6$PassoGavia$station$note_station
-all6$PassoGavia$weather <- all6$PassoGavia$weather %>% 
+passo_secondary <- all6$PassoGavia$weather %>% 
   select(note_weather:max_temp2) %>% 
   rename(station_name = station_name2,
          date = date..8,
          precip = precip_2,
          min_temp = min_temp2,
          max_temp = max_temp2) %>% 
-  select(wthr_col_names)
+  mutate(note_weather = NA) %>% 
+  select(wthr_col_names) %>% 
+  mutate(mean_temp = NA)
+
+all6$PassoGavia$weather <- comb_primary_secondary_stns(passo_primary, 
+                                                       passo_secondary)
 
 # sonora ~~~~~~~~~~~~~~~~~~~~~~~
 # fix col names and data:
@@ -1072,12 +1084,6 @@ all10[dif_spell] <-
 all10$Kiskunsag$weather$station_name %>% unique()
 all10$Kiskunsag$weather$station_name <- all10$Kiskunsag$station$station_name
 
-# PassoGavia ~~~~
-
-# data from station that only collects in summer  not kept 
-all10$PassoGavia$station <- all10$PassoGavia$station %>% 
-  filter(station_name == 'Careser')
-
 # check station names now rectified:
 
 still_bad <- keep(check_station_names(all10), function(x) !x$all_good)
@@ -1233,8 +1239,10 @@ site_name_code2$site_name_4merge <- site_name_code2$site_name %>%
   str_to_lower() %>% 
   str_replace_all("\\s", "") 
 
+site_name_code2 <- site_name_code2 %>% 
+  filter(!duplicated(site_name_4merge))
 
-
+stn5 <- left_join(stn4, site_name_code2, by = "site_name_4merge")
 
 # sites that matched
 stn5 %>% 
@@ -1261,36 +1269,21 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'cap_whitetank' = 'capwhite.us',
                          'Cedar Creek sIDE' = 'cedarsav.us',
                          'Cedar Creek tIDE' = 'cedartrait.us',
-                         'Cowichan' = 'cowidtr.ca',
                          'EEA_Ufrgs' = 'eea.br',
-                         'GCN-Xilinhot' = 'unknown',
-                         'GCN-Youyu' = 'unknown',
+                         'GCN-Suihua' = "unknown",
                          'Gigante' = 'unknown',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
-                         'Hongyuan' = 'unknown',
                          'KAEFS-OK' = 'oklah.us',
                          'Kranzberg' = 'unknown', # haven't submitted bio data
-                         'Mar Chiquita' = 'marcdrt.ar',
                          'NP' = 'nplatte.us',
                          'P12' = 'unknown',
                          'P13' = 'unknown',
-                         'Potrok Aike' = "paike.ar",
                          'Prades' = 'prades.es',
                          'ShermanCrane' = 'unknown',
-                         'Swift Current' = 'swift.ca',
                          'Syferkuil South Africa' = 'syferkuil.za',
-                         'Tovetorp' = "unknown", # haven't sent in bio data
-                         'Yarramundi' = 'yarradrt.au',
-                         'GCN-Suihua' = "unknown",
-                         'GCN-Hulunber' = "unknown",
-                         'GCN-Urat' = "unknown",
-                         'GCN-Yanchi' = "unknown",
-                         'GCN-Haibei' = "unknown",
-                         'GCN-Hongyuan' = "unknown",
-                         'GCN-Naqu' = "unknown",
-                         'GCN-Dangxiong' = "unknown")
-
+                         'Tovetorp' = "unknown" # haven't sent in bio data
+)
 # sites that I  couldn't find a code for
 not_matching_lookup[not_matching_lookup == "unknown"] %>% 
   names() %>% 
@@ -1382,13 +1375,13 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-27.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-27.csv"))
   
-  
+
