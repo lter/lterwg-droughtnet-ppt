@@ -57,8 +57,6 @@ num_nas %>%
 
 arrange(num_nas, n) # sites with fewest observations
 
-
-
 # negative precip ---------------------------------------------------------
 
 hist(wthr1$precip)
@@ -111,10 +109,27 @@ for (code in sites_high) {
   )
 }
 
+# I contacted Sally--she confirmed these are problematic values and is looking into it. 
+
 # unclear what units these values are in
 wthr2 %>% 
   filter(site_code == "yarradrt.au") %>% 
   group_by(lubridate::year(date)) %>% 
   summarize(AP = sum(precip, na.rm = TRUE),
             non_na = sum(!is.na(precip)))
+
+# STOP--removing yarrardrt for now until better data is submitted. 
+
+wthr3 <- wthr2
+wthr3 <- wthr3 %>% 
+  filter(site_code != "yarradrt.au")
+
+
+# saving CSV --------------------------------------------------------------
+
+write_csv(
+  wthr3,
+  file.path(path_oct, 
+            "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-02.csv")
+  )
   

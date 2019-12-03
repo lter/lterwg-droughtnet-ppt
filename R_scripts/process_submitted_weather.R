@@ -122,7 +122,7 @@ all2 <- all1
 
 gcn1 <- readRDS(
   file.path(path_may, 
-            "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-10-31.rds")
+            "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-12-02.rds")
 )
 
 names(gcn1) 
@@ -273,6 +273,8 @@ all2$Purdue_daily_data_for$metadata <- template$metadata
 
 all2$Purdue_daily_data_for$Metadata <- NULL
 all2$Purdue_daily_data_for$`Purdue - Daily Weather Data` <- NULL
+
+
 
 # check if all sheets present -----------------------------------------------
 
@@ -1151,6 +1153,17 @@ dup_site_dates1 <- map2_dbl(all11, names(all11), function(x, name) {
 
 dup_site_dates1[dup_site_dates1 > 0]
 
+# boulder ~~~
+# two stations given, NWTC is closer, and includes all dates that ESRL
+# has so NWTC only kept
+all11$Boulder$station$note_station
+
+all11$Boulder$weather<- all11$Boulder$weather %>% 
+  filter(station_name == "NWTC") 
+
+all11$Boulder$station <- all11$Boulder$station %>% 
+  filter(station_name == "NWTC") 
+
 # Cowichan ~~~~~
 
 all11$Cowichan_2019_11_5$weather$note_weather %>% unique()
@@ -1275,7 +1288,7 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
                          'KAEFS-OK' = 'oklah.us',
-                         'Kranzberg' = 'unknown', # haven't submitted bio data
+                         'Kranzberg' = 'kranz.de', # haven't submitted bio data
                          'NP' = 'nplatte.us',
                          'P12' = 'unknown',
                          'P13' = 'unknown',
@@ -1375,13 +1388,13 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-11-27.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-02.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
-
+# 
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-11-27.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-02.csv"))
   
 
