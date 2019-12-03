@@ -5,6 +5,7 @@
 
 # this is file is meant count missing values, check for unreasonabl values, etc. 
 # for starters just checking the precip (not temp) data
+# and fix obvious data issues where possible. 
 
 # script started 11/27/19
 
@@ -30,7 +31,15 @@ dly_wthr_path
 wthr1 <- read_csv(dly_wthr_path,
                   col_types = "cDdddcdcc")
 
+# so can get reported MAP
+site_data <- read.csv(
+  file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv"),
+  as.is = TRUE, na.strings = c("","<NA>", "NA")
+  )
 
+site_map <- site_data %>% 
+  select(site_code, precip) %>% 
+  rename(map = precip)
 
 # counting NAs by site ----------------------------------------------------
 
@@ -125,11 +134,49 @@ wthr3 <- wthr3 %>%
   filter(site_code != "yarradrt.au")
 
 
+# annual precip reasonable? -----------------------------------------------
+
+annual <- wthr4 %>% 
+  mutate(year = year(date)) %>% 
+  group_by(year, site_code, site_name) %>% 
+  summarise(n_vals = sum(!is.na(precip)),
+            precip = sum(precip, na.rm = TRUE)) %>% 
+  left_join(site_map, by = "site_code")
+
+# cowichan has high annual precip (1812-on qiuck google search)--so it is reasonable
+annual %>% 
+  mutate(obs_v_map = precip/map) %>% 
+  filter((obs_v_map > 2 | obs_v_map < 0.3) & n_vals > 300) %>% 
+  arrange(site_code) %>% 
+  print(n = 40)
+
+# annual %>% 
+#   #filter(n_vals > 300) %>% 
+#   arrange(site_code) 
+
+
+# converting units --------------------------------------------------------
+
+# sites suspected to be in inches--need to confirm
+
+inches <- c("thompson.us", "oklah.us", "capwhite.us")
+
+# units suspected to be in mm
+mm_tenths <- c("charleville.au")
+
+wthr4 <- wthr3 %>% 
+  mutate(precip = ifelse(site_code %in% inches,
+                         precip*25.4,
+                         precip),
+         precip = ifelse(site_code %in% mm_tenths,
+                         precip/10,
+                         precip))
+
 # saving CSV --------------------------------------------------------------
 
-write_csv(
-  wthr3,
-  file.path(path_oct, 
-            "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-02.csv")
-  )
+# write_csv(
+#   wthr4,
+#   file.path(path_oct,
+#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-02.csv")
+#   )
   
