@@ -431,3 +431,80 @@ comb_primary_secondary_stns <- function(df1, df2) {
   out[, wthr_col_names2]
 }
 
+
+
+# yearly control and drt precip -------------------------------------------
+
+calc_yearly_precip <- function(site_data, precip_data){
+  # site_data--df with biomass dates, treatment dates etc.
+  # precip_data--df with daily precip by site code
+  # returns site_data with added control and drought precip cols among others
+  
+  needed_cols1 <- c("bioDat", "site_code", "trtDat", "X365day.trt", 
+                    "IfNot365.WhenShelterRemove", "IfNot365.WhenShelterSet",
+                    "drought_trt")
+  needed_cols2 <- c("site_code", "date", "ppt")
+  
+  stopifnot(
+    is.data.frame(site_data),
+    is.data.frame(precip_data),
+    all(needed_cols1 %in% names(site_data)),
+    all(needed_cols2 %in% names (precip_data))
+  )
+  
+  for (i in 1:nrow(site_data)) {
+    print(i)
+    row <- site_data[i, ]
+    print(row$site_code)
+    site_ppt <- precip_data[precip_data$site_code == row$site_code,]
+    start_date <- as.Date(row$bioDat-365)
+    site_ppt2 <- site_ppt %>% 
+      filter(date >= start_date & date < row$bioDat) %>% 
+      mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
+    
+    # when did the shelter come off:
+    shelter_off_start <- if (row$X365day.trt == "No" & 
+                             # used to protect against when no date given
+                             row$IfNot365.WhenShelterRemove != "") {
+      min_year <- min(year(site_ppt2$date))
+      dmy(paste(row$IfNot365.WhenShelterRemove, min_year))
+    } else {
+      NA
+    }
+    # when did the shelter go back on
+    shelter_off_end <- if (row$X365day.trt == "No" & 
+                           # used to protect against when no date given
+                           row$IfNot365.WhenShelterSet != "") {
+      max_year <- max(year(site_ppt2$date))
+      dmy(paste(row$IfNot365.WhenShelterSet, max_year))
+    } else {
+      NA
+    }
+    is_trt365 <- rep(row$X365day.trt == "Yes", nrow(site_ppt2))
+    # some sites say drought X365day.trt == "No" but don't give shelter on/off dates
+    # in those cases I just treated them as having year round shelter on.
+    site_ppt2 <- site_ppt2 %>% 
+      mutate(
+        # is drought occuring
+        is_drought = ifelse(n_treat_days < 0,
+                            0,
+                            ifelse(is_trt365,
+                                   1,
+                                   ifelse(date < shelter_off_start | date > shelter_off_end | is.na(shelter_off_start),
+                                          1,
+                                          0)
+                            )),
+        drought_ppt = ifelse(is_drought,
+                             (ppt*(1 - row$drought_trt)),
+                             ppt)
+      )
+    site_data[i,]$ppt_num_NA <-  sum(is.na(site_ppt2$ppt))
+    site_data[i,]$num_drought_days <- sum(site_ppt2$is_drought)
+    
+    site_data[i,]$ppt_ambient <-  sum(site_ppt2$ppt, na.rm = TRUE)
+    site_data[i,]$ppt_drought <-  sum(site_ppt2$drought_ppt, na.rm = TRUE)
+    
+  }
+  site_data
+}
+
