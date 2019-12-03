@@ -7,26 +7,30 @@
 # specifically the aim is if a site (drought or control) received x mm of 
 # precip during a 12 month period, what percentile is that relative to the 
 # long term (50 years) tpa data set for the site. 
-
+# percentiles calculated using emperical cdf and normal approximated cdf
 
 # script started 5/23/19
+
+
+# packages ----------------------------------------------------------------
+
 
 library(tidyverse)
 library(spatstat)
 
 # path to data folders
-path <- 'C:/Users/grad/Dropbox/IDE Meeting_May2019'
-
+path_may <- 'E:/Dropbox/IDE Meeting_May2019'
+path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # load tpa precip data -----------------------------------------------------
 
 # tpa data is stored in two folders:
 
 # folder path (fist folder)
-precip_folder1 <- file.path(path, "IDE Site Info/May_2019_TPA_uploads_annual_precip")
+precip_folder1 <- file.path(path_may, "IDE Site Info/May_2019_TPA_uploads_annual_precip")
 
 # 2nd folder 
-precip_folder2 <- "C:\\Users\\grad\\Dropbox\\droughtnet_2018_felton\\droughtnet_ppt_deviations_material\\drought_net_trends_tpa"
+precip_folder2 <- "E:\\Dropbox\\droughtnet_2018_felton\\droughtnet_ppt_deviations_material\\drought_net_trends_tpa"
 
 file_names1 <- list.files(precip_folder1)
 file_names2 <- list.files(precip_folder2)
@@ -91,84 +95,116 @@ cdf1 <- lapply(density, function(x){
 
 # observed precipitation by site/year/trmt --------------------------------
 
-site_ppt <- read.csv(file.path(path, "IDE Site Info\\Site-year precipitation by treatment.csv"), as.is = TRUE)
+site_ppt <- read.csv(
+  file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-02.csv'), 
+  as.is = TRUE)
 
 site_ppt2 <- site_ppt
 
 
 # calculating percentiles given annual precip --------------------------------
 
-site_ppt2$percentile <- NA
 # "scruzh.us" still need
 for (i in 1:nrow(site_ppt2)){
+  print(i)
   site_code <- site_ppt2$site_code[i]
-  ppt <- site_ppt2$ppt[i] # precip for the site/year of interest
-  
+  print(site_code)
+  ppt_ambient <- site_ppt2$ppt_ambient[i] # precip for the site/year of interest
+  ppt_drought <- site_ppt2$ppt_drought[i]
   # percentile based on cdf for the site
   f <-cdf1[[site_code]]
   
   if(is.null(f)){
-    stop(paste("no tpa data was available for:", site_code))
+    warning(paste("no tpa data was available for:", site_code))
+    site_ppt2$perc_ambient_obs[i] <- NA
+    site_ppt2$perc_drought_obs[i] <- NA
+    site_ppt2$perc_ambient_norm[i] <- NA
+    site_ppt2$perc_drought_norm[i] <- NA
+  } else {
+    
+    tpa_ppt <- precip3[[site_code]]%>% 
+      filter(year > 1964) %>% 
+      .$totalPRE
+    
+    site_ppt2$perc_ambient_obs[i] <- f(ppt_ambient)*100 # convert quantile to percentile
+    site_ppt2$perc_drought_obs[i] <- f(ppt_drought)*100 # convert quantile to percentile
+    # normal approximations
+    site_ppt2$perc_ambient_norm[i] <- pnorm(ppt_ambient, 
+                                            mean = mean(tpa_ppt,na.rm=T),
+                                            sd = sd(tpa_ppt,na.rm=T))*100
+    site_ppt2$perc_drought_norm[i] <- pnorm(ppt_drought, 
+                                            mean = mean(tpa_ppt,na.rm=T),
+                                            sd = sd(tpa_ppt,na.rm=T))*100
+    
   }
-  site_ppt2$percentile[i] <- f(ppt)*100 # convert quantile to percentile
 }
-
-site_ppt2$X <- NULL
-write.csv(site_ppt2, file.path(path, "IDE Site Info\\Site-year precipitation by treatment_percentile_added.csv"), 
-          row.names = FALSE)
-
-# visualizing drought vs control ppt percentiles
-
-# changing data frame so that there are two columns
-# one for drt percentile one for control percentile
-# on row for each site/year
-site_perc_wide <- site_ppt2 %>% 
-  dplyr::select(-ppt) %>% 
-  nest(trt, percentile, .key = "data") %>% 
-  mutate(data = map(data, spread, key = "trt", value = "percentile")) %>% 
-  unnest() %>% 
-  rename(Ctrl_percentile = Ctrl, Drt_percentile = Drt)
-
-# making two columns (drt/control) for annual precip
-site_ppt_wide <- site_ppt2 %>% 
-  dplyr::select(-percentile) %>% 
-  nest(trt, ppt, .key = "data") %>% 
-  mutate(data = map(data, spread, key = "trt", value = "ppt")) %>% 
-  unnest() %>% 
-  rename(Ctrl_ppt = Ctrl, Drt_ppt = Drt)
-
-# both annual precip and percentile in one dataframe:
-site_wide <- full_join(site_perc_wide, site_ppt_wide,
-                       by = c("site_code", "trt_year"))
 
 
 # figures -----------------------------------------------------------------
 
-g1 <- ggplot(site_wide) +
-  facet_wrap(~trt_year) +
+# percentiles normal approx vs imperical
+
+# pdf(file.path(path_oct,
+#               paste0("figures/precip/percentiles_emperical_vs_normal", today(), ".pdf")
+#               ))
+
+plot(site_ppt2$perc_ambient_norm, site_ppt2$perc_ambient_obs,
+     xlab = "Ambient precip percentile from normal CDF",
+     ylab = "Ambeint precip percentile from emperical CDF") 
+abline(0, 1)
+dev.off()
+
+# since normal and emperical percentiles are nearly the same, just keeping the normal
+
+site_ppt3 <- site_ppt2 %>% 
+  rename(perc_ambient = perc_ambient_norm,
+         perc_drought = perc_drought_norm) %>% 
+  dplyr::select(-perc_ambient_obs, -perc_drought_obs)
+
+# ~~~
+
+g1 <- site_ppt3 %>% 
+  filter(n_treat_years > 0) %>% 
+  mutate(treat_year_bin = ifelse(n_treat_years == 1,
+                                 "First treatment year",
+                                 "Second + treatment years")
+  ) %>% 
+  ggplot() +
   theme_classic() +
+  facet_wrap(~treat_year_bin) +
   geom_abline (slope = 1, intercept = 0) +
-  labs(subtitle = "Control vs Drought treatment by treatment year \n (where treatment year 1 has 30 - 365 days of treatment)",
-       caption = paste("figure generated in 'calculate_cdf.R' script (on github) on",
-                       lubridate::today())) + 
+  labs(subtitle = "Control vs Drought treatment by treatment years \n (where treatment year 1 has 30 - 365 days of treatment)",
+       caption = "figure generated in 'calculate_cdf.R' script ") + 
   theme(plot.title = element_text(size = 13))
 
-# saves following figures (those before dev.off())
-# pdf(file.path(path, "IDE Site Info/Plots/trmt_vs_drt_precip20190524.pdf"), 
+
+# pdf(file.path(path_may, "IDE Site Info/Plots/trmt_vs_drt_precip20190524.pdf"), 
 #     height = 5, width = 8)
+
+image_path <- file.path(
+  path_oct, 
+  paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
+
+# pdf(image_path,  height = 5, width = 8)
 
 # ctrl vs drt percentiles
 g1 + 
-  geom_point(aes(Ctrl_percentile, Drt_percentile)) +
+  geom_point(aes(perc_ambient, perc_drought)) +
   labs(x = "Control precipitation percentile",
        y = "Drought precipitation percentile",
-       title = "Percentile of annual precipitation")
+       title = "Percentiles of annual precipitation")
 
 # ctrl vs drt annual precip
 g1 + 
-  geom_point(aes(Ctrl_ppt, Drt_ppt)) +
+  geom_point(aes(ppt_ambient, ppt_drought)) +
   labs(x = "Control 12 month precipitation (mm)",
        y = "Drought 12 month precipitation (mm)",
        title = "Annual precipitation")
 
 dev.off()
+
+
+# saving the data (csv) ---------------------------------------------------
+
+# write_csv(site_ppt3,
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-02.csv'))
