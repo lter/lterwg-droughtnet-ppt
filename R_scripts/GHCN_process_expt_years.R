@@ -8,7 +8,6 @@
 library(rnoaa)
 library(tidyverse)
 library(lubridate)
-library(purrr)
 
 source('R_scripts/functions.R') # functions used in script
 source("R_scripts/biomass_get_dates.R") # biomass dates
@@ -19,7 +18,7 @@ path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # parse site elevation ----------------------------------------------------
 
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
+siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv'),
                     as.is = TRUE)
 
 # exluding sites not in biomass file
@@ -224,9 +223,9 @@ precipFull4 <- nearStation2_df %>%
   select(id, site_code, distance, matches("elevation")) %>% 
   right_join(precipFull3, by = c("id", "site_code"))
 
-write.csv(precipFull4,
-          file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-10-01.csv'),
-          row.names = FALSE)
+# write.csv(precipFull4,
+#           file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-12-02.csv'),
+#           row.names = FALSE)
 
 # data check (comparing to mannualy calculated values)
 hw <- precipFull4 %>% 
