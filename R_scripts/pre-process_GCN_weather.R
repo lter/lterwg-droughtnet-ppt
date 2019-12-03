@@ -45,6 +45,13 @@ gcn1 <- map(gcn_sheets, function(sheet) {
 })
 names(gcn1) <- gcn_sheets
 
+# read in GCN_Bange seperately (daily data)
+
+GCN_Bange <- read_xlsx(
+  file.path(path_may, "IDE_weather/submitted_data/GCN/GCN-Bange-precipitation.xlsx")
+  )
+
+
 # discard sites with annual only data -------------------------------------
 
 map(gcn1, names)
@@ -68,8 +75,20 @@ gcn3 <- map(gcn2, .f = monthly2daily_precip, year = "Year", month = "Month",
 
 map_dbl(gcn3, nrow)
 
-
 # create tables ---------------------------------------------------------
+
+# GCN_Bange ~~~~~
+
+gcn3[["GCN-Bange"]] <- GCN_Bange %>% 
+  mutate(date = ymd(paste(Year, Month, Day, sep = "-")),
+         precip = `Cumulative precipitation at 20:00-20:00(0.1mm)`, 
+         precip = ifelse(precip == 32700, 0, precip),# little precip
+         precip = ifelse(precip == 32766, NA, precip), # missing data
+         precip = ifelse(precip == 32744, NA, precip), # no data
+         precip = precip/10 # 0.1mm to mm
+  ) %>% 
+  select(date, precip) 
+
 # create tables that match the template
 
 temp1
@@ -107,16 +126,18 @@ gcn4 <- map2(gcn3, names(gcn3), function(x, name) {
   out
 })
 
+
 # gcn4[[1]]
 
 # removing "-" from list names so can subset without using ``
 names(gcn4) <- names(gcn4) %>% 
   stringr::str_replace("-", "_")
 
+gcn4$GCN_Bange$weather$note_weather <- NA # not computed from monthly values
 # saving the data ---------------------------------------------------------
 
 saveRDS(gcn4,
         file =  file.path(
           path_may, 
-          "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-10-31.rds"
+          "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-12-02.rds"
         ))
