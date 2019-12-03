@@ -11,38 +11,57 @@
 library(tidyverse)
 library(stringr)
 library(lubridate)
+source("R_scripts/functions.R")
 
 path <- 'E:/Dropbox/IDE Meeting_May2019'
 path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 
-# reading in data ---------------------------------------------------------
+# reading in precip data -----------------------------------------------------
 
 # GHCN data
-precip <- read.csv(file.path(path_oct,'data/precip/GHCN_daily_precip_2019-10-01.csv'),
+precip <- read.csv(file.path(path_oct,'data/precip/GHCN_daily_precip_2019-12-02.csv'),
                    as.is = TRUE)
 
+# submitted data
+# grabbing most recent submitted daily weather file
+dly_wthr_path <- list.files(
+  file.path(path_oct, "data/precip"),
+  pattern = "submitted_daily_weather_WC_supplemented_\\d{4}-\\d{2}-\\d{2}.csv", 
+  full.names = TRUE) %>% 
+  sort(decreasing = TRUE) %>% 
+  .[1]
+
+dly_wthr_path
+
+wthr1 <- read_csv(dly_wthr_path)
+wthr1$X1 <- NULL
+
+# sites where we have only GHCN data
+precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
+
+# reading in site/biomass date data ---------------------------------------
 
 # may not need this?
-siteDrt_A <- read.csv(file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv"),
-                      as.is = TRUE, na.strings = c("", "NA", "<NA>"))
+siteDrt_A <- read.csv(file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv"),
+                      as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
 siteBio_A <- read.csv(
-  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_10-01-2019.csv"),
+  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_12-02-2019.csv"),
   as.is = TRUE, na.strings = c("NULL"))
 
-"matta.il" %in% siteBio_A$site_code
+"stubai.at" %in% siteBio_A$site_code
 siteBio_A <- siteBio_A[!siteBio_A$trt %in% c('NPK','NPK_Drought'),]
 
 
 # extract drought treatment -----------------------------------------------
 
 siteDrt_B <- siteDrt_A %>% 
-  select(site_code, drought_trt) %>% 
+  dplyr::select(site_code, drought_trt) %>% 
   mutate(drought_trt = str_replace(drought_trt, "%", ""),
          drought_trt = as.numeric(drought_trt)/100)
 
-siteDrt_B
+siteDrt_B # stubai.at has NA for drt treatment
 
 
 # siteBio--process dates --------------------------------------------------
@@ -93,21 +112,27 @@ siteBio_B %>%
   filter(trtDat >1  | first_treatment_year > 1 | IfNot365.WhenShelterSet > 1 |
          IfNot365.WhenShelterRemove > 1)
 
+# sites with multiple biomass harvests per year
 siteBio_B %>% 
-  filter(site_code == "bayrdrt.de")
-
-siteBio_B %>% 
-  filter(site_code == "brandjberg.dk") 
+  group_by(site_code, year) %>% 
+  summarise(min_date = min(bioDat),
+            max_date = max(bioDat),
+            diff = as.numeric(max_date - min_date),
+            n_bioDat = lu(bioDat)
+            ) %>% 
+  filter(n_bioDat > 1) %>% 
+  arrange(site_code, year) %>% 
+  print(n = 100)
 
 # STOP: here I am taking the min first_treatment date--should more carefully
 # consider fi this is a good decision
 sites1 <- siteBio_B %>% 
-  filter(site_code %in% precip$site_code) %>% #only sites with precip data
+  filter(site_code %in% c(wthr1$site_code, precip$site_code)) %>% #only sites with precip data
   filter(!is.na(bioDat)) %>% # stop: rows when missing biodat (eg. year given only)
   group_by(site_code, year) %>% 
   summarize(first_treatment_year = min(first_treatment_year, na.rm = TRUE), 
             n_treat_years = min(n_treat_years, na.rm = TRUE), # STOP--min is temporary fix 
-            bioDat = min(bioDat, na.rm = TRUE), 
+            bioDat = min(bioDat, na.rm = TRUE), # unclear whether this is the right decision
             trtDat = min(trtDat), # first treat date
             IfNot365.WhenShelterSet = first(IfNot365.WhenShelterSet),
             IfNot365.WhenShelterRemove = first(IfNot365.WhenShelterRemove),
@@ -116,11 +141,42 @@ sites1 <- siteBio_B %>%
   ungroup()
 
 
+# reviewing sites with multiple start dates etc ---------------------------
 
+# bayrdrt.de ~~~~
+# the first 2015-08-01 should be used here (checked w/ PW)--so code above fine
+siteBio_B %>% 
+  filter(site_code == "bayrdrt.de") %>% 
+  pull(trtDat) %>% 
+  unique()
+
+# "brandbjerg.dk has another experiment nearby which started earlier. 
+# Drought-net treatments however started “2016-06-21” however, looks like they
+# never sent data" so leaving this for now..
+siteBio_B %>% 
+  filter(site_code == "brandjberg.dk") %>% 
+  pull(trtDat) %>% 
+  unique()
+
+# ethadn.au--leaving for now
+siteBio_B %>% 
+  filter(site_code == "ethadn.au") 
+
+# for both pne sites pw recommended 2018-04-28 (ie min  is ok)
+siteBio_B %>% 
+  filter(site_code == "pneunburn.br") %>% 
+  pull(trtDat) %>% 
+  unique()
+
+# pw recommended min data here so leaving
+siteBio_B %>% 
+  filter(site_code == "sevforest.us") %>% 
+  pull(trtDat) %>% 
+  unique()
 
 siteBio_A$site_code[!siteBio_A$site_code %in% siteDrt_B$site_code] # should be none
 
-sum(is.na(siteDrt_B$drought_trt)) # 2 NAs--not sure why
+sum(is.na(siteDrt_B$drought_trt)) # NAs--not sure why
 
 sites2 <- sites1 %>% 
   mutate(bioDat = as.Date(bioDat),
@@ -132,62 +188,89 @@ sites2 <- sites1 %>%
 precip1 <- precip %>% 
   mutate(date = as.Date(date))
 
-# calculating precip/year:
-
-for (i in 1:nrow(sites2)) {
-  print(i)
-  row <- sites2[i, ]
-  print(row$site_code)
-  site_ppt <- precip1[precip1$site_code == row$site_code,]
-  start_date <- as.Date(row$bioDat-365)
-  site_ppt2 <- site_ppt %>% 
-    filter(date >= start_date & date < row$bioDat) %>% 
-    mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
-  
-  # when did the shelter come off:
-  shelter_off_start <- if (row$X365day.trt == "No") {
-    min_year <- min(year(site_ppt2$date))
-    dmy(paste(row$IfNot365.WhenShelterRemove, min_year))
-  } else {
-    NA
-  }
-  # when did the shelter go back on
-  shelter_off_end <- if (row$X365day.trt == "No") {
-    max_year <- max(year(site_ppt2$date))
-    dmy(paste(row$IfNot365.WhenShelterSet, max_year))
-  } else {
-    NA
-  }
-  is_trt365 <- rep(row$X365day.trt == "Yes", nrow(site_ppt2))
-  # some sites say drought X365day.trt == "No" but don't give shelter on/off dates
-  # in those cases I just treated them as having year round shelter on.
-  site_ppt2 <- site_ppt2 %>% 
-    mutate(
-      # is drought occuring
-      is_drought = ifelse(n_treat_days < 0,
-                                 0,
-                                 ifelse(is_trt365,
-                                        1,
-                                        ifelse(date < shelter_off_start | date > shelter_off_end | is.na(shelter_off_start),
-                                        1,
-                                        0)
-                                 )),
-      drought_ppt = ifelse(is_drought,
-                           (ppt*(1 - row$drought_trt)),
-                           ppt)
-    )
-  sites2[i,]$ppt_num_NA <-  sum(is.na(site_ppt2$ppt))
-  sites2[i,]$num_drought_days <- sum(site_ppt2$is_drought)
-  
-  sites2[i,]$ppt_ambient <-  sum(site_ppt2$ppt, na.rm = TRUE)
-  sites2[i,]$ppt_drought <-  sum(site_ppt2$drought_ppt, na.rm = TRUE)
-  
-}
+filter(sites2, X365day.trt == "No") %>% 
+  select(site_code, IfNot365.WhenShelterSet, IfNot365.WhenShelterRemove) %>% 
+  print(n = 30)
 
 
-sites3 <- sites2 %>% 
+
+
+# yearly control/drt precip -----------------------------------------------
+
+# first calculating using ghcn data
+sites2_forghcn <- sites2 %>% 
+  filter(site_code %in% precip1$site_code)
+
+options(warn=1) # print warnings as they occur
+sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
+                                  precip_data = precip1)
+
+
+# calculating using submitted data
+wthr2 <- wthr1 %>% 
+  rename(ppt = precip)
+
+sites2_forsubmitted <- sites2 %>% 
+  filter(site_code %in% wthr2$site_code)
+
+sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
+                                       precip_data = wthr2)
+
+
+# combining ghcn and submitted results ------------------------------------
+sites4 <- full_join(sites3_ghcn, sites3_submitted, 
+                    by = c(names(sites1)),
+                    suffix = c("_ghcn", "_sub"))
+
+nrow(sites4)
+nrow(sites2)
+
+sites5 <- sites4 %>% 
   rename(biomass_date = bioDat,
          first_treatment_date = trtDat)
-dim(sites3)
-write_csv(sites3,
-          file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-10-02.csv'))
+
+
+# comparing ghcn to submitted data ----------------------------------------
+
+theme_set(theme_classic())
+
+pdf(file.path(path_oct,
+              paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
+              ))
+sites5 %>% 
+  filter(ppt_num_NA_sub < 30 & ppt_num_NA_ghcn < 30) %>% 
+  ggplot(aes(ppt_ambient_sub, ppt_ambient_ghcn)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0) +
+  labs(y = "365 day precip sum from GHCN (mm)",
+       x = "365 day precip sum from submitted data (mm)")
+  
+dev.off()
+
+
+# combining ghcn and submitted ----------------------------------------------
+
+# use submitted data if it has fewer than 30 missing values, 
+# else use GHCN data, if both have >30 missing values than put NA
+
+sites5 <- sites5 %>% 
+  mutate(ppt_ambient = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_ambient_sub),
+                              ppt_ambient_sub,
+                              ifelse(ppt_num_NA_ghcn < 30,
+                                     ppt_ambient_ghcn,
+                                     NA)
+                              ),
+         ppt_drought = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_drought_sub),
+                              ppt_drought_sub,
+                              ifelse(ppt_num_NA_ghcn < 30,
+                                     ppt_drought_ghcn,
+                                     NA)
+                              )
+         )
+
+# saving CSV --------------------------------------------------------------
+
+# write_csv(sites5,
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-02.csv'))
+
+
