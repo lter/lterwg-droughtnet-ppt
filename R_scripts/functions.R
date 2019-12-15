@@ -498,6 +498,9 @@ calc_yearly_precip <- function(site_data, precip_data){
                              (ppt*(1 - row$drought_trt)),
                              ppt)
       )
+    if (!is.null(site_ppt2$wc)) {
+      site_data[i, ]$ppt_num_wc_interp <- sum(site_ppt2$wc == "Y")
+    }
     site_data[i,]$ppt_num_NA <-  sum(is.na(site_ppt2$ppt))
     site_data[i,]$num_drought_days <- sum(site_ppt2$is_drought)
     

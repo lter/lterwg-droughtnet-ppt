@@ -47,7 +47,7 @@ siteDrt_A <- read.csv(file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATE
                       as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
 siteBio_A <- read.csv(
-  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_12-02-2019.csv"),
+  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_12-03-2019.csv"),
   as.is = TRUE, na.strings = c("NULL"))
 
 "stubai.at" %in% siteBio_A$site_code
@@ -120,7 +120,7 @@ siteBio_B %>%
             diff = as.numeric(max_date - min_date),
             n_bioDat = lu(bioDat)
             ) %>% 
-  filter(n_bioDat > 1) %>% 
+  filter(n_bioDat > 1, diff > 7) %>% 
   arrange(site_code, year) %>% 
   print(n = 100)
 
@@ -184,7 +184,8 @@ sites2 <- sites1 %>%
          ppt_drought = NA_real_,
          ppt_ambient = NA_real_,
          ppt_num_NA = NA_real_, 
-         num_drought_days = NA_real_)
+         num_drought_days = NA_real_,
+         ppt_num_wc_interp = NA_real_)
 precip1 <- precip %>% 
   mutate(date = as.Date(date))
 
@@ -212,6 +213,7 @@ wthr2 <- wthr1 %>%
 
 sites2_forsubmitted <- sites2 %>% 
   filter(site_code %in% wthr2$site_code)
+names(wthr2)
 
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
@@ -227,15 +229,16 @@ nrow(sites2)
 
 sites5 <- sites4 %>% 
   rename(biomass_date = bioDat,
-         first_treatment_date = trtDat)
+         first_treatment_date = trtDat) %>% 
+  select(-ppt_num_wc_interp_ghcn)
 
 
 # comparing ghcn to submitted data ----------------------------------------
 
 theme_set(theme_classic())
 
-pdf(file.path(path_oct,
-              paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
+# pdf(file.path(path_oct,
+#               paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
               ))
 sites5 %>% 
   filter(ppt_num_NA_sub < 30 & ppt_num_NA_ghcn < 30) %>% 
@@ -251,16 +254,19 @@ dev.off()
 # combining ghcn and submitted ----------------------------------------------
 
 # use submitted data if it has fewer than 30 missing values, 
-# else use GHCN data, if both have >30 missing values than put NA
+# else use GHCN data, if both have >30 missing values than put NA and not using
+# sumbitted data if more than 30 days were interpolated
 
 sites5 <- sites5 %>% 
-  mutate(ppt_ambient = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_ambient_sub),
+  mutate(ppt_ambient = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_ambient_sub) & 
+                                ppt_num_wc_interp_sub < 30,
                               ppt_ambient_sub,
                               ifelse(ppt_num_NA_ghcn < 30,
                                      ppt_ambient_ghcn,
                                      NA)
                               ),
-         ppt_drought = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_drought_sub),
+         ppt_drought = ifelse(ppt_num_NA_sub < 30 & !is.na(ppt_drought_sub)  & 
+                                ppt_num_wc_interp_sub < 30,
                               ppt_drought_sub,
                               ifelse(ppt_num_NA_ghcn < 30,
                                      ppt_drought_ghcn,
@@ -271,6 +277,10 @@ sites5 <- sites5 %>%
 # saving CSV --------------------------------------------------------------
 
 # write_csv(sites5,
-#           file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-02.csv'))
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-03.csv'))
 
 
+sites5 %>% 
+  filter(X365day.trt != "Yes") %>% 
+  pull(site_code) %>% 
+  unique()

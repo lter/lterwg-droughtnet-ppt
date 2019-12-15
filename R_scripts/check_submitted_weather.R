@@ -136,7 +136,7 @@ wthr3 <- wthr3 %>%
 
 # annual precip reasonable? -----------------------------------------------
 
-annual <- wthr4 %>% 
+annual <- wthr3 %>% 
   mutate(year = year(date)) %>% 
   group_by(year, site_code, site_name) %>% 
   summarise(n_vals = sum(!is.na(precip)),
@@ -149,6 +149,8 @@ annual %>%
   filter((obs_v_map > 2 | obs_v_map < 0.3) & n_vals > 300) %>% 
   arrange(site_code) %>% 
   print(n = 40)
+
+annual
 
 # annual %>% 
 #   #filter(n_vals > 300) %>% 

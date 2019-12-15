@@ -14,7 +14,6 @@
 
 # packages ----------------------------------------------------------------
 
-
 library(tidyverse)
 library(spatstat)
 
@@ -96,7 +95,7 @@ cdf1 <- lapply(density, function(x){
 # observed precipitation by site/year/trmt --------------------------------
 
 site_ppt <- read.csv(
-  file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-02.csv'), 
+  file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-03.csv'), 
   as.is = TRUE)
 
 site_ppt2 <- site_ppt
@@ -150,7 +149,7 @@ for (i in 1:nrow(site_ppt2)){
 
 plot(site_ppt2$perc_ambient_norm, site_ppt2$perc_ambient_obs,
      xlab = "Ambient precip percentile from normal CDF",
-     ylab = "Ambeint precip percentile from emperical CDF") 
+     ylab = "Ambeint precip percentile from emperical CDF")
 abline(0, 1)
 dev.off()
 
@@ -182,7 +181,7 @@ g1 <- site_ppt3 %>%
 #     height = 5, width = 8)
 
 image_path <- file.path(
-  path_oct, 
+  path_oct,
   paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
 # pdf(image_path,  height = 5, width = 8)
@@ -207,4 +206,4 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt3,
-#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-02.csv'))
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-03.csv'))
