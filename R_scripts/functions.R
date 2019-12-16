@@ -511,3 +511,60 @@ calc_yearly_precip <- function(site_data, precip_data){
   site_data
 }
 
+# path to most recent file ------------------------------------------------
+
+newest_file_path <- function(path, file_regex, mdy = FALSE) {
+  # args:
+  #  path--path to the older you want to look in 
+  #  file_regex--regular expression to match a file name (e.g. may want to match
+  #     any files of the form example_yyyy-mm-dd then this function will return
+  #     the most recent file (when sorted in descending order))
+  #  mdy --logical, set to true if file name contains a date in m-d-y format (which
+  #     won't return newest file if just sort file names as is the default)
+  # returns:
+  #  path of the newest file (based on the file name), throws a warning if 
+  #   this also isn't the most recently modified file. 
+  stopifnot(
+    is.character(path),
+    is.character(file_regex),
+    is.logical(mdy)
+  )
+  paths <- list.files(
+    path = path,
+    pattern = file_regex, 
+    full.names = TRUE)
+  
+  paths_short <- list.files(
+    path = path,
+    pattern = file_regex)
+  
+  if (length(paths) == 0) {
+    stop("no files match that regex")
+  }
+  
+  # time modified
+  time_modified <- file.info(paths)$mtime
+  
+  if (!mdy) {
+    out <- sort(paths, decreasing = TRUE)[1]
+  } else {
+    file_dates <- stringr::str_extract(paths, "\\d{1,2}-\\d{1,2}-\\d{4}")
+    file_dates <- lubridate::mdy(file_dates)
+    out <- paths[which(file_dates == max(file_dates))]
+  }
+  
+  # check in case some other file was modified more recently. 
+  if(out != paths[which(time_modified == max(time_modified))]) {
+    warning("a file other than the one selected based on file name was modified more recently")
+  }
+  
+  message(
+    paste("files matching this regex are:", 
+          paste(paths_short, collapse = "\n"), 
+          collapse = "\n")
+  )
+  
+  out
+}
+
+

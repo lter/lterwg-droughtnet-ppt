@@ -19,19 +19,19 @@ path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # reading in precip data -----------------------------------------------------
 
-# GHCN data
-precip <- read.csv(file.path(path_oct,'data/precip/GHCN_daily_precip_2019-12-02.csv'),
-                   as.is = TRUE)
+# GHCN data--getting newest file based on file name
+p1 <- newest_file_path(
+  path = file.path(path_oct,'data/precip'),
+  file_regex = 'GHCN_daily_precip_\\d{4}-\\d+-\\d+.csv' 
+)
+precip <- read.csv(p1,as.is = TRUE)
 
 # submitted data
 # grabbing most recent submitted daily weather file
-dly_wthr_path <- list.files(
-  file.path(path_oct, "data/precip"),
-  pattern = "submitted_daily_weather_WC_supplemented_\\d{4}-\\d{2}-\\d{2}.csv", 
-  full.names = TRUE) %>% 
-  sort(decreasing = TRUE) %>% 
-  .[1]
-
+dly_wthr_path <- newest_file_path(
+  path = file.path(path_oct, "data/precip"),
+  file_regex =  "submitted_daily_weather_WC_supplemented_\\d{4}-\\d{2}-\\d{2}.csv" 
+)
 dly_wthr_path
 
 wthr1 <- read_csv(dly_wthr_path)
@@ -43,12 +43,19 @@ precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
 # reading in site/biomass date data ---------------------------------------
 
 # may not need this?
-siteDrt_A <- read.csv(file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv"),
-                      as.is = TRUE, na.strings = c("","<NA>", "NA"))
+p3 <- newest_file_path(
+  file.path(path_oct, "IDE Site Info"),
+  "Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE
+)
+siteDrt_A <- read.csv(p3, as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
-siteBio_A <- read.csv(
-  file.path(path_oct, "Full biomass\\Full_Biomass-SurveyResults_12-03-2019.csv"),
-  as.is = TRUE, na.strings = c("NULL"))
+p4 <- newest_file_path(
+  file.path(path_oct, "Full biomass"),
+  "Full_Biomass-SurveyResults_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE
+)
+siteBio_A <- read.csv(p4, as.is = TRUE, na.strings = c("NULL"))
 
 "stubai.at" %in% siteBio_A$site_code
 siteBio_A <- siteBio_A[!siteBio_A$trt %in% c('NPK','NPK_Drought'),]
@@ -59,7 +66,14 @@ siteBio_A <- siteBio_A[!siteBio_A$trt %in% c('NPK','NPK_Drought'),]
 siteDrt_B <- siteDrt_A %>% 
   dplyr::select(site_code, drought_trt) %>% 
   mutate(drought_trt = str_replace(drought_trt, "%", ""),
-         drought_trt = as.numeric(drought_trt)/100)
+         drought_trt = as.numeric(drought_trt)/100,
+         # chinese sites used 50% drt--and it is na in the source file
+         cn_site = str_detect(site_code, "\\.cn$"),
+         drought_trt = ifelse(cn_site & is.na(drought_trt),
+                              0.5,
+                              drought_trt)
+         ) %>% 
+  select(-cn_site)
 
 siteDrt_B # stubai.at has NA for drt treatment
 
@@ -124,14 +138,15 @@ siteBio_B %>%
   arrange(site_code, year) %>% 
   print(n = 100)
 
-# STOP: here I am taking the min first_treatment date--should more carefully
-# consider fi this is a good decision
+# STOP: here I am taking the min first_treatment date--
+# consider if this is a good decision
 sites1 <- siteBio_B %>% 
   filter(site_code %in% c(wthr1$site_code, precip$site_code)) %>% #only sites with precip data
   filter(!is.na(bioDat)) %>% # stop: rows when missing biodat (eg. year given only)
   group_by(site_code, year) %>% 
   summarize(first_treatment_year = min(first_treatment_year, na.rm = TRUE), 
-            n_treat_years = min(n_treat_years, na.rm = TRUE), # STOP--min is temporary fix 
+            # should calculated n treat days-don't rely on n_treat years
+            n_treat_years = min(n_treat_years, na.rm = TRUE), 
             bioDat = min(bioDat, na.rm = TRUE), # unclear whether this is the right decision
             trtDat = min(trtDat), # first treat date
             IfNot365.WhenShelterSet = first(IfNot365.WhenShelterSet),
