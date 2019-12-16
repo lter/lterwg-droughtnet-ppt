@@ -2,8 +2,6 @@
 ###### Calculate precipitation reduction based on daily precip and shelter installation  ####
 #############################################################################################
 
-# NOTE: THIS SCRIPT HAS NOT YET BEEN SUFFICIENTLY UPDATED TO WORK WITH NEW (OCT 2019) DATA
-
 
 # packages etc ------------------------------------------------------------
 
@@ -24,6 +22,7 @@ p1 <- newest_file_path(
   path = file.path(path_oct,'data/precip'),
   file_regex = 'GHCN_daily_precip_\\d{4}-\\d+-\\d+.csv' 
 )
+p1
 precip <- read.csv(p1,as.is = TRUE)
 
 # submitted data
@@ -132,7 +131,8 @@ siteBio_B %>%
   summarise(min_date = min(bioDat),
             max_date = max(bioDat),
             diff = as.numeric(max_date - min_date),
-            n_bioDat = lu(bioDat)
+            n_bioDat = lu(bioDat),
+            n_treat_days = lu(n_treat_days)
             ) %>% 
   filter(n_bioDat > 1, diff > 7) %>% 
   arrange(site_code, year) %>% 
@@ -147,7 +147,7 @@ sites1 <- siteBio_B %>%
   summarize(first_treatment_year = min(first_treatment_year, na.rm = TRUE), 
             # should calculated n treat days-don't rely on n_treat years
             n_treat_years = min(n_treat_years, na.rm = TRUE), 
-            bioDat = min(bioDat, na.rm = TRUE), # unclear whether this is the right decision
+            bioDat = max(bioDat, na.rm = TRUE), # using the 2nd biomass date is better (decided on skype call)
             trtDat = min(trtDat), # first treat date
             IfNot365.WhenShelterSet = first(IfNot365.WhenShelterSet),
             IfNot365.WhenShelterRemove = first(IfNot365.WhenShelterRemove),
@@ -189,9 +189,10 @@ siteBio_B %>%
   pull(trtDat) %>% 
   unique()
 
-siteBio_A$site_code[!siteBio_A$site_code %in% siteDrt_B$site_code] # should be none
+siteBio_A$site_code[!siteBio_A$site_code %in% siteDrt_B$site_code] %>%  # should be none
+  unique()
 
-sum(is.na(siteDrt_B$drought_trt)) # NAs--not sure why
+sum(is.na(siteDrt_B$drought_trt)) # NAs--some sites haven't provided drt trmt values
 
 sites2 <- sites1 %>% 
   mutate(bioDat = as.Date(bioDat),
@@ -227,7 +228,25 @@ wthr2 <- wthr1 %>%
   rename(ppt = precip)
 
 sites2_forsubmitted <- sites2 %>% 
-  filter(site_code %in% wthr2$site_code)
+  filter(site_code %in% wthr2$site_code) 
+
+# reformatting some dates so that they can be used by the function 
+set_date <- str_detect(sites2_forsubmitted$IfNot365.WhenShelterSet, "\\d+/\\d+/\\d{4}")
+
+sites2_forsubmitted$IfNot365.WhenShelterSet[set_date] <- 
+  sites2_forsubmitted$IfNot365.WhenShelterSet[set_date] %>% 
+  mdy() %>% 
+  paste(day(.), month(., label = TRUE)) %>% 
+  str_extract("\\d+\\s[A-z]+$")
+
+rem_date <- str_detect(sites2_forsubmitted$IfNot365.WhenShelterRemove, "\\d+/\\d+/\\d{4}")
+
+sites2_forsubmitted$IfNot365.WhenShelterRemove[rem_date] <- 
+  sites2_forsubmitted$IfNot365.WhenShelterRemove[rem_date] %>% 
+  mdy() %>% 
+  paste(day(.), month(., label = TRUE)) %>% 
+  str_extract("\\d+\\s[A-z]+$")
+
 names(wthr2)
 
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
@@ -254,7 +273,7 @@ theme_set(theme_classic())
 
 # pdf(file.path(path_oct,
 #               paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
-              ))
+#              ))
 sites5 %>% 
   filter(ppt_num_NA_sub < 30 & ppt_num_NA_ghcn < 30) %>% 
   ggplot(aes(ppt_ambient_sub, ppt_ambient_ghcn)) +
@@ -292,7 +311,7 @@ sites5 <- sites5 %>%
 # saving CSV --------------------------------------------------------------
 
 # write_csv(sites5,
-#           file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-03.csv'))
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-15.csv'))
 
 
 sites5 %>% 
