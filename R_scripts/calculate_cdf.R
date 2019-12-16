@@ -15,24 +15,22 @@
 # packages ----------------------------------------------------------------
 
 library(tidyverse)
+library(lubridate)
 library(spatstat)
+source("R_scripts/functions.R")
 
 # path to data folders
-path_may <- 'E:/Dropbox/IDE Meeting_May2019'
 path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
 
 # load tpa precip data -----------------------------------------------------
 
-# tpa data is stored in two folders:
+# tpa data now stored in one folder
 
 # folder path (fist folder)
-precip_folder1 <- file.path(path_may, "IDE Site Info/May_2019_TPA_uploads_annual_precip")
-
-# 2nd folder 
-precip_folder2 <- "E:\\Dropbox\\droughtnet_2018_felton\\droughtnet_ppt_deviations_material\\drought_net_trends_tpa"
+precip_folder1 <- file.path(path_oct, "data/precip/Yearly Precip_TPA/drought_net_trends_tpa")
 
 file_names1 <- list.files(precip_folder1)
-file_names2 <- list.files(precip_folder2)
+
 
 precip1 <- lapply(file_names1, function(file_name){
   print(file_name)
@@ -40,12 +38,8 @@ precip1 <- lapply(file_names1, function(file_name){
     dplyr::select(site_code, year, totalPRE)
 })
 
-precip2 <- lapply(file_names2, function(file_name){
-  read.csv(file.path(precip_folder2, file_name), as.is = TRUE) %>% 
-    dplyr::select(site_code, year, totalPRE)
-})
 
-precip3 <- c(precip1, precip2) # list of dataframes from both sites
+precip3 <- precip1 
 
 # extracting site codes from each file
 site_codes <- sapply(precip3, function(df){
@@ -94,16 +88,18 @@ cdf1 <- lapply(density, function(x){
 
 # observed precipitation by site/year/trmt --------------------------------
 
-site_ppt <- read.csv(
-  file.path(path_oct, 'data/precip/precip_by_trmt_year_2019-12-03.csv'), 
-  as.is = TRUE)
+# grabbing newest file
+p1 <- newest_file_path(
+  file.path(path_oct, 'data/precip'),
+  "precip_by_trmt_year_\\d{4}-\\d+-\\d+.csv")
+p1
+site_ppt <- read.csv(p1, as.is = TRUE)
 
 site_ppt2 <- site_ppt
 
 
 # calculating percentiles given annual precip --------------------------------
 
-# "scruzh.us" still need
 for (i in 1:nrow(site_ppt2)){
   print(i)
   site_code <- site_ppt2$site_code[i]
@@ -138,6 +134,11 @@ for (i in 1:nrow(site_ppt2)){
   }
 }
 
+# any tpa data missing?
+site_ppt2 %>% 
+  filter(!is.na(ppt_ambient) & is.na(perc_ambient_obs)) %>% 
+  .$site_code %>% 
+  unique()
 
 # figures -----------------------------------------------------------------
 
@@ -158,27 +159,29 @@ dev.off()
 site_ppt3 <- site_ppt2 %>% 
   rename(perc_ambient = perc_ambient_norm,
          perc_drought = perc_drought_norm) %>% 
-  dplyr::select(-perc_ambient_obs, -perc_drought_obs)
+  dplyr::select(-perc_ambient_obs, -perc_drought_obs) %>% 
+  mutate(n_treat_days = ymd(biomass_date) - ymd(first_treatment_date),
+         n_treat_days = as.numeric(n_treat_days))
+
+x <- site_ppt3 %>% 
+  filter(n_treat_days >=365 & n_treat_days < 730) %>% 
+  .$perc_ambient 
+
+sum(!is.na(x)) # 64 with precip data in year 1
+# NEXT: figure out where this "missing" data is being created
+# ie who submitted data but it wasn't good enought
 
 # ~~~
 
 g1 <- site_ppt3 %>% 
-  filter(n_treat_years > 0) %>% 
-  mutate(treat_year_bin = ifelse(n_treat_years == 1,
-                                 "First treatment year",
-                                 "Second + treatment years")
-  ) %>% 
+  filter(n_treat_days >= 365 & n_treat_days < 730) %>% 
   ggplot() +
   theme_classic() +
-  facet_wrap(~treat_year_bin) +
   geom_abline (slope = 1, intercept = 0) +
-  labs(subtitle = "Control vs Drought treatment by treatment years \n (where treatment year 1 has 30 - 365 days of treatment)",
+  labs(subtitle = "Control vs Drought treatment by for 365-729 treatment days",
        caption = "figure generated in 'calculate_cdf.R' script ") + 
   theme(plot.title = element_text(size = 13))
 
-
-# pdf(file.path(path_may, "IDE Site Info/Plots/trmt_vs_drt_precip20190524.pdf"), 
-#     height = 5, width = 8)
 
 image_path <- file.path(
   path_oct,
@@ -206,4 +209,4 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt3,
-#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-03.csv'))
+#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-15.csv'))
