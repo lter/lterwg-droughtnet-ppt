@@ -41,8 +41,14 @@ path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 # site info ---------------------------------------------------------------
 
-# make sure using most recent file
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_11-07-2019.csv'),
+# grabbing most recent file based on date in file name
+siteElev_path <- newest_file_path(
+  path = file.path(path_oct, 'IDE Site Info'),
+  file_regex = 'Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv',
+  mdy = TRUE
+)
+siteElev_path
+siteElev <-read.csv(siteElev_path,
                     as.is = TRUE)
 
 site_name_code <- siteElev %>% 
@@ -90,14 +96,13 @@ file_names3
 
 # shorter name
 file_names3[file_names3 == "ECN_Wytham_DAILY_met_data_2015_2019_for_DroughtNet"] <- "ECN_Wytham"
+file_names3[file_names3 == "Climate_data_2014_15_and_2015_16_rainfall_season_Matta_LTER"] <- "Matta_LTER"
 
 file_paths <- file.path(path_may, "IDE_weather/submitted_data", file_names)
 names(file_paths) <- file_names3
 
-
 sheets1 <- lapply(file_paths, excel_sheets)
 sheets1
-
 
 # load all sheets ---------------------------------------------------------
 
@@ -150,6 +155,12 @@ template <- map(all2$hardware_ranch, function(x) {
 template$metadata <- all2$hardware_ranch$metadata
 
 # Nielsen ~~~~~~~~~~~~~~~~~~~~~~
+
+# newer file (dec 5) submitted, with corrected data for charlevill, so using that
+all1$Nielsen_Australian_Outback_sites <- 
+  all1$Nielsen_Australian_Outback_sites_Dec_5_2019
+
+all2$Nielsen_Australian_Outback_sites_Dec_5_2019 <- NULL
 
 # combining multiple weather sheets for nielson sites
 nielson_sheets <- sheets1$Nielsen_Australian_Outback_sites %>%
@@ -263,7 +274,7 @@ all2$Purdue_daily_data_for$station <- template$station %>%
     site = pur_wthr1$site_name[1],
     station_name = pur_wthr1$station_name[1],
     station_latitud = pur_stn1$value[pur_stn1$name == "Latitude"],
-    station_longitude = pur_stn1$value[pur_stn1$name == "Longitude"],
+    station_longitud = pur_stn1$value[pur_stn1$name == "Longitude"],
     source = pur_stn1$name[1])
 
 all2$Purdue_daily_data_for$sites <- template$sites %>% 
@@ -273,6 +284,51 @@ all2$Purdue_daily_data_for$metadata <- template$metadata
 
 all2$Purdue_daily_data_for$Metadata <- NULL
 all2$Purdue_daily_data_for$`Purdue - Daily Weather Data` <- NULL
+
+# matta ~~~
+all2$Matta_LTER <- template
+all2$Matta_LTER$weather <- map(all1$Matta_LTER,
+              function(x) {
+                cols <- x[1, ] # first row is col names
+                df <- x[-1, ]
+                names(df) <- as.vector(unlist(cols))
+                df2 <- df %>% 
+                  rename(date = Date,
+                         precip = `Rain mm`,
+                         mean_temp = `Air Temp Daily Mean Mean`,
+                         min_temp = `Air Temp Daily Mean Min`,
+                         max_temp = `Air Temp Daily Mean Max`
+                         ) %>% 
+                  mutate(note_weather = NA,
+                         # no station name given-so using site name
+                         station_name = "Matta LTER")
+                df2
+              }) %>% 
+  bind_rows()
+
+all2$Matta_LTER$station <- all2$Matta_LTER$station %>% 
+  mutate(site = "Matta LTER",
+         station_name = "Matta LTER")
+
+all2$Matta_LTER$sites <- all2$Matta_LTER$sites %>% 
+  mutate(site = "Matta LTER")
+
+# norway ~~
+
+# weird dates with extra 0 in middle of month
+# using lookbehind/look ahead to convert dates eg "2017-101-1" to "2017-11-1"
+all2$Norway_2019$weather <- all1$Norway_2019$weather %>% 
+  mutate(date = str_replace(date, "(?<=^\\d{4}-\\d)0(?=\\d-\\d{1,2}$)", ""),
+         date = ymd(date))
+
+# precip same between the two sheets, but ark1 has some impossible dates (eg nov 40th)
+map2_lgl(all1$Norway_2019$Ark1, all1$Norway_2019$weather, function(x, y) {
+  x <- x[!is.na(x)]
+  y <- y[!is.na(y)]
+  all(x==y)
+})
+
+all2$Norway_2019$Ark1 <- NULL
 
 
 
@@ -415,13 +471,11 @@ all4$GCN_Suihua$station <- all4$GCN_Suihua$station %>%
   select(-`distance(m)`)
 
 
-
 # check if all col names fixed
 check_names_in_list(
   list = all4,  element_name = "station", names = station_cols,
   warning = "Not all station tables have the correct column names"
 )
-
 
 # check/fix station sheet contents ----------------------------------------
 all5 <- all4
@@ -569,6 +623,7 @@ stn3$elev
 # redo if throws as.numeric parsing error
 stn4 <- stn3 %>% 
   mutate(distance = str_replace(distance, "km", ""),
+         distance = str_replace(distance, ",", "."),
          is_dist_m = str_detect(distance, "(?<![A-z])m(?![A-z])"), # just solitary m for meter
          distance = str_replace(distance, "(?<![A-z])m(?![A-z])", ""),
          distance = as.numeric(distance), 
@@ -601,6 +656,8 @@ all5$Freiburg$sites$site <- all5$Freiburg$station$site
 # from coordinates and other naming it is clear there was just a mix up in names
 all5$Garraf_daylydata$station$site <- all5$Garraf_daylydata$sites$site
 
+# norway --typo
+all5$Norway_2019$sites$site[all5$Norway_2019$sites$site == "Haverøyaerøya"] <- "Haverøya"
 
 site_name_present <- map_lgl(all5, function(x) {
   site_in_station <- x$sites$site %in% x$station$site
@@ -611,8 +668,6 @@ site_name_present <- map_lgl(all5, function(x) {
 site_name_present[!site_name_present]
 
 if(!all(site_name_present)) warning("fix site name issues")
-
-
 
 ###########################################################################
 ############     Process Weather data   ###################################
@@ -923,7 +978,24 @@ all8$Pineta2014_2019$weather <- all8$Pineta2014_2019$weather %>%
 # bamboo
 all8$Bamboo_drought_$weather$station_name <- 
   all8$Bamboo_drought_$station$station_name
-  
+
+# matta
+# summary stats given in additional row with "NA", discarding here
+all8$Matta_LTER$weather <- all8$Matta_LTER$weather %>% 
+  filter(!is.na(date))
+
+# santacruz--some station names left black--but only one station given so filling in
+all8[c("SantaCruzMiddle", "SantaCruzHigh")] <- map(
+  all8[c("SantaCruzMiddle", "SantaCruzHigh")],
+  function(x) {
+    x$weather <- x$weather %>% 
+      mutate(station_name = ifelse(is.na(station_name),
+                                   x$station$station_name,
+                                   station_name))
+    x
+  }
+)
+
 # see if all missing values fixed:
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
@@ -990,6 +1062,18 @@ bam_date[bam_not_parsed]
 
 all9$Bamboo_drought_$weather <- all9$Bamboo_drought_$weather[!bam_not_parsed, ]
 
+# matta ~~~ (2 date formats given)
+# note: throwing a parse error but all are actually parsing
+all9$Matta_LTER$weather <- all9$Matta_LTER$weather %>% 
+  mutate(is_dmy = ifelse(str_detect(date, "\\d{2}/\\d{2}/\\d{4}"),
+                         TRUE, FALSE),
+         date = ifelse(is_dmy,
+                       as.character(dmy(date)),
+                       date)
+         ) %>% 
+  select(-is_dmy)
+  
+
 # check that all dates now parsable--
 
 all_parsable <- map(all9, function(x){
@@ -1001,6 +1085,9 @@ if (!all_parsable) warning("some dates still can't parse")
 
 # now convert to date
 all9 <- map(all9, function(x){
+  if(any(is.na(x$weather$date))) {
+    stop("some NA dates")
+  }
   x$weather$date <- ymd(x$weather$date)
   x
 })
@@ -1085,6 +1172,17 @@ all10[dif_spell] <-
 # site name put instead of station name
 all10$Kiskunsag$weather$station_name %>% unique()
 all10$Kiskunsag$weather$station_name <- all10$Kiskunsag$station$station_name
+
+# santacruz
+# spelling inconsistency
+all10$SantaCruzMiddle$weather$station_name <- 
+  all10$SantaCruzMiddle$station$station_name
+
+# improper name given in weather sheet
+all10$SantaCruzLow$weather$station_name %>% unique()
+
+all10$SantaCruzLow$weather$station_name <- 
+  all10$SantaCruzLow$station$station_name
 
 # check station names now rectified:
 
@@ -1223,6 +1321,28 @@ HY_wthr1 <- comb_primary_secondary_stns(HY_obs, HY_hid)
 
 all11$HY_and_HO$weather <- HY_wthr1
 
+# norway
+# the skotsvaer site didn't have temp so pulled temp from stor buoya
+# here hadding store buoya temp to skotsvaer as well, so not duplicated sites/dates
+
+# all11$Norway_2019$station %>% View()
+
+skots <- all11$Norway_2019$weather %>% 
+  filter(station_name == "Skotsvær")
+
+store <-all11$Norway_2019$weather %>% 
+  filter(station_name == "Store Buøya") 
+
+skots_comb <- comb_primary_secondary_stns(skots, store)
+
+all11$Norway_2019$weather <- all11$Norway_2019$weather %>% 
+  filter(station_name != "Skotsvær") %>% 
+  bind_rows(skots_comb)
+
+# b/ data combined above discarding this row--better for later joins
+all11$Norway_2019$station <- all11$Norway_2019$station %>% 
+  filter(!(site == "Skotsvær" & station_name == "Store Buøya"))
+
 # merging in site codes ---------------------------------------------------
 
 # so merging issues aren't caused by erronious spaces/all caps
@@ -1287,13 +1407,20 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'Gigante' = 'unknown',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
+                         "Haverøya" = 'haver.no', 
                          'KAEFS-OK' = 'oklah.us',
                          'Kranzberg' = 'kranz.de', # haven't submitted bio data
+                         "Lygra_young" = 'lygrayng.no',
+                         "Lygra_intermediate" = 'lygraint.no',
+                         "Lygra_old" = 'lygraold.no',
+                         "meadow_Stubai" = "stubai.at",
                          'NP' = 'nplatte.us',
                          'P12' = 'unknown',
                          'P13' = 'unknown',
                          'Prades' = 'prades.es',
+                         "Skotsvær" = "unkown", #norway
                          'ShermanCrane' = 'unknown',
+                         "Store Buøya" = 'unknown', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown" # haven't sent in bio data
 )
@@ -1313,7 +1440,8 @@ stn6 <- stn5 %>%
   select(-site_name_4merge) 
 
 stn6 %>% 
-  filter(is.na(site_code))
+  filter(is.na(site_code)) %>% 
+  .$site
 
 if(any(is.na(stn6$site_code))) warning("some site codes NA")
 
@@ -1381,20 +1509,19 @@ dup_site_dates3 <- all_wthr2 %>%
 
 if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 
-
 # saving CSVs -------------------------------------------------------------
 
 all_wthr_2save <- all_wthr2 %>% 
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-02.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-15.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
-# 
+
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-02.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-15.csv"))
   
 

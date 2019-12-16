@@ -13,29 +13,27 @@
 # packages etc ------------------------------------------------------------
 
 library(tidyverse)
+source("R_scripts/functions.R")
 path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
 
 
 # read in submitted weather -----------------------------------------------
 
 # grabbing most recent submitted daily weather file
-dly_wthr_path <- list.files(
-  file.path(path_oct, "data/precip"),
-  pattern = "submitted_daily_weather_\\d{4}-\\d{2}-\\d{2}.csv", 
-  full.names = TRUE) %>% 
-  sort(decreasing = TRUE) %>% 
-  .[1]
+p1 <- newest_file_path(
+  path = file.path(path_oct, "data/precip"),
+  file_regex = "submitted_daily_weather_\\d{4}-\\d{2}-\\d{2}.csv")
+p1
 
-dly_wthr_path
+wthr1 <- read_csv(p1,col_types = "cDdddcdcc")
 
-wthr1 <- read_csv(dly_wthr_path,
-                  col_types = "cDdddcdcc")
-
-# so can get reported MAP
-site_data <- read.csv(
-  file.path(path_oct,"IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv"),
-  as.is = TRUE, na.strings = c("","<NA>", "NA")
-  )
+# so can get reported MAP (grabbing most recent file)
+p2 <- newest_file_path( 
+  path = file.path(path_oct, "IDE Site Info"),
+  file_regex = "Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE)
+p2
+site_data <- read.csv(p2, as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
 site_map <- site_data %>% 
   select(site_code, precip) %>% 
@@ -128,7 +126,7 @@ wthr2 %>%
             non_na = sum(!is.na(precip)))
 
 # STOP--removing yarrardrt for now until better data is submitted. 
-
+# S. Power confirmed this data contains error--she will get back about this. 
 wthr3 <- wthr2
 wthr3 <- wthr3 %>% 
   filter(site_code != "yarradrt.au")
@@ -163,15 +161,9 @@ annual
 
 inches <- c("thompson.us", "oklah.us", "capwhite.us")
 
-# units suspected to be in mm
-mm_tenths <- c("charleville.au")
-
 wthr4 <- wthr3 %>% 
   mutate(precip = ifelse(site_code %in% inches,
                          precip*25.4,
-                         precip),
-         precip = ifelse(site_code %in% mm_tenths,
-                         precip/10,
                          precip))
 
 # saving CSV --------------------------------------------------------------
@@ -179,6 +171,6 @@ wthr4 <- wthr3 %>%
 # write_csv(
 #   wthr4,
 #   file.path(path_oct,
-#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-02.csv")
+#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-15.csv")
 #   )
   
