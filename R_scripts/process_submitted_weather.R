@@ -833,6 +833,18 @@ pan_wthr3$note_weather <- "Values of temp and precip taken from Monthly values"
 
 all6$Cusack_Panama$weather <- pan_wthr3
 
+# yarramundi
+
+all6$Yarramundi_on_site_met_data_2013_2019$weather <- 
+  all6$Yarramundi_on_site_met_data_2013_2019$weather %>% 
+  rename(date = Date,
+         precip = Rain_mm_Tot,
+         min_temp = Tmin,
+         max_temp = Tmax,
+         mean_temp = Tair) %>% 
+  select(-matches("^RH"))
+
+
 # checking column consistency: 
 
 # adding in temp_mean column to all files that don't have it
@@ -996,6 +1008,10 @@ all8[c("SantaCruzMiddle", "SantaCruzHigh")] <- map(
   }
 )
 
+# yarramundi (station name missing for some rows)
+all8$Yarramundi_on_site_met_data_2013_2019$weather$station_name <- 
+  all8$Yarramundi_on_site_met_data_2013_2019$station$station_name
+
 # see if all missing values fixed:
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
@@ -1041,13 +1057,6 @@ map(all9[names(bad_dates)], function(x) {
     unique() 
 })
 
-# yarramund ~~~~~~~~~~
-# some dates in m/d/yyyy format
-yar_date <- all9$Yarramundi_on_site_met_data_2014_2019$weather$date
-yar_is_mdy <- str_detect(yar_date, "^\\d{1,2}/\\d{1,2}/\\d{4}$")
-yar_date[yar_is_mdy] <- mdy(yar_date[yar_is_mdy]) %>% 
-  as.character()
-all9$Yarramundi_on_site_met_data_2014_2019$weather$date <- yar_date
 
 # GCN_Suihua ~~~
 all9$GCN_Suihua$weather$date <- ymd_hms(all9$GCN_Suihua$weather$date) %>% 
@@ -1515,13 +1524,13 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-15.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-18.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-15.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-18.csv"))
   
 
