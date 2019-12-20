@@ -93,7 +93,13 @@ p1 <- newest_file_path(
   file.path(path_oct, 'data/precip'),
   "precip_by_trmt_year_\\d{4}-\\d+-\\d+.csv")
 p1
-site_ppt <- read.csv(p1, as.is = TRUE)
+
+p1 <- newest_file_path(
+  file.path(path_oct, 'data/precip'),
+  "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
+p1
+
+site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
 
 site_ppt2 <- site_ppt
 
@@ -104,39 +110,33 @@ for (i in 1:nrow(site_ppt2)){
   print(i)
   site_code <- site_ppt2$site_code[i]
   print(site_code)
-  ppt_ambient <- site_ppt2$ppt_ambient[i] # precip for the site/year of interest
-  ppt_drought <- site_ppt2$ppt_drought[i]
+  ppt <- site_ppt2$ppt[i] # precip for the site/year of interest
+
   # percentile based on cdf for the site
   f <-cdf1[[site_code]]
   
   if(is.null(f)){
     warning(paste("no tpa data was available for:", site_code))
-    site_ppt2$perc_ambient_obs[i] <- NA
-    site_ppt2$perc_drought_obs[i] <- NA
-    site_ppt2$perc_ambient_norm[i] <- NA
-    site_ppt2$perc_drought_norm[i] <- NA
+    site_ppt2$perc_obs[i] <- NA
+    site_ppt2$perc_norm[i] <- NA
   } else {
     
     tpa_ppt <- precip3[[site_code]]%>% 
       filter(year > 1964) %>% 
       .$totalPRE
     
-    site_ppt2$perc_ambient_obs[i] <- f(ppt_ambient)*100 # convert quantile to percentile
-    site_ppt2$perc_drought_obs[i] <- f(ppt_drought)*100 # convert quantile to percentile
+    site_ppt2$perc_obs[i] <- f(ppt)*100 # convert quantile to percentile
     # normal approximations
-    site_ppt2$perc_ambient_norm[i] <- pnorm(ppt_ambient, 
-                                            mean = mean(tpa_ppt,na.rm=T),
-                                            sd = sd(tpa_ppt,na.rm=T))*100
-    site_ppt2$perc_drought_norm[i] <- pnorm(ppt_drought, 
-                                            mean = mean(tpa_ppt,na.rm=T),
-                                            sd = sd(tpa_ppt,na.rm=T))*100
-    
+    site_ppt2$perc_norm[i] <- pnorm(ppt,
+                                    mean = mean(tpa_ppt,na.rm=T),
+                                    sd = sd(tpa_ppt,na.rm=T))*100
+
   }
 }
 
-# any tpa data missing?
+# any tpa data missing for location with precip data?
 site_ppt2 %>% 
-  filter(!is.na(ppt_ambient) & is.na(perc_ambient_obs)) %>% 
+  filter(!is.na(ppt) & is.na(perc_obs)) %>% 
   .$site_code %>% 
   unique()
 
@@ -148,7 +148,7 @@ site_ppt2 %>%
 #               paste0("figures/precip/percentiles_emperical_vs_normal", today(), ".pdf")
 #               ))
 
-plot(site_ppt2$perc_ambient_norm, site_ppt2$perc_ambient_obs,
+plot(site_ppt2$perc_norm, site_ppt2$perc_obs,
      xlab = "Ambient precip percentile from normal CDF",
      ylab = "Ambeint precip percentile from emperical CDF")
 abline(0, 1)
@@ -157,23 +157,37 @@ dev.off()
 # since normal and emperical percentiles are nearly the same, just keeping the normal
 
 site_ppt3 <- site_ppt2 %>% 
-  rename(perc_ambient = perc_ambient_norm,
-         perc_drought = perc_drought_norm) %>% 
-  dplyr::select(-perc_ambient_obs, -perc_drought_obs) %>% 
-  mutate(n_treat_days = ymd(biomass_date) - ymd(first_treatment_date),
-         n_treat_days = as.numeric(n_treat_days))
+  rename(percentile = perc_norm) %>% 
+  dplyr::select(-perc_obs)
 
-x <- site_ppt3 %>% 
-  filter(n_treat_days >=365 & n_treat_days < 730) %>% 
-  .$perc_ambient 
 
-sum(!is.na(x)) # 64 with precip data in year 1
+wide_yr1 <- site_ppt3 %>% 
+  select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
+  filter(!is.na(ppt)) %>% 
+  group_by(site_code, year, trt) %>% 
+  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days),
+                             .funs = list(~mean(.))) %>% 
+  gather(key = "key", value = "value", ppt, percentile) %>% 
+  mutate(key = paste(key, trt, sep = "_")) %>% 
+  select(-trt) %>% 
+  spread(key = "key", value = "value") %>% 
+  as_tibble() 
+  
+
+
+# sites without data
+site_ppt3 %>% 
+  filter(n_treat_days >=365 & n_treat_days < 730, is.na(percentile)) %>% 
+  pull(site_code) %>% 
+  unique() 
+
+site_ppt3$site_code %>% unique() %>% length()
 # NEXT: figure out where this "missing" data is being created
 # ie who submitted data but it wasn't good enought
 
 # ~~~
 
-g1 <- site_ppt3 %>% 
+g1 <- wide_yr1 %>% 
   filter(n_treat_days >= 365 & n_treat_days < 730) %>% 
   ggplot() +
   theme_classic() +
@@ -191,14 +205,14 @@ image_path <- file.path(
 
 # ctrl vs drt percentiles
 g1 + 
-  geom_point(aes(perc_ambient, perc_drought)) +
+  geom_point(aes(percentile_Control, percentile_Drought)) +
   labs(x = "Control precipitation percentile",
        y = "Drought precipitation percentile",
        title = "Percentiles of annual precipitation")
 
 # ctrl vs drt annual precip
 g1 + 
-  geom_point(aes(ppt_ambient, ppt_drought)) +
+  geom_point(aes(ppt_Control, ppt_Drought)) +
   labs(x = "Control 12 month precipitation (mm)",
        y = "Drought 12 month precipitation (mm)",
        title = "Annual precipitation")
@@ -209,4 +223,5 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt3,
-#           file.path(path_oct, 'data/precip/precip_by_trmt_year_with_percentiles_2019-12-15.csv'))
+#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_12-18-2019.csv"))
+
