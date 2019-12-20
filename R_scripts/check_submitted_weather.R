@@ -47,9 +47,15 @@ num_nas <- wthr1 %>%
             n = n(),
             # time span in case not all dates provides
             time_span = as.numeric(max(date) - min(date)) + 1,
-            prop_na = num_na/n) %>% 
+            prop_na = num_na/n,
+            num_dates_missing = time_span-n) %>% 
   arrange(desc(prop_na))
 
+
+num_nas %>% 
+  arrange(desc(num_dates_missing)) %>% 
+  filter(num_dates_missing > 0) %>% 
+  print(n = 40)
 # biddulph.ca, kernb.ca, and kernnu.ca don't have precip data
 # (said so in submitting email also--issue downloading it)
 
@@ -116,7 +122,7 @@ for (code in sites_high) {
   )
 }
 
-# I contacted Sally--she confirmed these are problematic values and is looking into it. 
+# initial yarramundi file had bad data--this new one looks good
 
 # unclear what units these values are in
 wthr2 %>% 
@@ -125,11 +131,8 @@ wthr2 %>%
   summarize(AP = sum(precip, na.rm = TRUE),
             non_na = sum(!is.na(precip)))
 
-# STOP--removing yarrardrt for now until better data is submitted. 
-# S. Power confirmed this data contains error--she will get back about this. 
 wthr3 <- wthr2
-wthr3 <- wthr3 %>% 
-  filter(site_code != "yarradrt.au")
+
 
 
 # annual precip reasonable? -----------------------------------------------
@@ -166,11 +169,24 @@ wthr4 <- wthr3 %>%
                          precip*25.4,
                          precip))
 
+
+wthr4 %>% 
+  mutate(year = year(date)) %>% 
+  group_by(year, site_code, site_name) %>% 
+  summarise(n_vals = sum(!is.na(precip)),
+            precip = sum(precip, na.rm = TRUE)) %>% 
+  left_join(site_map, by = "site_code") %>% 
+  mutate(obs_v_map = precip/map) %>% 
+  filter((obs_v_map > 2 | obs_v_map < 0.3) & n_vals > 300) %>% 
+  arrange(site_code) %>% 
+  print(n = 40)
+
+
 # saving CSV --------------------------------------------------------------
 
 # write_csv(
 #   wthr4,
 #   file.path(path_oct,
-#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-15.csv")
+#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-18.csv")
 #   )
   
