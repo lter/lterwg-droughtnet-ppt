@@ -458,7 +458,12 @@ calc_yearly_precip <- function(site_data, precip_data){
     print(row$site_code)
     site_ppt <- precip_data[precip_data$site_code == row$site_code,]
     start_date <- as.Date(row$bioDat-365)
-    site_ppt2 <- site_ppt %>% 
+    site_dates <- tibble(
+      date = seq(start_date, row$bioDat, by = 1)
+    )
+    # joining in since someting data doesn't go whole year which causes problems
+    site_ppt2 <- site_dates %>% 
+      left_join(site_ppt, by = "date") %>%
       filter(date >= start_date & date < row$bioDat) %>% 
       mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
     
@@ -480,7 +485,7 @@ calc_yearly_precip <- function(site_data, precip_data){
     } else {
       NA
     }
-    is_trt365 <- rep(row$X365day.trt == "Yes", nrow(site_ppt2))
+    is_trt365 <- rep(row$X365day.trt == "Yes" | row$IfNot365.WhenShelterSet == "", nrow(site_ppt2))
     # some sites say drought X365day.trt == "No" but don't give shelter on/off dates
     # in those cases I just treated them as having year round shelter on.
     site_ppt2 <- site_ppt2 %>% 
@@ -504,8 +509,14 @@ calc_yearly_precip <- function(site_data, precip_data){
     site_data[i,]$ppt_num_NA <-  sum(is.na(site_ppt2$ppt))
     site_data[i,]$num_drought_days <- sum(site_ppt2$is_drought)
     
-    site_data[i,]$ppt_ambient <-  sum(site_ppt2$ppt, na.rm = TRUE)
-    site_data[i,]$ppt_drought <-  sum(site_ppt2$drought_ppt, na.rm = TRUE)
+    site_data[i,]$ppt_ambient <-  if (all(is.na(site_ppt2$ppt))) {
+      NA } else { 
+        sum(site_ppt2$ppt, na.rm = TRUE) 
+        }
+    site_data[i,]$ppt_drought <-  if (all(is.na(site_ppt2$drought_ppt))) {
+      NA } else { 
+        sum(site_ppt2$drought_ppt, na.rm = TRUE) 
+      }
     
   }
   site_data
