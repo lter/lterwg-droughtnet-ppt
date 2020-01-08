@@ -225,7 +225,7 @@ sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, na.rm = TRUE)
 sites7 <- sites6 %>% 
   rename(num_drought_days = num_drought_days_ghcn) %>% 
   select(-num_drought_days_sub, -matches("_(drought)|(ambient)_"), num_drought_days) %>%
-  mutate(ppt = ifelse((ppt_num_NA_sub + ppt_num_wc_interp_sub) < 30 & !is.na(ppt_sub),
+  mutate(ppt = ifelse(rowSums(.[, c("ppt_num_NA_sub", "ppt_num_wc_interp_sub")], na.rm = TRUE) < 30 & !is.na(ppt_sub),
                       ppt_sub,
                       ifelse(ppt_num_NA_ghcn < 30,
                              ppt_ghcn,
@@ -236,6 +236,12 @@ sites_full1 <- sites7 %>%
   rename(biomass_date = bioDat,
          first_treatment_date = trtDat) %>% 
   right_join(anpp2) 
+
+# sites where GHCN used for at least 1 year
+sites_full1 %>% 
+  filter(!is.na(ppt) & ppt != ppt_sub) %>% 
+  pull(site_code) %>% 
+  unique()
 
 nrow(sites_full1) # shouldn't have added rows with join
 nrow(anpp2)
@@ -275,7 +281,7 @@ dev.off()
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2019-12-18.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-07.csv'))
 
 
 sites5 %>% 
