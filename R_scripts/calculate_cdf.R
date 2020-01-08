@@ -155,16 +155,6 @@ dev.off()
 
 # since normal and emperical percentiles are nearly the same, just keeping the normal
 
-# pseudo code for calculating actual n-treat days
-# following code only for X365day.trt == "No"
-# if n_treat_days < 365 and >0 then n_treat_days_adj num_drought_days.
-# if >365 then create date a vector of lenght n_treat_days
-# create date vectors for each on of period
-# replace original date vector with NA if date falls into one of these vectors. 
-# for n_treat_days > 0 calculate unique years for a given plot
-# then calculated off periods for those years
-# then see falls within those off times
-
 
 site_ppt2 %>% 
   filter(X365day.trt == "No", n_treat_days > 0) %>% 
@@ -175,7 +165,7 @@ df <- site_ppt2 %>%
   filter(site_code == "biddulph.ca", plot == 1)
 
 
-# calculating n_trea days adjusted for roof off time
+# calculating n_treat days adjusted for roof off time
 # some parsing failures occur--because not legit set/remove
 # dates for some pre trmt dates (this is ok)
 site_ppt3 <- site_ppt2 %>% 
