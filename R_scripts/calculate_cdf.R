@@ -89,10 +89,6 @@ cdf1 <- lapply(density, function(x){
 # observed precipitation by site/year/trmt --------------------------------
 
 # grabbing newest file
-p1 <- newest_file_path(
-  file.path(path_oct, 'data/precip'),
-  "precip_by_trmt_year_\\d{4}-\\d+-\\d+.csv")
-p1
 
 p1 <- newest_file_path(
   file.path(path_oct, 'data/precip'),
@@ -101,7 +97,9 @@ p1
 
 site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
 
-site_ppt2 <- site_ppt
+site_ppt2 <- site_ppt %>% 
+  mutate(biomass_date = ymd(biomass_date),
+         first_treatment_date = ymd(first_treatment_date))
 
 
 # calculating percentiles given annual precip --------------------------------
@@ -135,6 +133,7 @@ for (i in 1:nrow(site_ppt2)){
 }
 
 # any tpa data missing for location with precip data?
+# --if yes then need to download the tpa data
 site_ppt2 %>% 
   filter(!is.na(ppt) & is.na(perc_obs)) %>% 
   .$site_code %>% 
@@ -156,16 +155,56 @@ dev.off()
 
 # since normal and emperical percentiles are nearly the same, just keeping the normal
 
+# pseudo code for calculating actual n-treat days
+# following code only for X365day.trt == "No"
+# if n_treat_days < 365 and >0 then n_treat_days_adj num_drought_days.
+# if >365 then create date a vector of lenght n_treat_days
+# create date vectors for each on of period
+# replace original date vector with NA if date falls into one of these vectors. 
+# for n_treat_days > 0 calculate unique years for a given plot
+# then calculated off periods for those years
+# then see falls within those off times
+
+
+site_ppt2 %>% 
+  filter(X365day.trt == "No", n_treat_days > 0) %>% 
+  select(site_code, matches("365")) %>% 
+  .[!duplicated(.), ]
+
+df <- site_ppt2 %>% 
+  filter(site_code == "biddulph.ca", plot == 1)
+
+
+# calculating n_trea days adjusted for roof off time
+# some parsing failures occur--because not legit set/remove
+# dates for some pre trmt dates (this is ok)
 site_ppt3 <- site_ppt2 %>% 
   rename(percentile = perc_norm) %>% 
-  dplyr::select(-perc_obs)
+  dplyr::select(-perc_obs) %>% 
+  mutate(plot_dummy = plot) %>% 
+  group_by(site_code, plot_dummy) %>% 
+  nest() %>% 
+  # see functions.R fo
+  mutate(n_treat_days_adj = map(data, calc_n_treat_days_adj, return_df = FALSE)) %>% 
+  unnest(cols = c("data", "n_treat_days_adj")) %>% 
+  ungroup() %>% 
+  select(-plot_dummy)
 
+# n_treat_days_adj parsed correctly if no rows:
+site_ppt3 %>% 
+  filter(X365day.trt == "No", is.na(n_treat_days_adj), n_treat_days > 0)
 
-wide_yr1 <- site_ppt3 %>% 
+site_ppt4 <- site_ppt3 %>% 
+  mutate(n_treat_days_adj = ifelse(is.na(n_treat_days_adj),
+                                   n_treat_days,
+                                   n_treat_days_adj)
+         )
+
+wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
   group_by(site_code, year, trt) %>% 
-  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days),
+  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj),
                              .funs = list(~mean(.))) %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
   mutate(key = paste(key, trt, sep = "_")) %>% 
@@ -173,13 +212,18 @@ wide_yr1 <- site_ppt3 %>%
   spread(key = "key", value = "value") %>% 
   as_tibble() 
   
-
-
-# sites without data
-site_ppt3 %>% 
-  filter(n_treat_days >=365 & n_treat_days < 730, is.na(percentile)) %>% 
+# sites with data
+site_ppt4 %>% 
+  filter(n_treat_days >=365 & n_treat_days < 730, is.na(ppt)) %>% 
   pull(site_code) %>% 
-  unique() 
+  unique() %>% 
+  length()
+
+site_ppt4 %>% 
+  filter(n_treat_days_adj >=365 & n_treat_days_adj < 730, !is.na(ppt)) %>% 
+  pull(site_code) %>% 
+  unique() %>% 
+  length()
 
 site_ppt3$site_code %>% unique() %>% length()
 # NEXT: figure out where this "missing" data is being created
@@ -188,7 +232,7 @@ site_ppt3$site_code %>% unique() %>% length()
 # ~~~
 
 g1 <- wide_yr1 %>% 
-  filter(n_treat_days >= 365 & n_treat_days < 730) %>% 
+  filter(n_treat_days_adj >= 365 & n_treat_days_adj < 730) %>% 
   ggplot() +
   theme_classic() +
   geom_abline (slope = 1, intercept = 0) +
@@ -222,6 +266,6 @@ dev.off()
 
 # saving the data (csv) ---------------------------------------------------
 
-# write_csv(site_ppt3,
-#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_12-18-2019.csv"))
+write_csv(site_ppt4,
+          file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-07-2019.csv"))
 

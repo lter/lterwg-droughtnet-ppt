@@ -4,6 +4,12 @@
 # functions used in GHCN process script (among others as needed)
 
 
+# packages ----------------------------------------------------------------
+
+
+library(tidyverse)
+
+
 # take sum ----------------------------------------------------------------
 
 sum_na <- function(x, num_nas = 15) {
@@ -579,3 +585,156 @@ newest_file_path <- function(path, file_regex, mdy = FALSE) {
 }
 
 
+# one unique --------------------------------------------------------------
+
+# used in other function below
+
+one_unique <- function(x) {
+  # args:
+  #   x--a vector
+  # returns:
+  #   logical--does the vector just have one unique element?
+  stopifnot(is.atomic(x))
+  
+  if(any(is.na(x))){
+    warning("vector contains NAs")
+  }
+  
+  lu <- length(unique(x))
+  
+  out <- if (lu == 1) {
+    TRUE
+  } else {
+    FALSE
+  }
+  out
+}
+
+
+# convert mdy date to day-month -------------------------------------------
+# needs lubridate loaded
+
+mdy2dm <- function(x) {
+  # args
+  #   x--vector
+  # returns
+  #   if any elements of vector have date form of "2/15/2017" then 
+  #       day month returned (eg 15-feb)
+  is_mdy <- stringr::str_detect(x, "\\d{1,2}/\\d{1,2}/\\d{4}")
+  is_mdy <- ifelse(is.na(is_mdy), FALSE, is_mdy)
+  if(!any(is_mdy)) {
+    return(x)
+  } else {
+    dates <- lubridate::mdy(x[is_mdy])
+    dm <- paste(lubridate::day(dates), lubridate::month(dates, label = TRUE), 
+                sep = "-")
+    out <- x
+    out[is_mdy] <- dm
+  }
+  out
+}
+
+# testing
+if (FALSE) {
+  x <- c("2017-10-5", "5-feb", "4/25/2017", "", NA)
+  mdy2dm(x)
+}
+
+
+# calculate n treat days --------------------------------------------------
+
+
+calc_n_treat_days_adj <- function(df, return_df = FALSE) {
+  # args:
+  #   df--dataframe (this needs to be a subsetted df such that it is
+  #     only for one one plot site code)--used in calculate_cdf.R script
+  #     df needs to have biomass dates, shelter on/off dates and trt dates
+  #   return_df--return n
+  # returns:
+  #   vector of n_treat_days that is the number of days treatment occuring
+  #     with days that shelter was off excluded
+  # Notes:
+  # this function works only when set and remove dates of the shelter occur
+  # during the same calendar year (which they do with current date--in theory
+  # this could be a problem with a site from the souther hemisphere)
+  
+  needed_cols <- c("plot", "biomass_date", "first_treatment_date", 
+                   "IfNot365.WhenShelterRemove", "IfNot365.WhenShelterSet",
+                   "n_treat_days", "X365day.trt")
+  stopifnot(
+    needed_cols %in% names(df),
+    one_unique(df$first_treatment_date),
+    one_unique(df$plot),
+    one_unique(df$first_treatment_date),
+    is.Date(df$biomass_date),
+    is.Date(df$first_treatment_date)
+  )
+  
+  if (any(df$X365day.trt != "No")) {
+    if(return_df) {
+      return(df)
+    } else {
+      return(rep(NA_real_, nrow(df)))
+    }
+  }
+  
+  out <- df
+  first_trt_date <- df$first_treatment_date[1]
+  first_trt_yr <- lubridate::year(first_trt_date)
+  df$year <- lubridate::year(df$biomass_date)
+  bio_yrs <- df$year 
+  trt_yrs <- first_trt_yr:max(bio_yrs)
+  # convert mdy dates to day-month (necessary in a couple occasions)
+  df$set <- mdy2dm(df$IfNot365.WhenShelterSet)
+  df$remove <- mdy2dm(df$IfNot365.WhenShelterRemove)
+  
+  one_date <- one_unique(df$set) & one_unique(df$remove)
+  
+  if(!all(trt_yrs %in% bio_yrs) & !one_date) {
+    stop("missing biomass dates and multiple shelter on/off dates")
+  }
+  df_sub <- df %>% 
+    filter(year(biomass_date) %in% trt_yrs)
+  
+  if (one_date) {
+    # dates set during treatment years
+    trt_set <- lubridate::dmy(paste(df$set[1], trt_yrs, sep = "-"))
+    # dates remove during trt years
+    trt_remove <- lubridate::dmy(paste(df$remove[1], trt_yrs, sep = "-"))
+    
+  } else {
+    # when multiple set/remove dates are present (based on earlier check
+    # this requires that all consecutive years of trmt present)
+    trt_set <- lubridate::dmy(paste(df_sub$set, df_sub$year, sep = "-"))
+    trt_remove <- lubridate::dmy(paste(df_sub$remove, df_sub$year, sep = "-"))
+  }
+  # dates shelter was on
+  shelter_on <- map2(trt_set, trt_remove, function(set, remove) {
+    seq(from = set, to = remove, by = 1)
+  })
+  shelter_on <- unlist(shelter_on) # dates shelter was on
+  
+  # biomass harvest dates while trmts ongoing
+  trt_bio_dates <- df$biomass_date[df$n_treat_days > 0]
+  
+  # sequence of dates from first trt date to biomass date
+  trt_dates <- map(trt_bio_dates, function(bio_date) {
+    # not counting the first day, otherwise june 1 to june 1 would lead
+    # to one day of trmt but should be 0
+    seq(from = first_trt_date, to = bio_date, by = 1)[-1]
+  })
+  
+  n_treat_days_adj <- map_dbl(trt_dates, function(dates) {
+    sum(dates %in% shelter_on)
+  })
+  df$n_treat_days_adj <- NA
+  
+  df$n_treat_days_adj[df$n_treat_days > 0] <- n_treat_days_adj
+  
+  # return whole df
+  if( return_df) {
+    out$n_treat_days_adj <- df$n_treat_days_adj
+    out
+  }
+  df$n_treat_days_adj
+}
