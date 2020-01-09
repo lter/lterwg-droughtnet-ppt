@@ -190,17 +190,23 @@ site_ppt4 <- site_ppt3 %>%
                                    n_treat_days_adj)
          )
 
+# NOTE: figure out why stubai.at has two rows for 'year 1'
 wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
   group_by(site_code, year, trt) %>% 
-  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj),
+  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
+                    num_drought_days, biomass_date, first_treatment_date),
                              .funs = list(~mean(.))) %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
   mutate(key = paste(key, trt, sep = "_")) %>% 
   select(-trt) %>% 
   spread(key = "key", value = "value") %>% 
-  as_tibble() 
+  as_tibble() %>% 
+  mutate(trt_yr_adj = cut(n_treat_days_adj, c(-10000, 1, 364, 729, 10000), 
+                          labels = c("pre-trt", "< 365 days trt", "365-729 days trt", "730 + trt days"),
+                          right = FALSE)
+         )
   
 # sites with data
 site_ppt4 %>% 
@@ -216,46 +222,90 @@ site_ppt4 %>%
   length()
 
 site_ppt3$site_code %>% unique() %>% length()
-# NEXT: figure out where this "missing" data is being created
-# ie who submitted data but it wasn't good enought
 
-# ~~~
 
-g1 <- wide_yr1 %>% 
-  filter(n_treat_days_adj >= 365 & n_treat_days_adj < 730) %>% 
-  ggplot() +
-  theme_classic() +
-  geom_abline (slope = 1, intercept = 0) +
-  labs(subtitle = "Control vs Drought treatment by for 365-729 treatment days",
-       caption = "figure generated in 'calculate_cdf.R' script ") + 
+# figures -----------------------------------------------------------------
+theme_set(theme_classic())
+
+base1 <- list(
+  geom_abline (slope = 1, intercept = 0),
+  labs(subtitle = "Control vs Drought treatment precip",
+       caption = "number of treatment days taken from 'n_treat_days_adj' column"),
   theme(plot.title = element_text(size = 13))
-
+)
 
 image_path <- file.path(
   path_oct,
   paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
-# pdf(image_path,  height = 5, width = 8)
+pdf(image_path,  height = 7, width = 10)
 
 # ctrl vs drt percentiles
-g1 + 
+ggplot(wide_yr1) +
+  base1+
   geom_point(aes(percentile_Control, percentile_Drought)) +
   labs(x = "Control precipitation percentile",
        y = "Drought precipitation percentile",
-       title = "Percentiles of annual precipitation")
+       title = "Percentiles of annual precipitation for each site/year") +
+  facet_wrap(~trt_yr_adj)
+
+trt_years <- levels(wide_yr1$trt_yr_adj)[-1]
+
+# labeled figures by treatment year for percentiles
+map(trt_years, function(yr) {
+  wide_yr1 %>% 
+    filter(trt_yr_adj == yr) %>% 
+  ggplot() +
+    base1+
+    geom_point(aes(percentile_Control, percentile_Drought)) +
+    labs(x = "Control precipitation percentile",
+         y = "Drought precipitation percentile",
+         title = paste("Percentiles of annual precipitation for ", yr)) +
+    ggrepel::geom_text_repel(
+      aes(x = percentile_Control, y =  percentile_Drought, label = site_code),
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
+})
+
+
 
 # ctrl vs drt annual precip
-g1 + 
+
+ggplot(wide_yr1) +
+  base1+
   geom_point(aes(ppt_Control, ppt_Drought)) +
   labs(x = "Control 12 month precipitation (mm)",
        y = "Drought 12 month precipitation (mm)",
-       title = "Annual precipitation")
+       title = "Annual precipitation for each site/year") +
+  facet_wrap(~trt_yr_adj)
 
+# labeled figures by treatment year of annual precip
+map(trt_years, function(yr) {
+  wide_yr1 %>% 
+    filter(trt_yr_adj == yr) %>% 
+    ggplot() +
+    base1+
+    geom_point(aes(ppt_Control, ppt_Drought)) +
+    labs(x = "Control 12 month precipitation (mm)",
+         y = "Drought 12 month precipitation (mm)",
+         title = paste("Annual precipitation for ", yr)) +
+    ggrepel::geom_text_repel(
+      aes(x = ppt_Control, y =  ppt_Drought, label = site_code),
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
+})
 dev.off()
 
 
 # saving the data (csv) ---------------------------------------------------
 
-write_csv(site_ppt4,
-          file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-07-2019.csv"))
+# write_csv(site_ppt4,
+#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-07-2020.csv"))
 
+wide2save <- wide_yr1 %>% 
+  rename(ppt_ambient = ppt_Control,
+         ppt_drought = ppt_Drought,
+         percentile_ambient = percentile_Control,
+         percentile_drought = percentile_Drought)
+
+# write_csv(wide2save, 
+#           file.path(path_oct, "data/precip",
+#                     "precip_by_trmt_year_with_percentiles_2020-01-08.csv"))

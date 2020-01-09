@@ -280,8 +280,8 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-07.csv'))
+# write_csv(sites_full1,
+#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-07.csv'))
 
 
 sites5 %>% 
