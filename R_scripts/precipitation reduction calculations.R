@@ -98,6 +98,7 @@ anpp3 <- siteDrt_B %>%
   select(site_code, drought_trt) %>% 
   right_join(anpp2, by = "site_code") %>% 
   as_tibble() %>%
+  #mutate(trt = str_replace(trt, "Control_Infrastructure", "Control"))
   filter(trt %in% c("Drought", "Control")) %>% 
   # key columns and data columns needed by calc_yearly_precip function
   select(site_code, block, plot, subplot, year, trt, biomass_date, first_treatment_date, 
@@ -107,6 +108,22 @@ anpp3 <- siteDrt_B %>%
   rename(bioDat = biomass_date,
          trtDat = first_treatment_date)
 
+# sites that don't have "Control"
+anpp2 %>% 
+  group_by(site_code) %>% 
+  nest() %>% 
+  mutate(control = map_lgl(data, function(df) {
+    "Control" %in% df$trt
+  })
+  ) %>% 
+  filter(!control) %>% 
+  mutate(levels = map_chr(data, function(df) {
+    x <- df$trt %>% 
+      sort() %>% 
+      unique()
+    paste(x, collapse = ";")
+  })) %>% 
+  pull(levels)
 
 # on/off dates ------------------------------------------------------------
 
@@ -137,8 +154,6 @@ anpp3$IfNot365.WhenShelterRemove[rem_date] <-
   mdy() %>% 
   paste(day(.), month(., label = TRUE)) %>% 
   str_extract("\\d+\\s[A-z]+$")
-
-
 
 # ghcn data ---------------------------------------------------------------
 
@@ -232,10 +247,23 @@ sites7 <- sites6 %>%
                              NA))
   )
 
+# this code causing problems because of imperfect join
 sites_full1 <- sites7 %>% 
   rename(biomass_date = bioDat,
          first_treatment_date = trtDat) %>% 
-  right_join(anpp2) 
+  full_join(anpp2, by = c("site_code", "block", "plot", "subplot", "year", "trt", 
+                          "biomass_date", "first_treatment_date", "X365day.trt")) %>% 
+  # solving issue of adjustments above causing join incompatibility with cedartrait
+  mutate(IfNot365.WhenShelterRemove = ifelse(is.na(IfNot365.WhenShelterRemove.x),
+                                             IfNot365.WhenShelterRemove.y,
+                                             IfNot365.WhenShelterRemove.x),
+         IfNot365.WhenShelterSet = ifelse(is.na(IfNot365.WhenShelterSet.x),
+                                             IfNot365.WhenShelterSet.y,
+                                             IfNot365.WhenShelterSet.x)) %>% 
+  select(-matches("\\.(x|y)$")) 
+
+# should be true 
+nrow(sites_full1)==nrow(anpp2)
 
 # sites where GHCN used for at least 1 year
 sites_full1 %>% 
@@ -280,8 +308,8 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-# write_csv(sites_full1,
-#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-07.csv'))
+write_csv(sites_full1,
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-15.csv'))
 
 
 sites5 %>% 

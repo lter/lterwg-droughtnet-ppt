@@ -238,7 +238,7 @@ image_path <- file.path(
   path_oct,
   paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
-pdf(image_path,  height = 7, width = 10)
+# pdf(image_path,  height = 7, width = 10)
 
 # ctrl vs drt percentiles
 ggplot(wide_yr1) +
@@ -297,8 +297,8 @@ dev.off()
 
 # saving the data (csv) ---------------------------------------------------
 
-# write_csv(site_ppt4,
-#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-07-2020.csv"))
+write_csv(site_ppt4,
+          file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-15-2020.csv"))
 
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
@@ -306,6 +306,6 @@ wide2save <- wide_yr1 %>%
          percentile_ambient = percentile_Control,
          percentile_drought = percentile_Drought)
 
-# write_csv(wide2save, 
-#           file.path(path_oct, "data/precip",
-#                     "precip_by_trmt_year_with_percentiles_2020-01-08.csv"))
+write_csv(wide2save,
+          file.path(path_oct, "data/precip",
+                    "precip_by_trmt_year_with_percentiles_2020-01-15.csv"))
