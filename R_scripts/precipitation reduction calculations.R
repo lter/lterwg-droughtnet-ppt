@@ -92,6 +92,25 @@ anpp2 <- anpp2 %>%
   # parsing failures because one biomass date entered as "2017"
   mutate(biomass_date = mdy(biomass_date))
 
+# sites that don't have "Control"
+no_control <- anpp2 %>% 
+  group_by(site_code) %>% 
+  nest() %>% 
+  mutate(control = map_lgl(data, function(df) {
+    "Control" %in% df$trt
+  })
+  ) %>% 
+  filter(!control) %>% 
+  pull(site_code) %>% 
+  unique()
+
+# if site doesn't have "control" use control_infrastructure instead
+# run no_control again to test this was successful
+anpp2 <- anpp2 %>% 
+  mutate(trt = ifelse(site_code %in% no_control & trt == "Control_Infrastructure",
+                      "Control",
+                      trt))
+
 # adding in drought vals,
 # for now only using drought and control--for first paper
 anpp3 <- siteDrt_B %>% 
@@ -108,22 +127,6 @@ anpp3 <- siteDrt_B %>%
   rename(bioDat = biomass_date,
          trtDat = first_treatment_date)
 
-# sites that don't have "Control"
-anpp2 %>% 
-  group_by(site_code) %>% 
-  nest() %>% 
-  mutate(control = map_lgl(data, function(df) {
-    "Control" %in% df$trt
-  })
-  ) %>% 
-  filter(!control) %>% 
-  mutate(levels = map_chr(data, function(df) {
-    x <- df$trt %>% 
-      sort() %>% 
-      unique()
-    paste(x, collapse = ";")
-  })) %>% 
-  pull(levels)
 
 # on/off dates ------------------------------------------------------------
 
@@ -308,8 +311,8 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-15.csv'))
+# write_csv(sites_full1,
+#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-21.csv'))
 
 
 sites5 %>% 

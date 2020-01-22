@@ -194,10 +194,16 @@ site_ppt4 <- site_ppt3 %>%
 wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
+  # this first group_by/mutate is so that control/trt have same
+  # drought_days etc values
+  group_by(site_code, year) %>% 
+  mutate_at(vars(n_treat_days, n_treat_days_adj, num_drought_days, 
+                 biomass_date, first_treatment_date),
+               .funs = list(~mean(., na.rm = TRUE))) %>% 
   group_by(site_code, year, trt) %>% 
   summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
                     num_drought_days, biomass_date, first_treatment_date),
-                             .funs = list(~mean(.))) %>% 
+                             .funs = list(~mean(., na.rm = TRUE))) %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
   mutate(key = paste(key, trt, sep = "_")) %>% 
   select(-trt) %>% 
@@ -297,8 +303,8 @@ dev.off()
 
 # saving the data (csv) ---------------------------------------------------
 
-write_csv(site_ppt4,
-          file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-15-2020.csv"))
+# write_csv(site_ppt4,
+#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-21-2020.csv"))
 
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
@@ -306,6 +312,20 @@ wide2save <- wide_yr1 %>%
          percentile_ambient = percentile_Control,
          percentile_drought = percentile_Drought)
 
-write_csv(wide2save,
-          file.path(path_oct, "data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-01-15.csv"))
+# write_csv(wide2save,
+#           file.path(path_oct, "data/precip",
+#                     "precip_by_trmt_year_with_percentiles_2020-01-21.csv"))
+
+# sanity checks
+wide2save %>% 
+  group_by(site_code) %>% 
+  summarize(any_data = any(is.na(ppt_drought))) %>% 
+  filter(any_data) %>% 
+  pull(site_code)
+
+is.na(wide2save$ppt_ambient) %>% sum()
+
+wide2save %>% 
+  filter(is.na(ppt_ambient))
+
+wide2save$site_code %>% unique() %>% sort()
