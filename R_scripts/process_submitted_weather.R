@@ -376,7 +376,7 @@ all3$SonoraAgrilifeResearchStation$sites <-
   rename(site_latitud = latitude, site_longitud = longitude)
 
 # ethabuka ~~~
-notes <- all3$ethabuka_2014_2019$sites$..5 
+notes <- all3$ethabuka_2014_2019$sites[["...5"]]
 notes
 
 # adding note to station sheet instead
@@ -384,7 +384,7 @@ all3$ethabuka_2014_2019$station$note_station
 all3$ethabuka_2014_2019$station$note_station <- 
   paste(all3$ethabuka_2014_2019$station$note_station, notes[1:2], sep = ". ")
 
-all3$ethabuka_2014_2019$sites$..5 <- NULL
+all3$ethabuka_2014_2019$sites$...5 <- NULL
 all3$ethabuka_2014_2019$sites <- all3$ethabuka_2014_2019$sites %>% 
   filter(complete.cases(.)) # removing 1 row of NAs
 
@@ -392,7 +392,6 @@ all3$ethabuka_2014_2019$sites <- all3$ethabuka_2014_2019$sites %>%
 check_names_in_list(list = all3, element_name = "sites",
                     names = "pi,site,site_latitud,site_longitud",
                     warning = "Not all sites tables have the correct column names")
-
 
 # check sites table contents -----------------------------------------------
 
@@ -421,8 +420,6 @@ all3 <- map(all3, function(x){
 all3$sanpablovaldes$sites
 all3$sanpablovaldes$sites$site <- "San Pablo Valdes Drt"
 all3$sanpablovaldes$station$site <- "San Pablo Valdes Drt"
-
-
 
 
 # bind_rows(map(all3, function(x) x$sites)) %>% View()
@@ -736,7 +733,7 @@ all6$Potrok_Aike_Patagonia_Peri_Toledo_$weather <-
          mean_temp = `Temp Mean`) # keeping provided mean temp data for now
 
 # IMGERS
-all6$IMGERS$weather$..7 <- NULL
+all6$IMGERS$weather$...7 <- NULL
 
 # OR
 all6$OR_Byrne$weather <- all6$OR_Byrne$weather[, wthr_col_names]
@@ -747,7 +744,7 @@ all6$OR_Byrne$weather <- all6$OR_Byrne$weather[, wthr_col_names]
 # some missing values)
 
 passo_primary <- all6$PassoGavia$weather %>% 
-  rename(date = `date..2`) %>% 
+  rename(date = `date...2`) %>% 
   select(wthr_col_names) %>% 
   mutate(mean_temp = NA)
   
@@ -756,7 +753,7 @@ all6$PassoGavia$station$note_station
 passo_secondary <- all6$PassoGavia$weather %>% 
   select(note_weather:max_temp2) %>% 
   rename(station_name = station_name2,
-         date = date..8,
+         date = date...8,
          precip = precip_2,
          min_temp = min_temp2,
          max_temp = max_temp2) %>% 
@@ -1411,6 +1408,9 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'cap_whitetank' = 'capwhite.us',
                          'Cedar Creek sIDE' = 'cedarsav.us',
                          'Cedar Creek tIDE' = 'cedartrait.us',
+                         'Chacra Patagones' = 'chacra.ar',
+                         'Las Chilcas' = 'chilcasdrt.ar',
+                         'San Pablo Valdes' = 'spvdrt.ar',
                          'EEA_Ufrgs' = 'eea.br',
                          'GCN-Suihua' = "unknown",
                          'Gigante' = 'unknown',
@@ -1486,51 +1486,84 @@ dim(all_wthr1)
 # sites where duplicated dates of data are occuring
 dup_site_dates2 <- all_wthr1 %>% 
   select(date, site_name, station_name, precip) %>% 
-  nest(date, station_name, precip) %>% 
+  nest(data = c(date, station_name, precip)) %>% 
   mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
          ) %>% 
   filter(n_dup > 0)
-
-dup_site_dates2 
 
 # Gigante ~~~~
 
 # data from two stations provided (one of them is closer/better)
 # the other station (BIC) is the best station for some other sites
-dup_site_dates2$data[[1]]$station_name %>% unique()
 
 # dates for which the better station has data
 bar_dates <- all_wthr1 %>% 
   filter(station_name == "Barbacoa") %>% 
   pull(date)
 
-all_wthr2 <- all_wthr1 %>% 
+# mar chiquita and other .ar sites
+# data provided in seperate files, so keeping better data
+# unless those dates missing from better source
+
+# no na's in primary data set of interest so this works fine
+sum(all_wthr1$date[all_wthr1$station_name == "Mar Chiquita"] %in% 
+      all_wthr1$date[all_wthr1$station_name == "Mar_del_Plata_Aero_87692"])
+
+# no na's in primary data set of interest so this works fine
+sum(all_wthr1$date[all_wthr1$station_name == "Naposta"] %in% 
+      all_wthr1$date[all_wthr1$station_name == "EMA_Naposta"])
+
+sum(all_wthr1$date[all_wthr1$station_name == "Potrok Aike"] %in% 
+      all_wthr1$date[all_wthr1$station_name == "Campo Exp. Potrok Aike Santa Cruz"])
+
+
+# when both monthly and daily data submitted, take daily, unless only monthly
+# available
+other_cols <- c("site_name", "site_code", "site")
+all_wthr1b <- discard_dup_station_data(all_wthr1, "EMA_Naposta", secondary = "Naposta",
+                                       other_cols = other_cols) %>% 
+  discard_dup_station_data(primary = "Mar_del_Plata_Aero_87692", secondary = "Mar Chiquita",
+                           other_cols = other_cols) %>% 
+  discard_dup_station_data("Campo Exp. Potrok Aike Santa Cruz", "Potrok Aike",
+                           other_cols = other_cols) %>% 
+  # monthly and daily:
+  # STOP: somehow duplicates still showing up here
+  discard_dup_station_data(primary = "Puerto Piramides - EEA Chubut", secondary = "San Pablo Valdes",
+                           other_cols = other_cols) %>%
+  # we have both monthly and daily submitted data:
+  discard_dup_station_data(primary = "Hongyuan", secondary = "GCN-Hongyuan",
+                           other_cols = other_cols)
+
+
+all_wthr2 <- all_wthr1b %>% 
   filter(!(station_name == 'BCI' & site == "Gigante" & date %in% bar_dates)) 
 
 nrow(all_wthr1)- nrow(all_wthr2)
 
 dup_site_dates3 <- all_wthr2 %>% 
-  select(date, site_name, station_name, precip) %>% 
-  nest(date, station_name, precip) %>% 
+  filter(site_code!= "unknown") %>% 
+  select(date, site_code, precip) %>% 
+  nest(data = c(date, precip)) %>% 
   mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
   ) %>% 
   filter(n_dup > 0)
 
 if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 
+all_wthr2 %>% 
+  filter(site_code == "spvdrt.ar")
 # saving CSVs -------------------------------------------------------------
 
 all_wthr_2save <- all_wthr2 %>% 
   select(-site)
 
-# write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2019-12-18.csv"))
+write_csv(all_wthr_2save,
+          file.path(path_oct, "data/precip/submitted_daily_weather_2020-01-26.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
-# write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2019-12-18.csv"))
+write_csv(stn2save,
+          file.path(path_oct, "data/precip/submitted_weather_station_info_2020-01-26.csv"))
   
-

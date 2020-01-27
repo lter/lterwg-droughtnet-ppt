@@ -59,6 +59,7 @@ num_nas %>%
 # biddulph.ca, kernb.ca, and kernnu.ca don't have precip data
 # (said so in submitting email also--issue downloading it)
 
+
 num_nas
 
 # sites with more that 5% missing data
@@ -69,6 +70,10 @@ num_nas %>%
   filter(n != time_span)
 
 arrange(num_nas, n) # sites with fewest observations
+
+wthr1 %>% 
+  filter(site_code == "spvdrt.ar") %>% 
+  View()
 
 # negative precip ---------------------------------------------------------
 

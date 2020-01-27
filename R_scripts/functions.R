@@ -385,10 +385,12 @@ check_station_names <- function(list) {
 
 # function for process_submitted_weather.R script
 
-comb_primary_secondary_stns <- function(df1, df2) {
+# stop! fix this to take site_code site and site
+comb_primary_secondary_stns <- function(df1, df2, other_cols = NULL) {
   # args:
   #   df1--df of data from primary (preferred) station
   #   df2--df of secondary station (data to use if primary has NA for that date)
+  #   other_cols--optional vector of additional column names to keep
   # returns:
   #   df with precip/temp from df1 unless they are NA then from df2
   #   station_name is the station name from which precip data pulled 
@@ -405,6 +407,14 @@ comb_primary_secondary_stns <- function(df1, df2) {
     length(unique(df2$station_name)) == 1
   )
   
+  if (!is.null(other_cols)) {
+    wthr_col_names2 <- c(wthr_col_names2, other_cols)
+  }
+  
+  # doing this when join leads two NA in station_name_x below
+  first_station <- df1$station_name[1]
+  second_station <- df2$station_name[1]
+  
   out <- full_join(df1, df2, by = "date",
             suffix = c("_1", "_2")) %>% 
     mutate(precip = ifelse(is.na(precip_1),
@@ -418,9 +428,9 @@ comb_primary_secondary_stns <- function(df1, df2) {
                              max_temp_1),
            # station name will refer to what ever station was used for precip,
            # note will be added if temp from different source
-           station_name = ifelse(is.na(precip_1),
-                                 station_name_2,
-                                 station_name_1),
+           station_name = ifelse(is.na(precip_1) & !is.na(precip_2),
+                                 second_station,
+                                 first_station),
            note_weather = ifelse(is.na(min_temp_1) & !is.na(min_temp_2) &
                                    station_name == station_name_1,
                                  paste("min_temp from", station_name_2),
@@ -737,4 +747,58 @@ calc_n_treat_days_adj <- function(df, return_df = FALSE) {
     out
   }
   df$n_treat_days_adj
+}
+
+
+# convert_mdy -------------------------------------------------------------
+
+# if date string has some values of format mm/dd/yyyy convert those to date
+# leave others the same
+
+convert_mdy <- function(x) {
+  # args:
+  #   x--character vector of of dates
+  # returns:
+  #   character vectors with dates of format mm/dd/yyyy converted
+  #   to "yyyy-mm-dd"
+  stopifnot(
+    is.character(x)
+  )
+  is_mdy <- stringr::str_detect(x, "^\\d{1,2}/\\d{1,2}/\\d{4}$")
+  
+  if(!any(is_mdy)) {
+    message("no dates of format like 2/15/2019")
+    return(x)
+  }
+  out <- x
+  out[is_mdy] <- as.character(lubridate::mdy(x[is_mdy]))
+  out
+}
+
+# test
+
+if (FALSE) {
+  x <- c("2018-10-1", "2/13/1991", "12/21/2000")
+  convert_mdy(x)
+  convert_mdy("may-12-2011")
+}
+
+
+# discard duplicated station dates ----------------------------------------
+
+# specific function only used in process_submitted_weather.R
+discard_dup_station_data <- function(df, primary, secondary,other_cols = NULL) {
+  # args:
+  #   df--data frame with station name and dates at least
+  #   primary--name of station with data of primary importance
+  #   secondary--name of station with data to keep only if there are dates
+  #     for which primary doesn't have data
+  # returns:
+  #   subsetted df
+  df1 <-  df[df$station_name == primary, ]
+  df2 <-  df[df$station_name == secondary, ]
+  df_comb <- comb_primary_secondary_stns(df1, df2, other_cols = other_cols)
+  df_other <-  df[!df$station_name %in% c(primary, secondary), ]
+  out <- bind_rows(df_comb, df_other)
+  out
 }
