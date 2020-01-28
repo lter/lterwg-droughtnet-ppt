@@ -1519,20 +1519,24 @@ sum(all_wthr1$date[all_wthr1$station_name == "Potrok Aike"] %in%
 
 # when both monthly and daily data submitted, take daily, unless only monthly
 # available
-other_cols <- c("site_name", "site_code", "site")
-all_wthr1b <- discard_dup_station_data(all_wthr1, "EMA_Naposta", secondary = "Naposta",
-                                       other_cols = other_cols) %>% 
+
+# STOP--CONTINUE HERE
+all_wthr1b <- discard_dup_station_data(all_wthr1, primary = "EMA_Naposta", 
+                                       secondary = "Naposta",
+                                       other_cols = TRUE) %>% 
   discard_dup_station_data(primary = "Mar_del_Plata_Aero_87692", secondary = "Mar Chiquita",
-                           other_cols = other_cols) %>% 
+                           other_cols = TRUE) %>% 
   discard_dup_station_data("Campo Exp. Potrok Aike Santa Cruz", "Potrok Aike",
-                           other_cols = other_cols) %>% 
+                           other_cols = TRUE) %>% 
   # monthly and daily:
   # STOP: somehow duplicates still showing up here
-  discard_dup_station_data(primary = "Puerto Piramides - EEA Chubut", secondary = "San Pablo Valdes",
-                           other_cols = other_cols) %>%
+  discard_dup_station_data(primary = "Puerto Piramides - EEA Chubut", 
+                           secondary = "San Pablo Valdes",
+                           other_cols = TRUE) %>%
   # we have both monthly and daily submitted data:
-  discard_dup_station_data(primary = "Hongyuan", secondary = "GCN-Hongyuan",
-                           other_cols = other_cols)
+  discard_dup_station_data(primary = "Hongyuan", 
+                           secondary = "GCN-Hongyuan",
+                           other_cols = TRUE)
 
 
 all_wthr2 <- all_wthr1b %>% 
@@ -1550,20 +1554,18 @@ dup_site_dates3 <- all_wthr2 %>%
 
 if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 
-all_wthr2 %>% 
-  filter(site_code == "spvdrt.ar")
 # saving CSVs -------------------------------------------------------------
 
 all_wthr_2save <- all_wthr2 %>% 
   select(-site)
 
-write_csv(all_wthr_2save,
-          file.path(path_oct, "data/precip/submitted_daily_weather_2020-01-26.csv"))
+# write_csv(all_wthr_2save,
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-01-26.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
-write_csv(stn2save,
-          file.path(path_oct, "data/precip/submitted_weather_station_info_2020-01-26.csv"))
+# write_csv(stn2save,
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-01-26.csv"))
   

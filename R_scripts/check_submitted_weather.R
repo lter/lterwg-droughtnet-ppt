@@ -71,9 +71,14 @@ num_nas %>%
 
 arrange(num_nas, n) # sites with fewest observations
 
+# sanity check against provided data
 wthr1 %>% 
-  filter(site_code == "spvdrt.ar") %>% 
-  View()
+  filter(site_code == 'chilcasdrt.ar') %>% 
+  mutate(month = month(date),
+         year = year(date)) %>% 
+  group_by(month, year) %>% 
+  summarise(precip = sum(precip)) %>% 
+  arrange(year, month) 
 
 # negative precip ---------------------------------------------------------
 
@@ -189,9 +194,9 @@ wthr4 %>%
 
 # saving CSV --------------------------------------------------------------
 
-# write_csv(
-#   wthr4,
-#   file.path(path_oct,
-#             "data/precip/submitted_daily_weather_bad_vals_removed_2019-12-18.csv")
-#   )
+dest <- file.path(
+  path_oct,
+  "data/precip/submitted_daily_weather_bad_vals_removed_2020-01-27.csv")
+
+# write_csv(wthr4, dest)
   

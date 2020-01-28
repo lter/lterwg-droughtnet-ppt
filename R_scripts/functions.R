@@ -386,7 +386,7 @@ check_station_names <- function(list) {
 # function for process_submitted_weather.R script
 
 # stop! fix this to take site_code site and site
-comb_primary_secondary_stns <- function(df1, df2, other_cols = NULL) {
+comb_primary_secondary_stns <- function(df1, df2, other_cols = FALSE) {
   # args:
   #   df1--df of data from primary (preferred) station
   #   df2--df of secondary station (data to use if primary has NA for that date)
@@ -406,10 +406,6 @@ comb_primary_secondary_stns <- function(df1, df2, other_cols = NULL) {
     length(unique(df1$station_name)) == 1,
     length(unique(df2$station_name)) == 1
   )
-  
-  if (!is.null(other_cols)) {
-    wthr_col_names2 <- c(wthr_col_names2, other_cols)
-  }
   
   # doing this when join leads two NA in station_name_x below
   first_station <- df1$station_name[1]
@@ -444,6 +440,17 @@ comb_primary_secondary_stns <- function(df1, df2, other_cols = NULL) {
                               mean_temp_2,
                               mean_temp_1)
     )
+  # add other cols back in if requested
+  if (other_cols) {
+    stopifnot(
+      length(unique(df1$site_name)) == 1,
+      length(unique(df1$site_code)) == 1
+    )
+    out$site_name <- df1$site_name[1]
+    out$site_code <- df1$site_code[1]
+    out$site <- df1$site[1]
+    return(out[, c(wthr_col_names2, "site_name", "site_code", "site")])
+  }
   out[, wthr_col_names2]
 }
 
@@ -787,7 +794,7 @@ if (FALSE) {
 # discard duplicated station dates ----------------------------------------
 
 # specific function only used in process_submitted_weather.R
-discard_dup_station_data <- function(df, primary, secondary,other_cols = NULL) {
+discard_dup_station_data <- function(df, primary, secondary, other_cols = FALSE) {
   # args:
   #   df--data frame with station name and dates at least
   #   primary--name of station with data of primary importance

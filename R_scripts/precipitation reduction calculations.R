@@ -205,6 +205,7 @@ sites2_forsubmitted <- sites2 %>%
 
 names(wthr2)
 
+# STOP: DEBUG HERE
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
 
