@@ -58,7 +58,8 @@ p5
 
 anpp1 <- read.csv(p5, as.is = TRUE)
 head(anpp1)
-
+anpp1 %>% 
+  filter(site_code == "pozos.ar")
 
 # extract drought treatment -----------------------------------------------
 
@@ -199,16 +200,17 @@ sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
 wthr2 <- wthr1 %>% 
   rename(ppt = precip)
 
+# STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
 sites2_forsubmitted <- sites2 %>% 
-  filter(site_code %in% wthr2$site_code) 
+  filter(site_code %in% wthr2$site_code,
+         site_code != "pozos.ar") 
 
 
-names(wthr2)
 
 # STOP: DEBUG HERE
+
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
-
 
 # combining ghcn and submitted results ------------------------------------
 
@@ -312,11 +314,12 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-# write_csv(sites_full1,
-#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-21.csv'))
+write_csv(sites_full1,
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-31.csv'))
 
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 
   pull(site_code) %>% 
   unique()
+
