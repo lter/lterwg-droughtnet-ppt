@@ -95,6 +95,7 @@ p1 <- newest_file_path(
   "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
 p1
 
+# temp--change path back to p1
 site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
 
 site_ppt2 <- site_ppt %>% 
@@ -149,7 +150,7 @@ site_ppt2 %>%
 
 plot(site_ppt2$perc_norm, site_ppt2$perc_obs,
      xlab = "Ambient precip percentile from normal CDF",
-     ylab = "Ambeint precip percentile from emperical CDF")
+     ylab = "Ambient precip percentile from emperical CDF")
 abline(0, 1)
 dev.off()
 
@@ -191,6 +192,9 @@ site_ppt4 <- site_ppt3 %>%
          )
 
 # NOTE: figure out why stubai.at has two rows for 'year 1'
+# STOP I think this average (based on possible control/drought biomass date
+# descrepencies may be leading to the issue of couple sites haveing 'more' 
+# drt than ctrl precip--- SOLVE THIS PROBLEM
 wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
@@ -214,20 +218,31 @@ wide_yr1 <- site_ppt4 %>%
                           right = FALSE)
          )
   
-# sites with data
+# sites without data
 site_ppt4 %>% 
   filter(n_treat_days >=365 & n_treat_days < 730, is.na(ppt)) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
 
+# have added in the 1/31/20 data set:
+# "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
+# "sclaudio.ar"   "spvdrt.ar"  
 site_ppt4 %>% 
-  filter(n_treat_days_adj >=365 & n_treat_days_adj < 730, !is.na(ppt)) %>% 
+  filter(n_treat_days_adj >=150 & n_treat_days_adj < 730, !is.na(ppt)) %>% 
+  pull(site_code) %>% 
+  unique() %>% 
+  length()
+
+site_ppt4 %>% 
+  filter(!is.na(ppt)) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
 
 site_ppt3$site_code %>% unique() %>% length()
+
+
 
 
 # figures -----------------------------------------------------------------
@@ -244,7 +259,7 @@ image_path <- file.path(
   path_oct,
   paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
-# pdf(image_path,  height = 7, width = 10)
+pdf(image_path,  height = 7, width = 10)
 
 # ctrl vs drt percentiles
 ggplot(wide_yr1) +
