@@ -21,6 +21,7 @@ source("R_scripts/functions.R")
 
 # path to data folders
 path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
+path_1yr <- 'E:/Dropbox/IDE MS_Single year extreme'
 
 # load tpa precip data -----------------------------------------------------
 
@@ -191,10 +192,61 @@ site_ppt4 <- site_ppt3 %>%
                                    n_treat_days_adj)
          )
 
+# testing ~~~~~~~~~
+# for inconsistencies---NOT RESOLVED
+site_ppt4 %>% 
+  select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
+  filter(!is.na(ppt)) %>% 
+  # this first group_by/mutate is so that control/trt have same
+  # drought_days etc values
+  group_by(site_code, year) %>% 
+  mutate(n_unique_bio = length(unique(biomass_date)),
+            n_unique_first = length(unique(first_treatment_date))) %>% 
+  filter(n_unique_first > 1) 
+
+site_ppt4 %>% 
+  select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
+  filter(!is.na(ppt)) %>% 
+  # this first group_by/mutate is so that control/trt have same
+  # drought_days etc values
+  group_by(site_code, year) %>% 
+  mutate(n_unique_bio = length(unique(biomass_date)),
+         n_unique_first = length(unique(first_treatment_date))) %>% 
+  filter(n_unique_first > 1)
+
+# send as CSV to Kate
+out <- site_ppt4 %>% 
+  select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
+  filter(!is.na(ppt)) %>% 
+  # this first group_by/mutate is so that control/trt have same
+  # drought_days etc values
+  group_by(site_code, year, trt) %>% 
+  # NOTE: using mean instead of max may be way to go...fewer sites have discrepancy. 
+  summarize(mean_bio = mean(biomass_date)#,
+         #mean_first = mean(first_treatment_date)
+         ) %>% 
+  ungroup() %>% 
+  spread(key = trt, value = mean_bio) %>% 
+  filter(Control != Drought) 
+
+# write_csv(out, "biomass_date_mismatch_forKW.csv")
+
+# no non-unique block 
+site_ppt4 %>% 
+  group_by(site_code, plot, block, year) %>% 
+  filter(biomass_date == max(biomass_date)) %>% 
+  summarize(n = n()) %>% 
+  filter(n > 1)
+
+
+# end testing ~~~~~~~~~
+
 # NOTE: figure out why stubai.at has two rows for 'year 1'
 # STOP I think this average (based on possible control/drought biomass date
 # descrepencies may be leading to the issue of couple sites haveing 'more' 
 # drt than ctrl precip--- SOLVE THIS PROBLEM
+# also an issue with n_treat_days_adj (is average), --this is also issue
+# for brandjberg where there are two first_treat_dates (off by years)
 wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
@@ -319,7 +371,7 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
-#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_01-21-2020.csv"))
+#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_02-04-2020.csv"))
 
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
@@ -327,17 +379,22 @@ wide2save <- wide_yr1 %>%
          percentile_ambient = percentile_Control,
          percentile_drought = percentile_Drought)
 
-# write_csv(wide2save,
-#           file.path(path_oct, "data/precip",
-#                     "precip_by_trmt_year_with_percentiles_2020-01-21.csv"))
+write_csv(wide2save,
+          file.path(path_1yr, "Data/precip",
+                    "precip_by_trmt_year_with_percentiles_2020-02-04.csv"))
 
-# sanity checks
-wide2save %>% 
+# sanity checks--
+missing_drt_ppt <- wide2save %>% 
   group_by(site_code) %>% 
   summarize(any_data = any(is.na(ppt_drought))) %>% 
   filter(any_data) %>% 
   pull(site_code)
 
+missing_drt_ppt
+
+# not sure why brandjberg is calculating drt ppt even when no drt trmt
+# percent given in file---two first_treatment_dates issue?
+site_ppt4 %>% filter(site_code  %in% missing_drt_ppt, trt %in% c("Drought"), is.na(drought_trt), !is.na(ppt))
 is.na(wide2save$ppt_ambient) %>% sum()
 
 wide2save %>% 
