@@ -1477,11 +1477,15 @@ all13 <- map2(all12, names(all12), function(x, name) {
   out
 })
 
+# STOP--guaribas also provided with argentina sites
+# not sure which one to use--data don't match
+# so removing this here
+all13$brazil_clean$weather <- all13$brazil_clean$weather %>% 
+  filter(station_name != "Guaribas")
+
 # create wthr master file
 all_wthr1 <- map(all13, function(x) x$weather) %>% 
   bind_rows()
-
-dim(all_wthr1)
 
 # sites where duplicated dates of data are occuring
 dup_site_dates2 <- all_wthr1 %>% 
@@ -1490,6 +1494,8 @@ dup_site_dates2 <- all_wthr1 %>%
   mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
          ) %>% 
   filter(n_dup > 0)
+
+
 
 # Gigante ~~~~
 
@@ -1520,7 +1526,6 @@ sum(all_wthr1$date[all_wthr1$station_name == "Potrok Aike"] %in%
 # when both monthly and daily data submitted, take daily, unless only monthly
 # available
 
-# STOP--CONTINUE HERE
 all_wthr1b <- discard_dup_station_data(all_wthr1, primary = "EMA_Naposta", 
                                        secondary = "Naposta",
                                        other_cols = TRUE) %>% 
@@ -1539,20 +1544,32 @@ all_wthr1b <- discard_dup_station_data(all_wthr1, primary = "EMA_Naposta",
                            other_cols = TRUE)
 
 
-all_wthr2 <- all_wthr1b %>% 
+all_wthr1c <- all_wthr1b %>% 
   filter(!(station_name == 'BCI' & site == "Gigante" & date %in% bar_dates)) 
+
+all_wthr2 <- all_wthr1c %>% 
+  filter(site_code == "eea.br") %>% 
+  arrange(desc(station_name), date) %>% # sorting b/ worse (monthly) data
+  # station name comes first in alphabet--ie data from two sources
+  .[!duplicated(.$date), ] %>% 
+  # adding other sites back in
+  bind_rows(filter(all_wthr1c, site_code != "eea.br")) 
+
+dup_site_dates3$data[[1]]
 
 nrow(all_wthr1)- nrow(all_wthr2)
 
 dup_site_dates3 <- all_wthr2 %>% 
   filter(site_code!= "unknown") %>% 
-  select(date, site_code, precip) %>% 
-  nest(data = c(date, precip)) %>% 
+  group_by(site_code) %>% 
+  nest() %>% 
   mutate(n_dup = map_dbl(data, function(x) sum(duplicated(x$date)))
   ) %>% 
   filter(n_dup > 0)
 
+
 if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
+
 
 # saving CSVs -------------------------------------------------------------
 
@@ -1560,12 +1577,12 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-01-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-02-26.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-01-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-02-26.csv"))
   

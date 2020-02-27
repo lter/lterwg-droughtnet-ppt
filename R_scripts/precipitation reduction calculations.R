@@ -73,7 +73,7 @@ siteDrt_B <- siteDrt_A %>%
                               0.5,
                               drought_trt)
          ) %>% 
-  select(-cn_site)
+  dplyr::select(-cn_site)
 
 
 # cleaning anpp file -------------------------------------------------------
@@ -207,8 +207,6 @@ sites2_forsubmitted <- sites2 %>%
 
 
 
-# STOP: DEBUG HERE
-
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
 
@@ -314,8 +312,8 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-01-31.csv'))
+# write_csv(sites_full1,
+#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-02-26.csv'))
 
 
 sites5 %>% 

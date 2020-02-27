@@ -371,7 +371,7 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
-#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_02-04-2020.csv"))
+#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_02-26-2020.csv"))
 
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
@@ -381,7 +381,13 @@ wide2save <- wide_yr1 %>%
 
 write_csv(wide2save,
           file.path(path_1yr, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-02-04.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-02-26.csv"))
+
+
+# checks ------------------------------------------------------------------
+
+wide2save %>% 
+  filter(str_detect(site_code, ".br$")) #brazil sites--one still missing
 
 # sanity checks--
 missing_drt_ppt <- wide2save %>% 

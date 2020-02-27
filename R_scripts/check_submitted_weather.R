@@ -196,7 +196,7 @@ wthr4 %>%
 
 dest <- file.path(
   path_oct,
-  "data/precip/submitted_daily_weather_bad_vals_removed_2020-01-27.csv")
+  "data/precip/submitted_daily_weather_bad_vals_removed_2020-02-26.csv")
 
 # write_csv(wthr4, dest)
   
