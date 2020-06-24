@@ -34,20 +34,15 @@ library(lubridate)
 
 source("R_scripts/functions.R")
 
-path_may <- "E:/Dropbox/IDE Meeting_May2019"
+path_may <- "~/Dropbox/IDE Meeting_May2019"
 
-path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
-
+path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
+path_ms <-  "~/Dropbox/IDE MS_Single year extreme"
 
 # site info ---------------------------------------------------------------
 
-# grabbing most recent file based on date in file name
-siteElev_path <- newest_file_path(
-  path = file.path(path_oct, 'IDE Site Info'),
-  file_regex = 'Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv',
-  mdy = TRUE
-)
-siteElev_path
+
+siteElev_path <- file.path(path_ms, "Data/Site_Elev-Disturb.csv")
 siteElev <-read.csv(siteElev_path,
                     as.is = TRUE)
 
@@ -71,10 +66,8 @@ file_names <- all_names %>%
   str_replace("^~\\$", "") %>% # dealing with temporary ~$filename for opened files
   .[!duplicated(.)]
 
-# only use BadLauchstaedt_weather_complete.xlsx (2nd file they sent)
 # IDE_weather_rhijnauwen.xlsx cleaned here so not using processed file
-file_names <- file_names[!file_names %in% c("BadLauchstaedt_weather.xlsx",
-                         "IDE_weather_rhijnauwen processed.xlsx")]
+file_names <- file_names[!file_names %in% "IDE_weather_rhijnauwen processed.xlsx"]
 
 # what files/folders aren't we loading here?
 all_names[!all_names %in% file_names]
@@ -649,6 +642,9 @@ all5$Pineta2014_2019$sites$site <- all5$Pineta2014_2019$station$site
 # just written differently:
 all5$Freiburg$sites$site <- all5$Freiburg$station$site
 
+# from coords can see name mix up
+all5$sev_blue_5_20$sites$site <- "sev_blue"
+all5$sev_blue_5_20$station$site <- "sev_blue"
 
 # from coordinates and other naming it is clear there was just a mix up in names
 all5$Garraf_daylydata$station$site <- all5$Garraf_daylydata$sites$site
@@ -711,7 +707,7 @@ all6$Torla_Ordesa2014_2019$weather <- all6$Torla_Ordesa2014_2019$weather %>%
   mutate(date = ymd(paste(Year, month, day, sep = "-"))) %>% 
   select(wthr_col_names)
 
-all6$cap_whitetank$weather <- all6$cap_whitetank$weather %>% 
+all6$cap_whitetank_4_20$weather <- all6$cap_whitetank_4_20$weather %>% 
   rename(precip = PRCP)
 
 # Syferkuil --combining 2 note columns
@@ -856,6 +852,9 @@ all7 <- map2(all7, names(all6), function(x, name){
     }
   x
 })
+
+all7$cap_whitetank_4_20$weather <- all7$cap_whitetank_4_20$weather %>% 
+  rename(precip = PRCP)
 
 wthr_col_names2 <- c(wthr_col_names, "mean_temp")
 wthr_col_string2 <- wthr_col_names2 %>% sort() %>% paste(collapse = ",")
@@ -1008,6 +1007,9 @@ all8[c("SantaCruzMiddle", "SantaCruzHigh")] <- map(
 # yarramundi (station name missing for some rows)
 all8$Yarramundi_on_site_met_data_2013_2019$weather$station_name <- 
   all8$Yarramundi_on_site_met_data_2013_2019$station$station_name
+
+# some rows missing the station name
+all8$gmdrc_4_20$weather$station_name <- unique(all8$gmdrc_4_20$station$station_name)
 
 # see if all missing values fixed:
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
@@ -1427,9 +1429,12 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'P12' = 'unknown',
                          'P13' = 'unknown',
                          'Prades' = 'prades.es',
+                         'sev_black' = 'sevblack.us',
+                         'sev_blue' = 'sevblue.us',
+                         'sev_mixed' = "unknown", # email time about this 
                          "Skotsvær" = "unkown", #norway
                          'ShermanCrane' = 'unknown',
-                         "Store Buøya" = 'unknown', #norway
+                         "Store Buøya" = 'buoya.no', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown" # haven't sent in bio data
 )
@@ -1555,7 +1560,6 @@ all_wthr2 <- all_wthr1c %>%
   # adding other sites back in
   bind_rows(filter(all_wthr1c, site_code != "eea.br")) 
 
-dup_site_dates3$data[[1]]
 
 nrow(all_wthr1)- nrow(all_wthr2)
 
@@ -1577,12 +1581,12 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 # write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-02-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-06-24.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 # write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-02-26.csv"))
+#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-06-24.csv"))
   
