@@ -13,12 +13,12 @@ source('R_scripts/functions.R') # functions used in script
 source("R_scripts/biomass_get_dates.R") # biomass dates
 
 # paths to data folders
-path <- 'E:/Dropbox/IDE Meeting_May2019'
-path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
+path <- '~/Dropbox'
+path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
 
 # parse site elevation ----------------------------------------------------
 
-siteElev <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_11-29-2019.csv'),
+siteElev <-read.csv(file.path(path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"),
                     as.is = TRUE)
 
 # exluding sites not in biomass file
@@ -44,7 +44,7 @@ site <- siteElev %>%
 
 # load station data -------------------------------------------------------
 
-stations <- read.csv(file.path(path, 'IDE Site Info/GHCND_Stations.csv'), 
+stations <- read.csv(file.path(path, 'IDE Meeting_May2019/IDE Site Info/GHCND_Stations.csv'), 
                      as.is = TRUE)
 
 stations$X <- NULL # unnecessary column created in csv
@@ -130,7 +130,7 @@ nearest_df <- bind_rows(nearest)
 
 # data frame of precip data from nearest station to each site
 # see functions.r file for details
-precip <- ghcn_download_parse(nearest_df, return_list = TRUE) 
+precip <- ghcn_download_parse(nearest_df[1, ], return_list = TRUE) 
 
 precipFull <- lapply(precip, ghcn_parse_dates)
 
@@ -223,9 +223,9 @@ precipFull4 <- nearStation2_df %>%
   select(id, site_code, distance, matches("elevation")) %>% 
   right_join(precipFull3, by = c("id", "site_code"))
 
-# write.csv(precipFull4,
-#           file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-12-02.csv'),
-#           row.names = FALSE)
+write.csv(precipFull4,
+          file.path(path_oct, 'data/precip/GHCN_daily_precip_2020-06-24.csv'),
+          row.names = FALSE)
 
 # data check (comparing to mannualy calculated values)
 hw <- precipFull4 %>% 
