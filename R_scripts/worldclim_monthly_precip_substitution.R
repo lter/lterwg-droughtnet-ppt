@@ -2,19 +2,30 @@ library(raincpc)
 library(raster)
 library(rgdal)
 
-# setwd('X:/Drought-Net Meeting/wc2.0_30s_prec')
-setwd("E:/Dropbox/IDE Meeting_Oct2019/data/precip/wc2.0_30s_prec")
+source("R_scripts/functions.R")
+path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
+
+old_dir <- getwd()
+
+setwd(file.path(path_oct, "data/precip/wc2.0_30s_prec"))
 
 #cpc_get_rawdata(2014,1,1,2018,12,31) ### downloads data into folder. Each day is about 2 Mb
 
 ### world clim approach
 
-
-sta <- read.csv('E:/Dropbox/IDE Meeting_Oct2019/data/precip/submitted_weather_station_info_2020-02-26.csv')
+p1 <- newest_file_path(
+  path = file.path(path_oct, "data/precip"),
+  file_regex = "submitted_weather_station_info_\\d{4}-\\d{2}-\\d{2}.csv")
+p1
+sta <- read.csv(p1)
 
 
 # this is the combined precip file that has bad values (e.g. negative) removed:
-precip <- read.csv('E:/Dropbox/IDE Meeting_Oct2019/data/precip/submitted_daily_weather_bad_vals_removed_2020-02-26.csv')
+p2 <- newest_file_path(
+  path = file.path(path_oct, "data/precip"),
+  file_regex = "submitted_daily_weather_bad_vals_removed_\\d{4}-\\d{2}-\\d{2}.csv")
+
+precip <- read.csv(p2)
 
 
 
@@ -87,6 +98,9 @@ for(j in unique(latlon$site_code)){
   
   }
   
-write.csv(wcOut, 'E:/Dropbox/IDE Meeting_Oct2019/data/precip/submitted_daily_weather_WC_supplemented_2020-02-26.csv')
+write.csv(
+  wcOut, 
+  file.path(path_oct, 'data/precip/submitted_daily_weather_WC_supplemented_2020-06-25.csv')
+  )
 
-
+setwd(old_dir)
