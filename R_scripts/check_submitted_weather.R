@@ -14,8 +14,8 @@
 
 library(tidyverse)
 source("R_scripts/functions.R")
-path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
-
+path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
+path <- "~/Dropbox"
 
 # read in submitted weather -----------------------------------------------
 
@@ -28,11 +28,8 @@ p1
 wthr1 <- read_csv(p1,col_types = "cDdddcdcc")
 
 # so can get reported MAP (grabbing most recent file)
-p2 <- newest_file_path( 
-  path = file.path(path_oct, "IDE Site Info"),
-  file_regex = "Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv",
-  mdy = TRUE)
-p2
+p2 <- file.path(path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv")
+
 site_data <- read.csv(p2, as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
 site_map <- site_data %>% 
@@ -172,7 +169,7 @@ annual
 
 # sites suspected to be in inches--need to confirm
 
-inches <- c("thompson.us", "oklah.us", "capwhite.us")
+inches <- c("thompson.us", "oklah.us")
 
 wthr4 <- wthr3 %>% 
   mutate(precip = ifelse(site_code %in% inches,
@@ -196,7 +193,7 @@ wthr4 %>%
 
 dest <- file.path(
   path_oct,
-  "data/precip/submitted_daily_weather_bad_vals_removed_2020-02-26.csv")
+  "data/precip/submitted_daily_weather_bad_vals_removed_2020-06-25.csv")
 
 # write_csv(wthr4, dest)
   
