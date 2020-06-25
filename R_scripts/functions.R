@@ -50,7 +50,7 @@ ghcn2long <- function(df, site_code) {
 
 # download and clean ghcnd data -------------------------------------------
 
-ghcn_download_parse <- function(df, return_list = FALSE) {
+ghcn_download_parse <- function(df, return_list = FALSE,...) {
   # args:
   #   df--data frame with cols id (id of weather station), name (of station, optional), 
   #     latitude, longitude (of station), distance (optional), site_code (of ide site)
@@ -65,7 +65,7 @@ ghcn_download_parse <- function(df, return_list = FALSE) {
     staID <- as.character(nearest_df[i,'id'])
     sc <- as.character(nearest_df[i,'site_code'])
     
-    tmp <- ghcnd(staID)
+    tmp <- ghcnd(staID,...)
     
     df_long <- ghcn2long(df = tmp, site_code = sc)
     

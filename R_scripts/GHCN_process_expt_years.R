@@ -130,9 +130,15 @@ nearest_df <- bind_rows(nearest)
 
 # data frame of precip data from nearest station to each site
 # see functions.r file for details
-precip <- ghcn_download_parse(nearest_df[1, ], return_list = TRUE) 
+precip <- ghcn_download_parse(nearest_df, return_list = TRUE,
+                              config = httr::verbose()) 
 
 precipFull <- lapply(precip, ghcn_parse_dates)
+
+# temp fix--discard sites with 0 rows of precip data
+# problem here is that we aren't looking to see if there are no 
+# additional stations available
+precipFull <- precipFull[map_dbl(precipFull, nrow) > 0]
 
 # code for next section:
 # for a given weather station (data frame in the list)
