@@ -233,7 +233,7 @@ write.csv(precipFull4,
           file.path(path_oct, 'data/precip/GHCN_daily_precip_2020-06-24.csv'),
           row.names = FALSE)
 
-# data check (comparing to mannualy calculated values)
+# data check (comparing to manualy calculated values)
 hw <- precipFull4 %>% 
   filter(site_code == "hard.us") %>% 
   group_by(year) %>% 
