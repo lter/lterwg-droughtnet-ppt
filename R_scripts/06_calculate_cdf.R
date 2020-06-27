@@ -20,8 +20,8 @@ library(spatstat)
 source("R_scripts/functions.R")
 
 # path to data folders
-path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
-path_1yr <- 'E:/Dropbox/IDE MS_Single year extreme'
+path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
+path_ms <- '~/Dropbox/IDE MS_Single year extreme'
 
 # load tpa precip data -----------------------------------------------------
 
@@ -173,7 +173,8 @@ df <- site_ppt2 %>%
 site_ppt3 <- site_ppt2 %>% 
   rename(percentile = perc_norm) %>% 
   dplyr::select(-perc_obs) %>% 
-  mutate(plot_dummy = plot) %>% 
+  mutate(plot_dummy = plot,
+         n_treat_days =   as.numeric(biomass_date - first_treatment_date)) %>% 
   group_by(site_code, plot_dummy) %>% 
   nest() %>% 
   # see functions.R fo
@@ -214,6 +215,7 @@ site_ppt4 %>%
          n_unique_first = length(unique(first_treatment_date))) %>% 
   filter(n_unique_first > 1)
 
+
 # send as CSV to Kate
 out <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
@@ -247,16 +249,15 @@ site_ppt4 %>%
 # drt than ctrl precip--- SOLVE THIS PROBLEM
 # also an issue with n_treat_days_adj (is average), --this is also issue
 # for brandjberg where there are two first_treat_dates (off by years)
+
+# not problem ~ solved--just keeping the max date for trmt/control
 wide_yr1 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
   # this first group_by/mutate is so that control/trt have same
   # drought_days etc values
-  group_by(site_code, year) %>% 
-  mutate_at(vars(n_treat_days, n_treat_days_adj, num_drought_days, 
-                 biomass_date, first_treatment_date),
-               .funs = list(~mean(., na.rm = TRUE))) %>% 
   group_by(site_code, year, trt) %>% 
+  filter(biomass_date == max(biomass_date)) %>% 
   summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
                     num_drought_days, biomass_date, first_treatment_date),
                              .funs = list(~mean(., na.rm = TRUE))) %>% 
@@ -270,6 +271,13 @@ wide_yr1 <- site_ppt4 %>%
                           right = FALSE)
          )
   
+x <- wide_yr1 %>% 
+  filter(n_treat_days_adj < 1 & ppt_Drought != ppt_Control) %>% 
+  pull(site_code)
+
+site_ppt4 %>% 
+  filter(site_code %in% x) %>% 
+  View()
 # sites without data
 site_ppt4 %>% 
   filter(n_treat_days >=365 & n_treat_days < 730, is.na(ppt)) %>% 
@@ -308,8 +316,8 @@ base1 <- list(
 )
 
 image_path <- file.path(
-  path_oct,
-  paste0("figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
+  path_ms,
+  paste0("Figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
 pdf(image_path,  height = 7, width = 10)
 
@@ -322,7 +330,7 @@ ggplot(wide_yr1) +
        title = "Percentiles of annual precipitation for each site/year") +
   facet_wrap(~trt_yr_adj)
 
-trt_years <- levels(wide_yr1$trt_yr_adj)[-1]
+trt_years <- levels(wide_yr1$trt_yr_adj)
 
 # labeled figures by treatment year for percentiles
 map(trt_years, function(yr) {
@@ -380,7 +388,7 @@ wide2save <- wide_yr1 %>%
          percentile_drought = percentile_Drought)
 
 write_csv(wide2save,
-          file.path(path_1yr, "Data/precip",
+          file.path(path_ms, "Data/precip",
                     "precip_by_trmt_year_with_percentiles_2020-02-26.csv"))
 
 

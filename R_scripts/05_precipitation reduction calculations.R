@@ -11,8 +11,9 @@ library(stringr)
 library(lubridate)
 source("R_scripts/functions.R")
 
-path <- 'E:/Dropbox/IDE Meeting_May2019'
-path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
+path <- '~/Dropbox/IDE Meeting_May2019'
+path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
+path_ms <-  "~/Dropbox/IDE MS_Single year extreme"
 
 
 # reading in precip data -----------------------------------------------------
@@ -41,44 +42,60 @@ precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
 
 # reading in site/anpp date data ---------------------------------------
 
-# may not need this?
-p3 <- newest_file_path(
-  file.path(path_oct, "IDE Site Info"),
-  "Site_Elev-Disturb_UPDATED_\\d+-\\d+-\\d{4}.csv",
-  mdy = TRUE
-)
-siteDrt_A <- read.csv(p3, as.is = TRUE, na.strings = c("","<NA>", "NA"))
+siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
+                      as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
-
+# discard
 p5 <- newest_file_path(
   file.path(path_oct, "Full biomass"),
   "anpp_clean_trt_\\d+-\\d+-\\d{4}.csv",
   mdy = TRUE)
 p5
 
+p5 <- newest_file_path(
+  file.path(path_ms, "Data"),
+  "anpp_clean_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE)
+
 anpp1 <- read.csv(p5, as.is = TRUE)
 head(anpp1)
-anpp1 %>% 
-  filter(site_code == "pozos.ar")
+
+p6 <- newest_file_path(
+  file.path(path_ms, "Data"),
+  "full_biomass_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE)
+
+bio1 <- read.csv(p6, as.is = TRUE)
+
+# survey info
+p7 <- newest_file_path(
+  file.path(path_ms, "Data"),
+  "Survey_\\d+-\\d+-\\d{4}.csv",
+  mdy = TRUE)
+survey1 <- read.csv(p7, as.is = TRUE)
+
+# extract biomass date ----------------------------------------------------
+
+bio2 <- bio1 %>% 
+  group_by(site_code, trt, block, plot, subplot, year) %>% 
+  summarize(first_treatment_date = min(first_treatment_date),
+            biomass_date = max(biomass_date)) %>% 
+  # add in survey info
+  full_join(survey1, by = "site_code")
+
 
 # extract drought treatment -----------------------------------------------
 
 siteDrt_B <- siteDrt_A %>% 
   dplyr::select(site_code, drought_trt) %>% 
   mutate(drought_trt = str_replace(drought_trt, "%", ""),
-         drought_trt = as.numeric(drought_trt)/100,
-         # chinese sites used 50% drt--and it is na in the source file
-         cn_site = str_detect(site_code, "\\.cn$"),
-         drought_trt = ifelse(cn_site & is.na(drought_trt),
-                              0.5,
-                              drought_trt)
-         ) %>% 
-  dplyr::select(-cn_site)
-
+         drought_trt = as.numeric(drought_trt)/100)
 
 # cleaning anpp file -------------------------------------------------------
 
-anpp2 <- anpp1
+anpp2 <- anpp1 %>% 
+  left_join(bio2, by = c("site_code", "block", "plot", "subplot", "year")) %>% 
+  as_tibble()
 
 is_mdy <- str_detect(anpp2$first_treatment_date, "\\d{1,2}/\\d{1,2}/\\d{4}")         
 
@@ -91,7 +108,7 @@ anpp2 <- anpp2 %>%
   select(-first_treatment_date) %>% 
   rename(first_treatment_date = dummy_date) %>% 
   # parsing failures because one biomass date entered as "2017"
-  mutate(biomass_date = mdy(biomass_date))
+  mutate(biomass_date = ymd(biomass_date))
 
 # sites that don't have "Control"
 no_control <- anpp2 %>% 
@@ -115,7 +132,6 @@ anpp2 <- anpp2 %>%
 # adding in drought vals,
 # for now only using drought and control--for first paper
 anpp3 <- siteDrt_B %>% 
-  select(site_code, drought_trt) %>% 
   right_join(anpp2, by = "site_code") %>% 
   as_tibble() %>%
   #mutate(trt = str_replace(trt, "Control_Infrastructure", "Control"))
@@ -131,31 +147,43 @@ anpp3 <- siteDrt_B %>%
 
 # on/off dates ------------------------------------------------------------
 
+# these sites just provided text in the set/remove fields
+on_off_dates <- tibble(site_code = c("cedarsav.us", "cedarsav.us", "cedartrait.us", 
+                     "cedartrait.us"),
+       on = c("2017-04-27", "2018-05-05", "2017-04-27", "2018-05-05"),
+       off = c("2017-09-21", "2018-09-25", "2017-09-20","2018-09-11"),
+       year = year(on))
+
 
 # cedarsav.us has notes in place of dates in 2016 (pre trmt)
 anpp3 <- anpp3 %>% 
-  mutate(IfNot365.WhenShelterSet = ifelse(
+  left_join(on_off_dates, by = c("site_code", "year")) %>% 
+  mutate(
+    IfNot365.WhenShelterSet = ifelse(is.na(on), IfNot365.WhenShelterSet, on),
+    IfNot365.WhenShelterRemove = ifelse(is.na(off), IfNot365.WhenShelterRemove, off),
+    IfNot365.WhenShelterSet = ifelse(
     year == 2016 & site_code == "cedarsav.us",
     "",
     IfNot365.WhenShelterSet),
     IfNot365.WhenShelterRemove = ifelse(
       year == 2016 & site_code == "cedarsav.us",
       "",
-      IfNot365.WhenShelterRemove)
-    )
+      IfNot365.WhenShelterRemove)) %>% 
+  select(-on, -off)
+
 # reformatting some dates so that they can be used by the function 
-set_date <- str_detect(anpp3$IfNot365.WhenShelterSet, "\\d+/\\d+/\\d{4}")
-rem_date <- str_detect(anpp3$IfNot365.WhenShelterRemove, "\\d+/\\d+/\\d{4}")
+set_date <- str_detect(anpp3$IfNot365.WhenShelterSet, "\\d{4}-\\d+-\\d+")
+rem_date <- str_detect(anpp3$IfNot365.WhenShelterRemove, "\\d{4}-\\d+-\\d+")
 
 anpp3$IfNot365.WhenShelterSet[set_date] <- 
   anpp3$IfNot365.WhenShelterSet[set_date] %>% 
-  mdy() %>% 
+  ymd() %>% 
   paste(day(.), month(., label = TRUE)) %>% 
   str_extract("\\d+\\s[A-z]+$")
 
 anpp3$IfNot365.WhenShelterRemove[rem_date] <- 
   anpp3$IfNot365.WhenShelterRemove[rem_date] %>% 
-  mdy() %>% 
+  ymd() %>% 
   paste(day(.), month(., label = TRUE)) %>% 
   str_extract("\\d+\\s[A-z]+$")
 
@@ -201,9 +229,9 @@ wthr2 <- wthr1 %>%
   rename(ppt = precip)
 
 # STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
-sites2_forsubmitted <- sites2 %>% 
-  filter(site_code %in% wthr2$site_code,
-         site_code != "pozos.ar") 
+sites2_forsubmitted <- sites2# %>% 
+  # filter(site_code %in% wthr2$site_code,
+  #        site_code != "pozos.ar") 
 
 
 
@@ -312,9 +340,8 @@ dev.off()
 
 # saving CSV --------------------------------------------------------------
 
-# write_csv(sites_full1,
-#           file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-02-26.csv'))
-
+write_csv(sites_full1,
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-06-26.csv'))
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 
