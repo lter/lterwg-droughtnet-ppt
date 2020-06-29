@@ -194,7 +194,7 @@ site_ppt4 <- site_ppt3 %>%
          )
 
 # testing ~~~~~~~~~
-# for inconsistencies---NOT RESOLVED
+# for inconsistencies---mostly resolved
 site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
@@ -270,13 +270,9 @@ wide_yr1 <- site_ppt4 %>%
                           labels = c("pre-trt", "< 365 days trt", "365-729 days trt", "730 + trt days"),
                           right = FALSE)
          )
-  
-x <- wide_yr1 %>% 
-  filter(n_treat_days_adj < 1 & ppt_Drought != ppt_Control) %>% 
-  pull(site_code)
 
-site_ppt4 %>% 
-  filter(site_code %in% x) %>% 
+wide_yr1 %>% 
+  filter(is.na(ppt_Drought), !is.na(ppt_Control)) %>% 
   View()
 # sites without data
 site_ppt4 %>% 
@@ -379,7 +375,7 @@ dev.off()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
-#           file.path(path_oct, "Full biomass", "anpp_clean_trt_ppt_02-26-2020.csv"))
+#           file.path(path_ms, "Data/precip", "anpp_clean_trt_ppt_06-26-2020.csv"))
 
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
@@ -389,7 +385,7 @@ wide2save <- wide_yr1 %>%
 
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-02-26.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-06-29.csv"))
 
 
 # checks ------------------------------------------------------------------
@@ -399,17 +395,24 @@ wide2save %>%
 
 # sanity checks--
 missing_drt_ppt <- wide2save %>% 
-  group_by(site_code) %>% 
-  summarize(any_data = any(is.na(ppt_drought))) %>% 
-  filter(any_data) %>% 
-  pull(site_code)
+  filter(is.na(ppt_drought) & !is.na(ppt_ambient)) %>% 
+  pull(site_code) %>% 
+  unique()
 
+# STOP track down what is going on here
 missing_drt_ppt
-
+wide2save %>% filter(site_code %in% missing_drt_ppt)
 # not sure why brandjberg is calculating drt ppt even when no drt trmt
 # percent given in file---two first_treatment_dates issue?
-site_ppt4 %>% filter(site_code  %in% missing_drt_ppt, trt %in% c("Drought"), is.na(drought_trt), !is.na(ppt))
-is.na(wide2save$ppt_ambient) %>% sum()
+
+# the issue is that these sites don't have drought treatments?
+site_ppt4 %>% group_by(site_code, year) %>% 
+  summarise(n_c = sum(trt == "Control"), 
+            n_t = sum(str_detect(trt, "rought"))) %>% 
+  filter(n_t ==0) %>% 
+  pull(site_code) %>% 
+  unique()
+
 
 wide2save %>% 
   filter(is.na(ppt_ambient))

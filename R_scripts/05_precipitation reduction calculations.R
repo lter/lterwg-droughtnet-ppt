@@ -279,6 +279,8 @@ sites7 <- sites6 %>%
                              NA))
   )
 
+sites7
+
 # this code causing problems because of imperfect join
 sites_full1 <- sites7 %>% 
   rename(biomass_date = bioDat,
@@ -341,7 +343,7 @@ dev.off()
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-06-26.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-06-29.csv'))
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 

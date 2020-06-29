@@ -1414,7 +1414,7 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'Las Chilcas' = 'chilcasdrt.ar',
                          'San Pablo Valdes' = 'spvdrt.ar',
                          'EEA_Ufrgs' = 'eea.br',
-                         'GCN-Suihua' = "unknown",
+                         'GCN-Suihua' = "unknown",# biomass still needs to be entered
                          'Gigante' = 'unknown',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
@@ -1426,14 +1426,14 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          "Lygra_old" = 'lygraold.no',
                          "meadow_Stubai" = "stubai.at",
                          'NP' = 'nplatte.us',
-                         'P12' = 'unknown',
-                         'P13' = 'unknown',
+                         'P12' = 'unknown', # biomass still needs to be entered
+                         'P13' = 'unknown',# biomass still needs to be entered
                          'Prades' = 'prades.es',
                          'sev_black' = 'sevblack.us',
                          'sev_blue' = 'sevblue.us',
-                         'sev_mixed' = "unknown", # email time about this 
+                         'sev_mixed' = "sevmixed.us",  
                          "Skotsvær" = "unkown", #norway
-                         'ShermanCrane' = 'unknown',
+                         'ShermanCrane' = 'unknown',# biomass still needs to be entered
                          "Store Buøya" = 'buoya.no', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown" # haven't sent in bio data
@@ -1462,6 +1462,8 @@ if(any(is.na(stn6$site_code))) warning("some site codes NA")
 # merge into master file df -------------------------------------------------
 all12 <- all11
 
+keep(all12, function(l) any(l$site$site %in% x)) %>% 
+  map(function(l) l$site)
 # now putting stn table back into the lists
 all12 <- map2(all12, names(all12), function(x, name) {
   x$station <- stn6[stn6$file_name == name, ]
@@ -1580,13 +1582,13 @@ if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 all_wthr_2save <- all_wthr2 %>% 
   select(-site)
 
-# write_csv(all_wthr_2save,
-#           file.path(path_oct, "data/precip/submitted_daily_weather_2020-06-24.csv"))
+write_csv(all_wthr_2save,
+          file.path(path_oct, "data/precip/submitted_daily_weather_2020-06-29.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
-# write_csv(stn2save,
-#           file.path(path_oct, "data/precip/submitted_weather_station_info_2020-06-24.csv"))
+write_csv(stn2save,
+          file.path(path_oct, "data/precip/submitted_weather_station_info_2020-06-29.csv"))
   
