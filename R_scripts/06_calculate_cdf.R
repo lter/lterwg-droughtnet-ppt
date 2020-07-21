@@ -158,26 +158,21 @@ dev.off()
 # since normal and emperical percentiles are nearly the same, just keeping the normal
 
 
-site_ppt2 %>% 
-  filter(X365day.trt == "No", n_treat_days > 0) %>% 
-  select(site_code, matches("365")) %>% 
-  .[!duplicated(.), ]
-
-df <- site_ppt2 %>% 
-  filter(site_code == "biddulph.ca", plot == 1)
-
-
 # calculating n_treat days adjusted for roof off time
 # some parsing failures occur--because not legit set/remove
 # dates for some pre trmt dates (this is ok)
+# 
 site_ppt3 <- site_ppt2 %>% 
   rename(percentile = perc_norm) %>% 
   dplyr::select(-perc_obs) %>% 
   mutate(plot_dummy = plot,
          n_treat_days =   as.numeric(biomass_date - first_treatment_date)) %>% 
+  # temp fix b/ pozos doesn't have biomass date
+  filter(trt %in% c("Control", "Drought")) %>% 
   group_by(site_code, plot_dummy) %>% 
   nest() %>% 
   # see functions.R fo
+  # not set/remove dates provided for cedarsav and kranz.de, which throws warnings
   mutate(n_treat_days_adj = map(data, calc_n_treat_days_adj, return_df = FALSE)) %>% 
   unnest(cols = c("data", "n_treat_days_adj")) %>% 
   ungroup() %>% 
@@ -216,22 +211,6 @@ site_ppt4 %>%
   filter(n_unique_first > 1)
 
 
-# send as CSV to Kate
-out <- site_ppt4 %>% 
-  select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
-  filter(!is.na(ppt)) %>% 
-  # this first group_by/mutate is so that control/trt have same
-  # drought_days etc values
-  group_by(site_code, year, trt) %>% 
-  # NOTE: using mean instead of max may be way to go...fewer sites have discrepancy. 
-  summarize(mean_bio = mean(biomass_date)#,
-         #mean_first = mean(first_treatment_date)
-         ) %>% 
-  ungroup() %>% 
-  spread(key = trt, value = mean_bio) %>% 
-  filter(Control != Drought) 
-
-# write_csv(out, "biomass_date_mismatch_forKW.csv")
 
 # no non-unique block 
 site_ppt4 %>% 
@@ -251,7 +230,7 @@ site_ppt4 %>%
 # for brandjberg where there are two first_treat_dates (off by years)
 
 # not problem ~ solved--just keeping the max date for trmt/control
-wide_yr1 <- site_ppt4 %>% 
+wide_yr0 <- site_ppt4 %>% 
   select(-matches("sub$"), -matches("ghcn"), -plot, -block) %>% 
   filter(!is.na(ppt)) %>% 
   # this first group_by/mutate is so that control/trt have same
@@ -261,44 +240,62 @@ wide_yr1 <- site_ppt4 %>%
   summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
                     num_drought_days, biomass_date, first_treatment_date),
                              .funs = list(~mean(., na.rm = TRUE))) %>% 
+  group_by(year, site_code) %>% 
+  # in cases when different biomass harvest dates (and thus n_treat days) for
+  # control and drought trmts then use the trmt date/days
+  mutate(biomass_date = ifelse(length(biomass_date[trt == "Drought"]) > 0 && 
+                                 !is.na(biomass_date[trt == "Drought"]),
+                               biomass_date[trt == "Drought"],
+                               biomass_date[trt == "Control"]),
+         n_treat_days_adj = ifelse(length(n_treat_days_adj[trt == "Drought"]) > 0 && 
+                                     !is.na(n_treat_days_adj[trt == "Drought"]) ,
+                                   n_treat_days_adj[trt == "Drought"],
+                                   n_treat_days_adj[trt == "Control"])) %>% 
+  ungroup() %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
   mutate(key = paste(key, trt, sep = "_")) %>% 
   select(-trt) %>% 
   spread(key = "key", value = "value") %>% 
   as_tibble() %>% 
-  mutate(trt_yr_adj = cut(n_treat_days_adj, c(-10000, 1, 364, 729, 10000), 
-                          labels = c("pre-trt", "< 365 days trt", "365-729 days trt", "730 + trt days"),
+  mutate(trt_yr_adj = cut(n_treat_days_adj, c(-10000, 1, 120, 700, 10000), 
+                          labels = c("pre-trt", "< 120 days trt", "120-700 days trt", "700 + trt days"),
                           right = FALSE)
          )
 
+# seperately grouping first year with 120 trmt days
+wide_yr1 <- wide_yr0 %>% 
+  filter(n_treat_days_adj >= 120 & n_treat_days_adj <= 700) %>% 
+  group_by(site_code) %>% 
+  filter(n_treat_days_adj == min(n_treat_days_adj)) %>% 
+  mutate(trt_yr_adj = "120 + days trt (first yr >= 120 days)") %>% 
+  bind_rows(wide_yr0)
+
 wide_yr1 %>% 
-  filter(is.na(ppt_Drought), !is.na(ppt_Control)) %>% 
-  View()
+  filter(is.na(ppt_Drought), !is.na(ppt_Control))
 # sites without data
 site_ppt4 %>% 
-  filter(n_treat_days >=365 & n_treat_days < 730, is.na(ppt)) %>% 
+  filter(n_treat_days_adj >=120 & n_treat_days < 700, is.na(ppt)) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
 
-# have added in the 1/31/20 data set:
-# "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
-# "sclaudio.ar"   "spvdrt.ar"  
-site_ppt4 %>% 
-  filter(n_treat_days_adj >=150 & n_treat_days_adj < 730, !is.na(ppt)) %>% 
+wide_yr1 %>% 
+  filter(!is.na(ppt_Control) & !is.na(ppt_Drought),
+         n_treat_days_adj >= 120 & n_treat_days_adj <= 700) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
+
+
+ # have added in the 1/31/20 data set:
+# "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
+# "sclaudio.ar"   "spvdrt.ar"  
 
 site_ppt4 %>% 
   filter(!is.na(ppt)) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
-
-site_ppt3$site_code %>% unique() %>% length()
-
-
 
 
 # figures -----------------------------------------------------------------
@@ -326,23 +323,29 @@ ggplot(wide_yr1) +
        title = "Percentiles of annual precipitation for each site/year") +
   facet_wrap(~trt_yr_adj)
 
-trt_years <- levels(wide_yr1$trt_yr_adj)
+trt_years <- unique(wide_yr1$trt_yr_adj) %>% 
+  sort()
 
 # labeled figures by treatment year for percentiles
 map(trt_years, function(yr) {
   wide_yr1 %>% 
     filter(trt_yr_adj == yr) %>% 
+    mutate(isyear = ifelse(n_treat_days_adj < 365, "< 365", "365 + days")) %>% 
   ggplot() +
     base1+
-    geom_point(aes(percentile_Control, percentile_Drought)) +
+    geom_hline(yintercept = c(1, 5, 10), linetype = 2, alpha = 0.3, 
+               color = c("red", "orange", "yellow")) +
+    geom_vline(xintercept = c(20, 80), linetype = 2) +
+    geom_point(aes(percentile_Control, percentile_Drought,
+                   shape = isyear, color = isyear)) +
     labs(x = "Control precipitation percentile",
          y = "Drought precipitation percentile",
          title = paste("Percentiles of annual precipitation for ", yr)) +
     ggrepel::geom_text_repel(
       aes(x = percentile_Control, y =  percentile_Drought, label = site_code),
-      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0) +
+    theme(legend.title = element_blank())
 })
-
 
 
 # ctrl vs drt annual precip
@@ -361,7 +364,7 @@ map(trt_years, function(yr) {
     filter(trt_yr_adj == yr) %>% 
     ggplot() +
     base1+
-    geom_point(aes(ppt_Control, ppt_Drought)) +
+    geom_point(aes(ppt_Control, ppt_Drought)) + 
     labs(x = "Control 12 month precipitation (mm)",
          y = "Drought 12 month precipitation (mm)",
          title = paste("Annual precipitation for ", yr)) +
@@ -371,7 +374,10 @@ map(trt_years, function(yr) {
 })
 dev.off()
 
-
+wide_yr1 %>% 
+  filter(trt_yr_adj == "120 + days trt (first yr >= 120 days)") %>% 
+  pull(n_treat_days_adj) %>% 
+  hist()
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
@@ -381,11 +387,13 @@ wide2save <- wide_yr1 %>%
   rename(ppt_ambient = ppt_Control,
          ppt_drought = ppt_Drought,
          percentile_ambient = percentile_Control,
-         percentile_drought = percentile_Drought)
+         percentile_drought = percentile_Drought) %>% 
+  # so don't have duplicated rows
+  filter(trt_yr_adj != "120 + days trt (first yr >= 120 days)")
 
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-06-29.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-07-20.csv"))
 
 
 # checks ------------------------------------------------------------------
@@ -418,3 +426,17 @@ wide2save %>%
   filter(is.na(ppt_ambient))
 
 wide2save$site_code %>% unique() %>% sort()
+
+# num sites
+wide2save %>% filter(n_treat_days_adj >= 120 & n_treat_days_adj <= 700,
+                     !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
+  pull(site_code) %>% 
+  unique() %>% 
+  length()
+# 82
+wide2save %>% filter(n_treat_days_adj >= 365 & n_treat_days_adj <= 700,
+                     !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
+  pull(site_code) %>% 
+  unique() %>% 
+  length()
+# 65
