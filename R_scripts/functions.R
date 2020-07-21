@@ -491,18 +491,20 @@ calc_yearly_precip <- function(site_data, precip_data){
       mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
     
     # when did the shelter come off:
-    shelter_off_start <- if (row$X365day.trt == "No" & 
+    shelter_off_start <- if ((row$X365day.trt == "No" | is.na(row$X365day.trt)) && 
                              # used to protect against when no date given
-                             row$IfNot365.WhenShelterRemove != "") {
+                             (is.na(row$IfNot365.WhenShelterRemove) | 
+                              row$IfNot365.WhenShelterRemove != "")
+                             ) {
       min_year <- min(year(site_ppt2$date))
       dmy(paste(row$IfNot365.WhenShelterRemove, min_year))
     } else {
       NA
     }
     # when did the shelter go back on
-    shelter_off_end <- if (row$X365day.trt == "No" & 
+    shelter_off_end <- if ((row$X365day.trt == "No" | is.na(row$X365day.trt)) && 
                            # used to protect against when no date given
-                           row$IfNot365.WhenShelterSet != "") {
+                           (is.na(row$IfNot365.WhenShelterSet) | row$IfNot365.WhenShelterSet != "")) {
       max_year <- max(year(site_ppt2$date))
       dmy(paste(row$IfNot365.WhenShelterSet, max_year))
     } else {
@@ -687,7 +689,16 @@ calc_n_treat_days_adj <- function(df, return_df = FALSE) {
     is.Date(df$first_treatment_date)
   )
   
-  if (any(df$X365day.trt != "No")) {
+  if (any(df$X365day.trt != "No" | is.na(df$X365day.trt))) {
+    if(return_df) {
+      return(df)
+    } else {
+      return(rep(NA_real_, nrow(df)))
+    }
+  }
+  if (any(is.na(df$IfNot365.WhenShelterSet) | df$IfNot365.WhenShelterSet == ""
+          | is.na(df$IfNot365.WhenShelterRemove) | df$IfNot365.WhenShelterRemove == "")) {
+    warning("data indicates drought may not be 365 but set/remove dates missing")
     if(return_df) {
       return(df)
     } else {
