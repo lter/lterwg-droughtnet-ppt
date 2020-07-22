@@ -56,6 +56,50 @@ site_codes <- sapply(precip3, function(df){
 names(precip3) <- site_codes
 
 
+# load worldclim data -----------------------------------------------------
+
+site_info<-read.csv(file.path(path_ms, "Data\\Site_Elev-Disturb.csv"))
+
+
+latlon <- site_info[,c('site_code','longitud','latitud')]
+###remove duplicate sites for now
+
+latlon <- latlon[!duplicated(latlon$site_code),]
+
+# some norway sites are NA b/ coords on water so adjust lat downward
+to_adjust <- c("lygraint.no", "lygraold.no", "lygrayng.no")
+latlon[latlon$site_code %in% to_adjust, ]$latitud <- latlon[latlon$site_code %in% to_adjust, ]$latitud - 0.05
+# Get worldclim MAP
+
+for (i in c('01','02','03','04','05','06','07','08','09','10','11','12')){
+  tmp = raster::raster(file.path(path_oct, paste("data\\precip\\wc2.0_30s_prec/wc2.0_30s_prec_",i,'.tif',sep='')))
+  assign(paste('p',i,sep=''),tmp)
+}
+
+latlon$Jan <- raster::extract(p01,latlon[,2:3])
+latlon$Feb <- raster::extract(p02,latlon[,2:3])
+latlon$Mar <- raster::extract(p03,latlon[,2:3])
+latlon$Apr <- raster::extract(p04,latlon[,2:3])
+latlon$May <- raster::extract(p05,latlon[,2:3])
+latlon$Jun <- raster::extract(p06,latlon[,2:3])
+latlon$Jul <- raster::extract(p07,latlon[,2:3])
+latlon$Aug <- raster::extract(p08,latlon[,2:3])
+latlon$Sep <- raster::extract(p09,latlon[,2:3])
+latlon$Oct <- raster::extract(p10,latlon[,2:3])
+latlon$Nov <- raster::extract(p11,latlon[,2:3])
+latlon$Dec <- raster::extract(p12,latlon[,2:3])
+
+# checking sites
+# plot(p12, xlim = c(5, 6), ylim = c(60, 61))
+# points(latlon[, 2:3])
+latlon$wc_map <- rowSums(dplyr::select(latlon, Jan:Dec))
+
+stopifnot(all(!is.na(latlon$wc_map))) # run check
+
+site_info<-merge(site_info,latlon[,c("site_code","wc_map")])
+
+write_csv(site_info, 
+          file.path(path_ms, "Data/precip", "worldclim_map.csv"))
 #   -----------------------------------------------------------------------
 
 # compute probability density function for each site, based on last 50 years
@@ -250,44 +294,48 @@ wide_yr0 <- site_ppt4 %>%
          n_treat_days_adj = ifelse(length(n_treat_days_adj[trt == "Drought"]) > 0 && 
                                      !is.na(n_treat_days_adj[trt == "Drought"]) ,
                                    n_treat_days_adj[trt == "Drought"],
-                                   n_treat_days_adj[trt == "Control"])) %>% 
+                                   n_treat_days_adj[trt == "Control"]),
+         biomass_date = as.Date(biomass_date, origin = "1970-01-01")) %>% 
   ungroup() %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
   mutate(key = paste(key, trt, sep = "_")) %>% 
   select(-trt) %>% 
   spread(key = "key", value = "value") %>% 
   as_tibble() %>% 
-  mutate(trt_yr_adj = cut(n_treat_days_adj, c(-10000, 1, 120, 700, 10000), 
-                          labels = c("pre-trt", "< 120 days trt", "120-700 days trt", "700 + trt days"),
+  mutate(trt_yr_adj = cut(n_treat_days, c(-10000, 1, 365, 700, 10000), 
+                          labels = c("pre-trt", "< 365 days trt", "365 - 700 days trt", "700 + trt days"),
                           right = FALSE)
          )
 
-# seperately grouping first year with 120 trmt days
+# seperately grouping first year with 365 trmt days
+yr1_lab = "365 + days trt (first yr w/ 365 days trmt)"
 wide_yr1 <- wide_yr0 %>% 
-  filter(n_treat_days_adj >= 120 & n_treat_days_adj <= 700) %>% 
+  filter(n_treat_days >= 365 & n_treat_days <= 700) %>% 
   group_by(site_code) %>% 
   filter(n_treat_days_adj == min(n_treat_days_adj)) %>% 
-  mutate(trt_yr_adj = "120 + days trt (first yr >= 120 days)") %>% 
-  bind_rows(wide_yr0)
+  mutate(trt_yr_adj = yr1_lab) %>% 
+  bind_rows(wide_yr0) %>% 
+  left_join(site_info[, c("site_code", "wc_map")], by = "site_code")
 
 wide_yr1 %>% 
   filter(is.na(ppt_Drought), !is.na(ppt_Control))
 # sites without data
-site_ppt4 %>% 
-  filter(n_treat_days_adj >=120 & n_treat_days < 700, is.na(ppt)) %>% 
-  pull(site_code) %>% 
-  unique() %>% 
-  length()
 
-wide_yr1 %>% 
+n <- wide_yr1 %>% 
   filter(!is.na(ppt_Control) & !is.na(ppt_Drought),
-         n_treat_days_adj >= 120 & n_treat_days_adj <= 700) %>% 
+         trt_yr_adj == yr1_lab) %>% 
   pull(site_code) %>% 
   unique() %>% 
   length()
+n
+wide_yr1b <- wide_yr1 %>% 
+  mutate(
+    # percent annual precip is of MAP
+    perc_ap_map = ppt_Control/wc_map*100,
+    # log of ap/map ratio
+    log_ap_map = log(ppt_Control/wc_map))
 
-
- # have added in the 1/31/20 data set:
+# have added in the 1/31/20 data set:
 # "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
 # "sclaudio.ar"   "spvdrt.ar"  
 
@@ -297,6 +345,10 @@ site_ppt4 %>%
   unique() %>% 
   length()
 
+#only year one
+wide_year_one <- wide_yr1b %>% 
+  filter(trt_yr_adj == yr1_lab) %>% 
+  mutate(is_trmt_365 = ifelse(n_treat_days_adj < n_treat_days, "No", "Yes"))
 
 # figures -----------------------------------------------------------------
 theme_set(theme_classic())
@@ -304,7 +356,7 @@ theme_set(theme_classic())
 base1 <- list(
   geom_abline (slope = 1, intercept = 0),
   labs(subtitle = "Control vs Drought treatment precip",
-       caption = "number of treatment days taken from 'n_treat_days_adj' column"),
+       caption = "number of treatment days taken from 'n_treat_days' column"),
   theme(plot.title = element_text(size = 13))
 )
 
@@ -313,6 +365,62 @@ image_path <- file.path(
   paste0("Figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
 pdf(image_path,  height = 7, width = 10)
+
+# histograms
+hist(wide_year_one$n_treat_days,
+     xlab = "days", 
+     main = paste("sites with biomass date occuring 365-700 days since treatment establishment (n = ",
+                  n, ")"))
+perc_ap_map_lab <- "AP percent of MAP (AP/MAP*100)"
+hist(wide_year_one$perc_ap_map,
+     xlab = perc_ap_map_lab, 
+     main = "Annual Precip percent of MAP")
+
+log_ap_map_lab <- "Log(AP/MAP)"
+hist(wide_year_one$log_ap_map,
+     xlab = "Log(AP/MAP)", 
+     main = "Log of Annual Precip/MAP Ratio")
+
+hist(wide_year_one$percentile_Control,
+     xlab = "Percentile", 
+     main = "Annual precip percentile (control plots)") 
+
+hist(wide_year_one$percentile_Drought,
+     xlab = "Percentile", 
+     main = "Annual precip percentile (Drought plots)") 
+
+g0 <- ggplot(wide_year_one, aes(shape = is_trmt_365, color = is_trmt_365)) +
+  labs(caption = "sites with year 1 (365-700 days) data")
+
+g0 +
+  geom_point(aes(wc_map, ppt_Control)) +
+  labs(x = "MAP (WorldClim)",
+       y = "Control Precip") +
+  geom_abline(slope = 1, intercept = 0)
+
+g0 +
+  geom_point(aes(wc_map, ppt_Drought)) +
+  labs(x = "MAP (WorldClim)",
+       y = "Drought Precip") +
+  geom_abline(slope = 1, intercept = 0)
+
+g0+
+  labs(xlab = "AP percent of MAP (AP/MAP*100)")+
+  geom_point(aes(x = perc_ap_map, y = percentile_Control)) +
+  labs(x = perc_ap_map_lab,
+       y = "Control percentile")
+  
+g0+
+  labs(xlab = "AP percent of MAP (AP/MAP*100)")+
+  geom_point(aes(x = perc_ap_map, y = percentile_Control)) +
+  labs(x = perc_ap_map_lab,
+       y = "Control percentile")
+
+g0+
+  labs(xlab = "AP percent of MAP (AP/MAP*100)")+
+  geom_point(aes(x = log_ap_map, y = percentile_Control)) +
+  labs(x = log_ap_map_lab,
+       y = "Control percentile")
 
 # ctrl vs drt percentiles
 ggplot(wide_yr1) +
@@ -327,24 +435,59 @@ trt_years <- unique(wide_yr1$trt_yr_adj) %>%
   sort()
 
 # labeled figures by treatment year for percentiles
+map(trt_years[trt_years!= "365 - 700 days trt"], function(yr) {
+  g3 <- wide_yr1b %>% 
+    filter(trt_yr_adj == yr) %>% 
+    mutate(is_trmt_365 = ifelse(n_treat_days_adj < n_treat_days, "No", "Yes")) %>% 
+    ggplot() +
+    geom_hline(yintercept = c(1, 5, 10), linetype = 2, 
+               color = c("red", "orange", "yellow"))
+  
+  # ap/map percent
+  g4 <- g3 + 
+    geom_point(aes(perc_ap_map, percentile_Drought,
+                 shape = is_trmt_365, color = is_trmt_365)) +
+    labs(x = perc_ap_map_lab,
+       y = "Drought precipitation percentile",
+       title = paste("drought percentile vs percent MAP for ", yr)) 
+  
+  g4b <- g4+
+    ggrepel::geom_text_repel(
+      aes(x = perc_ap_map, y =  percentile_Drought, label = site_code),
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0) 
+  
+  g5 <- g3 + 
+    geom_point(aes(log_ap_map, percentile_Drought,
+                   shape = is_trmt_365, color = is_trmt_365)) +
+    labs(x = log_ap_map_lab,
+         y = "Drought precipitation percentile",
+         title = paste("drought percentile vs log(AP/MAP) for ", yr)) 
+  g5
+  g5b <- g5 +
+    ggrepel::geom_text_repel(
+      aes(x = log_ap_map, y =  percentile_Drought, label = site_code),
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
+  list(g4, g4b, g5, g5b)
+})
+
+# labeled figures by treatment year for percentiles
 map(trt_years, function(yr) {
   wide_yr1 %>% 
     filter(trt_yr_adj == yr) %>% 
-    mutate(isyear = ifelse(n_treat_days_adj < 365, "< 365", "365 + days")) %>% 
+    mutate(is_trmt_365 = ifelse(n_treat_days_adj < n_treat_days, "No", "Yes")) %>% 
   ggplot() +
     base1+
     geom_hline(yintercept = c(1, 5, 10), linetype = 2, alpha = 0.3, 
                color = c("red", "orange", "yellow")) +
     geom_vline(xintercept = c(20, 80), linetype = 2) +
     geom_point(aes(percentile_Control, percentile_Drought,
-                   shape = isyear, color = isyear)) +
+                   shape = is_trmt_365, color = is_trmt_365)) +
     labs(x = "Control precipitation percentile",
          y = "Drought precipitation percentile",
          title = paste("Percentiles of annual precipitation for ", yr)) +
     ggrepel::geom_text_repel(
       aes(x = percentile_Control, y =  percentile_Drought, label = site_code),
-      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0) +
-    theme(legend.title = element_blank())
+      size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
 })
 
 
@@ -374,10 +517,7 @@ map(trt_years, function(yr) {
 })
 dev.off()
 
-wide_yr1 %>% 
-  filter(trt_yr_adj == "120 + days trt (first yr >= 120 days)") %>% 
-  pull(n_treat_days_adj) %>% 
-  hist()
+
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
@@ -389,11 +529,11 @@ wide2save <- wide_yr1 %>%
          percentile_ambient = percentile_Control,
          percentile_drought = percentile_Drought) %>% 
   # so don't have duplicated rows
-  filter(trt_yr_adj != "120 + days trt (first yr >= 120 days)")
+  filter(trt_yr_adj != yr1_lab)
 
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-07-20.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-07-22.csv"))
 
 
 # checks ------------------------------------------------------------------
