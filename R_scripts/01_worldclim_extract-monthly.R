@@ -42,7 +42,7 @@ wc_ppt1 <- expand_grid(site_code = site_info2$site_code, yr_month = months) %>%
   left_join(site_info2, by = "site_code") %>% 
   mutate(wc_ppt = NA_real_)
 
-month <- months[1]
+
 for (month in months) {
   print(month)
   # load raster
