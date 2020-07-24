@@ -23,40 +23,24 @@ source("R_scripts/functions.R")
 path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
 path_ms <- '~/Dropbox/IDE MS_Single year extreme'
 
-# load tpa precip data -----------------------------------------------------
+# load worldclim monthly precip data --------------------------------------
 
-# tpa data now stored in one folder
+precip1 <- read.csv(file.path(path_ms, "Data/precip", "worldclim_monthly_precip.csv"),
+         as.is = TRUE)
 
-# folder path (fist folder)
-precip_folder1 <- file.path(path_oct, "data/precip/Yearly Precip_TPA/drought_net_trends_tpa")
+# getting monthly
+precip2 <- precip1 %>% 
+  group_by(site_code, year) %>% 
+  summarize(n = n(),
+            totalPRE = sum(wc_ppt)) %>% 
+  filter(n == 12) %>% # only full years (1 month from 2019 provided)
+  select(-n) %>% 
+  ungroup()
 
-file_names1 <- list.files(precip_folder1)
-
-
-precip1 <- lapply(file_names1, function(file_name){
-  print(file_name)
-  read.csv(file.path(precip_folder1, file_name), as.is = TRUE) %>% 
-    dplyr::select(site_code, year, totalPRE)
-})
-
-
-precip3 <- precip1 
-
-# extracting site codes from each file
-site_codes <- sapply(precip3, function(df){
-  # check: all should have one unique site code
-  stopifnot(length(unique(df$site_code)) == 1)
-  
-  sc <- df$site_code[[1]]
-  
-  sc
-})
-
-# nameing list elements (important for indexing later)
-names(precip3) <- site_codes
+precip3 <- split(precip2, precip2$site_code)
 
 
-# load worldclim data -----------------------------------------------------
+# load worldclim map data -----------------------------------------------------
 
 site_info<-read.csv(file.path(path_ms, "Data\\Site_Elev-Disturb.csv"))
 
@@ -68,37 +52,42 @@ latlon <- latlon[!duplicated(latlon$site_code),]
 
 # some norway sites are NA b/ coords on water so adjust lat downward
 to_adjust <- c("lygraint.no", "lygraold.no", "lygrayng.no")
+
 latlon[latlon$site_code %in% to_adjust, ]$latitud <- latlon[latlon$site_code %in% to_adjust, ]$latitud - 0.05
+
 # Get worldclim MAP
 
-for (i in c('01','02','03','04','05','06','07','08','09','10','11','12')){
-  tmp = raster::raster(file.path(path_oct, paste("data\\precip\\wc2.0_30s_prec/wc2.0_30s_prec_",i,'.tif',sep='')))
-  assign(paste('p',i,sep=''),tmp)
+map_files <- list.files(file.path(path_oct, "data\\precip\\wc2.0_30s_prec"),
+                        pattern = "wc2.0_30s_prec", full.names = TRUE)
+
+mat_files <- list.files(file.path(path_ms, "Data\\wc2.1_30s_tavg"),
+                        pattern = "wc2.1_30s_tavg", full.names = TRUE)
+mat_files
+for (i in seq_along(map_files)) {
+  month <- str_extract(map_files[[i]], "(?<=prec_)\\d{2}(?=.tif$)")
+  tmp = raster::raster(map_files[[i]])
+  latlon[[paste0("precip", month)]] <- raster::extract(tmp,latlon[, c("longitud", "latitud")])
 }
 
-latlon$Jan <- raster::extract(p01,latlon[,2:3])
-latlon$Feb <- raster::extract(p02,latlon[,2:3])
-latlon$Mar <- raster::extract(p03,latlon[,2:3])
-latlon$Apr <- raster::extract(p04,latlon[,2:3])
-latlon$May <- raster::extract(p05,latlon[,2:3])
-latlon$Jun <- raster::extract(p06,latlon[,2:3])
-latlon$Jul <- raster::extract(p07,latlon[,2:3])
-latlon$Aug <- raster::extract(p08,latlon[,2:3])
-latlon$Sep <- raster::extract(p09,latlon[,2:3])
-latlon$Oct <- raster::extract(p10,latlon[,2:3])
-latlon$Nov <- raster::extract(p11,latlon[,2:3])
-latlon$Dec <- raster::extract(p12,latlon[,2:3])
+for (i in seq_along(mat_files)) {
+  month <- str_extract(mat_files[[i]], "(?<=tavg_)\\d{2}(?=.tif$)")
+  tmp = raster::raster(mat_files[[i]])
+  latlon[[paste0("tavg", month)]] <- raster::extract(tmp,latlon[, c("longitud", "latitud")])
+}
 
 # checking sites
 # plot(p12, xlim = c(5, 6), ylim = c(60, 61))
 # points(latlon[, 2:3])
-latlon$wc_map <- rowSums(dplyr::select(latlon, Jan:Dec))
 
-stopifnot(all(!is.na(latlon$wc_map))) # run check
+latlon$wc_map <- rowSums(dplyr::select(latlon, matches("precip\\d{2}")))
+latlon$wc_mat <- rowMeans(dplyr::select(latlon, matches("tavg\\d{2}")))
 
-site_info<-merge(site_info,latlon[,c("site_code","wc_map")])
+stopifnot(all(!is.na(latlon$wc_map)),
+          all(!is.na(latlon$wc_mat))) # run check
 
-write_csv(site_info, 
+site_info <- merge(site_info,latlon[,c("site_code","wc_map")])
+
+write_csv(latlon[,c("site_code","wc_map", "wc_mat")], 
           file.path(path_ms, "Data/precip", "worldclim_map.csv"))
 #   -----------------------------------------------------------------------
 
@@ -166,7 +155,7 @@ for (i in 1:nrow(site_ppt2)){
   } else {
     
     tpa_ppt <- precip3[[site_code]]%>% 
-      filter(year > 1964) %>% 
+      #filter(year > 1964) %>% 
       .$totalPRE
     
     site_ppt2$perc_obs[i] <- f(ppt)*100 # convert quantile to percentile
@@ -364,6 +353,7 @@ image_path <- file.path(
   path_ms,
   paste0("Figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
+perc_source <- "WorldClim used to calculate percentiles"
 pdf(image_path,  height = 7, width = 10)
 
 # histograms
@@ -383,11 +373,11 @@ hist(wide_year_one$log_ap_map,
 
 hist(wide_year_one$percentile_Control,
      xlab = "Percentile", 
-     main = "Annual precip percentile (control plots)") 
+     main = paste("Annual precip percentile (control plots).", perc_source)) 
 
 hist(wide_year_one$percentile_Drought,
      xlab = "Percentile", 
-     main = "Annual precip percentile (Drought plots)") 
+     main = paste("Annual precip percentile (Drought plots).", perc_source)) 
 
 g0 <- ggplot(wide_year_one, aes(shape = is_trmt_365, color = is_trmt_365)) +
   labs(caption = "sites with year 1 (365-700 days) data")
@@ -408,7 +398,15 @@ g0+
   labs(xlab = "AP percent of MAP (AP/MAP*100)")+
   geom_point(aes(x = perc_ap_map, y = percentile_Control)) +
   labs(x = perc_ap_map_lab,
-       y = "Control percentile")
+       y = "Control percentile",
+       caption = perc_source) 
+
+g0+
+  labs(xlab = "drough percent of MAP (AP/MAP*100)")+
+  geom_point(aes(x = ppt_Drought/wc_map*100, y = percentile_Drought)) +
+  labs(x = paste("drought", perc_ap_map_lab),
+       y = "Drought percentile",
+       caption = perc_source) 
   
 g0+
   labs(xlab = "AP percent of MAP (AP/MAP*100)")+
@@ -484,7 +482,8 @@ map(trt_years, function(yr) {
                    shape = is_trmt_365, color = is_trmt_365)) +
     labs(x = "Control precipitation percentile",
          y = "Drought precipitation percentile",
-         title = paste("Percentiles of annual precipitation for ", yr)) +
+         title = paste("Percentiles of annual precipitation for ", yr),
+         subtitle = "WordClim used to calculate percentiles") +
     ggrepel::geom_text_repel(
       aes(x = percentile_Control, y =  percentile_Drought, label = site_code),
       size = 3, min.segment.length = unit(0.1, "lines"), angle = 0)
@@ -531,9 +530,9 @@ wide2save <- wide_yr1 %>%
   # so don't have duplicated rows
   filter(trt_yr_adj != yr1_lab)
 
-write_csv(wide2save,
-          file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-07-22.csv"))
+# write_csv(wide2save,
+#           file.path(path_ms, "Data/precip",
+#                     "precip_by_trmt_year_with_percentiles_2020-07-22.csv"))
 
 
 # checks ------------------------------------------------------------------
