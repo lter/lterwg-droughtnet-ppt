@@ -517,6 +517,29 @@ map(trt_years, function(yr) {
 dev.off()
 
 
+# histograms for ESA ------------------------------------------------------
+
+trmt_labs <- c("ppt_Control" = "Control Treatment",
+               "ppt_Drought" = "Drought Treatment")
+# control and drought as percent of MAP
+
+jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6, 
+     width = 4,
+     units = "in",
+     res = 600)
+wide_year_one %>% 
+  ungroup() %>% 
+  select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
+  pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
+               names_to = "trmt",
+               values_to = "ppt") %>% 
+  mutate(perc_ap_map = ppt/wc_map*100) %>% 
+  ggplot(aes(perc_ap_map)) +
+  geom_histogram(color = "black", fill = "dark grey") +
+  facet_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
+  labs(x = "Percent MAP (Annual Precipitation/MAP*100)") 
+dev.off()
+
 # saving the data (csv) ---------------------------------------------------
 
 # write_csv(site_ppt4,
@@ -530,6 +553,7 @@ wide2save <- wide_yr1 %>%
   # so don't have duplicated rows
   filter(trt_yr_adj != yr1_lab)
 
+# have not saved the csv with worldclim percentiles
 # write_csv(wide2save,
 #           file.path(path_ms, "Data/precip",
 #                     "precip_by_trmt_year_with_percentiles_2020-07-22.csv"))
