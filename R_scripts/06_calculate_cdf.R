@@ -25,6 +25,8 @@ path_ms <- '~/Dropbox/IDE MS_Single year extreme'
 
 # load worldclim monthly precip data --------------------------------------
 
+# can get tpa tool data from previous commits. 
+
 precip1 <- read.csv(file.path(path_ms, "Data/precip", "worldclim_monthly_precip.csv"),
          as.is = TRUE)
 
@@ -42,7 +44,7 @@ precip3 <- split(precip2, precip2$site_code)
 
 # load worldclim map data -----------------------------------------------------
 
-site_info<-read.csv(file.path(path_ms, "Data\\Site_Elev-Disturb.csv"))
+site_info <- read.csv(file.path(path_ms, "Data\\Site_Elev-Disturb.csv"))
 
 
 latlon <- site_info[,c('site_code','longitud','latitud')]
@@ -97,7 +99,7 @@ write_csv(latlon[,c("site_code","wc_map", "wc_mat")],
 # this is like a smoothed histogram
 density <- lapply(precip3, function(df){
   ppt <- df %>% 
-    filter(year > 1964) %>% 
+#    filter(year > 1964) %>% 
     .$totalPRE
   d <- density(ppt)
   d
@@ -354,7 +356,7 @@ image_path <- file.path(
   paste0("Figures/precip/ambient_vs_drought_precip_", today(), ".pdf"))
 
 perc_source <- "WorldClim used to calculate percentiles"
-pdf(image_path,  height = 7, width = 10)
+#pdf(image_path,  height = 7, width = 10)
 
 # histograms
 hist(wide_year_one$n_treat_days,
@@ -551,12 +553,17 @@ wide2save <- wide_yr1 %>%
          percentile_ambient = percentile_Control,
          percentile_drought = percentile_Drought) %>% 
   # so don't have duplicated rows
-  filter(trt_yr_adj != yr1_lab)
+  filter(trt_yr_adj != yr1_lab) %>% 
+  mutate(perc_reduction = 100-ppt_drought/ppt_ambient*100)
 
 # have not saved the csv with worldclim percentiles
-# write_csv(wide2save,
-#           file.path(path_ms, "Data/precip",
-#                     "precip_by_trmt_year_with_percentiles_2020-07-22.csv"))
+write_csv(wide2save,
+          file.path(path_ms, "Data/precip",
+                    "precip_by_trmt_year_with_percentiles_2020-07-31.csv"))
+
+
+# examine cutoffs ---------------------------------------------------------
+
 
 
 # checks ------------------------------------------------------------------
@@ -590,16 +597,21 @@ wide2save %>%
 
 wide2save$site_code %>% unique() %>% sort()
 
-# num sites
-wide2save %>% filter(n_treat_days_adj >= 120 & n_treat_days_adj <= 700,
-                     !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
-  pull(site_code) %>% 
-  unique() %>% 
-  length()
-# 82
-wide2save %>% filter(n_treat_days_adj >= 365 & n_treat_days_adj <= 700,
-                     !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
-  pull(site_code) %>% 
-  unique() %>% 
-  length()
-# 65
+# number of unique sites
+unique_sc <- function(df) df %>% pull(site_code) %>% unique() %>% length()
+
+
+n_sites <- expand_grid(min_n_treat_days = c(120, 300, 365, 0),
+                  max_n_treat_days = 700,
+                  min_reduction = c(0, 15, 25),
+                  n_sites = NA)
+
+for(i in 1:nrow(n_sites)) {
+  n_sites$n_sites[i] <- wide2save %>% filter(perc_reduction > n_sites$min_reduction[i], 
+                       n_treat_days >= n_sites$min_n_treat_days[i],
+                       n_treat_days <= n_sites$max_n_treat_days[i],
+                       !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
+    unique_sc()
+}
+n_sites  %>% 
+  arrange(min_n_treat_days, min_reduction)

@@ -45,6 +45,7 @@ precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
 siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
                       as.is = TRUE, na.strings = c("","<NA>", "NA"))
 
+
 # p5 <- newest_file_path(
 #   file.path(path_ms, "Data"),
 #   "anpp_clean_\\d+-\\d+-\\d{4}.csv",
@@ -269,7 +270,7 @@ sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, na.rm = TRUE)
 # else use GHCN data, if both have >30 missing values than put NA and not using
 # sumbitted data if more than 30 days were interpolated
 sites7 <- sites6 %>% 
-  mutate(num_drought_days = ifelse(is.na(num_drought_days_ghcn), 
+  mutate(num_drought_days = ifelse(is.na(num_drought_days_sub), 
                                    num_drought_days_ghcn, 
                                    num_drought_days_sub)) %>% 
   select(-num_drought_days_sub, -num_drought_days_ghcn, 
@@ -345,7 +346,7 @@ dev.off()
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-07-18.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-07-31.csv'))
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 
