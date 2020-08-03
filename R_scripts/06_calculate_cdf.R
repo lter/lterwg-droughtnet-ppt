@@ -562,9 +562,6 @@ write_csv(wide2save,
                     "precip_by_trmt_year_with_percentiles_2020-07-31.csv"))
 
 
-# examine cutoffs ---------------------------------------------------------
-
-
 
 # checks ------------------------------------------------------------------
 
@@ -597,21 +594,37 @@ wide2save %>%
 
 wide2save$site_code %>% unique() %>% sort()
 
-# number of unique sites
-unique_sc <- function(df) df %>% pull(site_code) %>% unique() %>% length()
 
+# unique sites with varying cuttoffs ---------------------------------------
 
 n_sites <- expand_grid(min_n_treat_days = c(120, 300, 365, 0),
                   max_n_treat_days = 700,
                   min_reduction = c(0, 15, 25),
                   n_sites = NA)
 
+sites_list <- n_sites %>% 
+  mutate(site_code = NA_character_) %>% 
+  select(-n_sites) %>% 
+  .[0, ]
 for(i in 1:nrow(n_sites)) {
-  n_sites$n_sites[i] <- wide2save %>% filter(perc_reduction > n_sites$min_reduction[i], 
+   sites <- wide2save %>% filter(perc_reduction > n_sites$min_reduction[i], 
                        n_treat_days >= n_sites$min_n_treat_days[i],
                        n_treat_days <= n_sites$max_n_treat_days[i],
                        !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
-    unique_sc()
+     pull(site_code) %>% 
+     unique() %>% 
+     sort()
+  n_sites$n_sites[i] <- length(sites)
+  df <- n_sites[rep(i, length(sites)), 
+                c('min_n_treat_days', 'max_n_treat_days', 'min_reduction')]
+  df$site_code <- sites
+  sites_list <- bind_rows(sites_list, df)
 }
 n_sites  %>% 
   arrange(min_n_treat_days, min_reduction)
+
+sites_list  %>% 
+  arrange(min_n_treat_days, min_reduction, site_code)
+
+write_csv(sites_list, file.path(path_ms, "Data/precip",
+                     "first_yr_sites_by_cutoff.csv"))
