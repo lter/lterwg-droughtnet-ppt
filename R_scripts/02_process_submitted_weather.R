@@ -853,8 +853,8 @@ all7 <- map2(all7, names(all6), function(x, name){
   x
 })
 
-all7$cap_whitetank_4_20$weather <- all7$cap_whitetank_4_20$weather %>% 
-  rename(precip = PRCP)
+# all7$cap_whitetank_4_20$weather <- all7$cap_whitetank_4_20$weather %>% 
+#   rename(precip = PRCP)
 
 wthr_col_names2 <- c(wthr_col_names, "mean_temp")
 wthr_col_string2 <- wthr_col_names2 %>% sort() %>% paste(collapse = ",")

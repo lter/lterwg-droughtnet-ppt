@@ -53,9 +53,10 @@ latlon <- site_info[,c('site_code','longitud','latitud')]
 latlon <- latlon[!duplicated(latlon$site_code),]
 
 # some norway sites are NA b/ coords on water so adjust lat downward
-to_adjust <- c("lygraint.no", "lygraold.no", "lygrayng.no")
+# doesn't seem to be needed anymore
+#to_adjust <- c("lygraint.no", "lygraold.no", "lygrayng.no")
 
-latlon[latlon$site_code %in% to_adjust, ]$latitud <- latlon[latlon$site_code %in% to_adjust, ]$latitud - 0.05
+#latlon[latlon$site_code %in% to_adjust, ]$latitud <- latlon[latlon$site_code %in% to_adjust, ]$latitud - 0.02
 
 # Get worldclim MAP
 
@@ -78,7 +79,7 @@ for (i in seq_along(mat_files)) {
 }
 
 # checking sites
-# plot(p12, xlim = c(5, 6), ylim = c(60, 61))
+# plot(p12, xlim = c(5, 6), ylim = c(60.4, 60.7))
 # points(latlon[, 2:3])
 
 latlon$wc_map <- rowSums(dplyr::select(latlon, matches("precip\\d{2}")))
@@ -519,28 +520,7 @@ map(trt_years, function(yr) {
 dev.off()
 
 
-# histograms for ESA ------------------------------------------------------
 
-trmt_labs <- c("ppt_Control" = "Control Treatment",
-               "ppt_Drought" = "Drought Treatment")
-# control and drought as percent of MAP
-
-jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6, 
-     width = 4,
-     units = "in",
-     res = 600)
-wide_year_one %>% 
-  ungroup() %>% 
-  select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
-  pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
-               names_to = "trmt",
-               values_to = "ppt") %>% 
-  mutate(perc_ap_map = ppt/wc_map*100) %>% 
-  ggplot(aes(perc_ap_map)) +
-  geom_histogram(color = "black", fill = "dark grey") +
-  facet_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
-  labs(x = "Percent MAP (Annual Precipitation/MAP*100)") 
-dev.off()
 
 # saving the data (csv) ---------------------------------------------------
 
@@ -623,8 +603,35 @@ for(i in 1:nrow(n_sites)) {
 n_sites  %>% 
   arrange(min_n_treat_days, min_reduction)
 
-sites_list  %>% 
+sites_list <- sites_list  %>% 
   arrange(min_n_treat_days, min_reduction, site_code)
 
 write_csv(sites_list, file.path(path_ms, "Data/precip",
                      "first_yr_sites_by_cutoff.csv"))
+
+# histograms for ESA ------------------------------------------------------
+
+trmt_labs <- c("ppt_Control" = "Control Treatment",
+               "ppt_Drought" = "Drought Treatment")
+# control and drought as percent of MAP
+
+jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6, 
+     width = 4,
+     units = "in",
+     res = 600)
+wide_year_one %>% 
+  ungroup() %>% 
+  select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
+  pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
+               names_to = "trmt",
+               values_to = "ppt") %>% 
+  # filtering based on cuttoff
+  filter(site_code %in% (filter(sites_list, min_n_treat_days == 120, min_reduction == 15) %>% 
+           pull(site_code))) %>% 
+  mutate(perc_ap_map = ppt/wc_map*100) %>% 
+  ggplot(aes(perc_ap_map)) +
+  geom_histogram(color = "black", fill = "dark grey") +
+  facet_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
+  labs(x = "Percent MAP (Annual Precipitation/MAP*100)",
+       y = "# of Sites") 
+dev.off()
