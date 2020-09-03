@@ -300,9 +300,9 @@ wide_yr0 <- site_ppt4 %>%
          )
 
 # seperately grouping first year with 365 trmt days
-yr1_lab = "365 + days trt (first yr w/ 365 days trmt)"
+yr1_lab = "120 + days trt (first yr w/ 120 days trmt)"
 wide_yr1 <- wide_yr0 %>% 
-  filter(n_treat_days >= 365 & n_treat_days <= 700) %>% 
+  filter(n_treat_days >= 120 & n_treat_days <= 650) %>% 
   group_by(site_code) %>% 
   filter(n_treat_days_adj == min(n_treat_days_adj)) %>% 
   mutate(trt_yr_adj = yr1_lab) %>% 
@@ -310,13 +310,22 @@ wide_yr1 <- wide_yr0 %>%
   left_join(site_info[, c("site_code", "wc_map")], by = "site_code")
 
 wide_yr1 %>% 
-  filter(is.na(ppt_Drought), !is.na(ppt_Control))
+  filter(is.na(ppt_Control)) %>% 
+  pull(site_code) %>% 
+  unique()
+
+wide_yr1 %>% 
+  filter(!is.na(ppt_Drought)) %>% 
+  pull(site_code) %>% 
+  unique()
 # sites without data
 
-n <- wide_yr1 %>% 
+yr1_sites <- wide_yr1 %>% 
   filter(!is.na(ppt_Control) & !is.na(ppt_Drought),
          trt_yr_adj == yr1_lab) %>% 
-  pull(site_code) %>% 
+  pull(site_code)
+
+n <- yr1_sites %>% 
   unique() %>% 
   length()
 n
@@ -541,7 +550,9 @@ write_csv(wide2save,
           file.path(path_ms, "Data/precip",
                     "precip_by_trmt_year_with_percentiles_2020-07-31.csv"))
 
-
+tibble(site_code = yr1_sites) %>% 
+  write_csv(file.path(path_ms, "Data/precip",
+                      "sites_with_year1_ppt_data.csv"))
 
 # checks ------------------------------------------------------------------
 
@@ -619,15 +630,14 @@ jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6,
      width = 4,
      units = "in",
      res = 600)
-wide_year_one %>% 
+wide_year_one %>%   # filtering based on cuttoff
+  filter(trt_yr_adj == yr1_lab) %>% 
   ungroup() %>% 
   select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
   pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
                names_to = "trmt",
                values_to = "ppt") %>% 
-  # filtering based on cuttoff
-  filter(site_code %in% (filter(sites_list, min_n_treat_days == 120, min_reduction == 15) %>% 
-           pull(site_code))) %>% 
+
   mutate(perc_ap_map = ppt/wc_map*100) %>% 
   ggplot(aes(perc_ap_map)) +
   geom_histogram(color = "black", fill = "dark grey") +
