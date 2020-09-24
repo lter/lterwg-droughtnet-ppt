@@ -14,7 +14,7 @@ path <- '~/Dropbox'
 
 
 bio1 <- read.csv(
-  file.path(path, "IDE MS_Single year extreme/Data/Full_Biomass-SurveyResults_6-19-2020.csv"),
+  file.path(path, "IDE MS_Single year extreme/Data/Full_Biomass-SurveyResults_9-24-2020.csv"),
   as.is = TRUE, na.strings = c("NULL"))
 
 # extract year of measurement
