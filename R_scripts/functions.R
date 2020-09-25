@@ -510,7 +510,7 @@ calc_yearly_precip <- function(site_data, precip_data){
     } else {
       NA
     }
-    is_trt365 <- rep(row$X365day.trt == "Yes" | row$IfNot365.WhenShelterSet == "", nrow(site_ppt2))
+    is_trt365 <- rep(row$X365day.trt == "Yes" | row$IfNot365.WhenShelterSet == "" | is.na(row$X365day.trt), nrow(site_ppt2))
     # some sites say drought X365day.trt == "No" but don't give shelter on/off dates
     # in those cases I just treated them as having year round shelter on.
     site_ppt2 <- site_ppt2 %>% 
