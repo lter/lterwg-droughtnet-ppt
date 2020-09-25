@@ -90,8 +90,9 @@ stopifnot(all(!is.na(latlon$wc_map)),
 
 site_info <- merge(site_info,latlon[,c("site_code","wc_map")])
 
-write_csv(latlon[,c("site_code","wc_map", "wc_mat")], 
-          file.path(path_ms, "Data/precip", "worldclim_map.csv"))
+# write_csv(latlon[,c("site_code","wc_map", "wc_mat")], 
+#           file.path(path_ms, "Data/precip", "worldclim_map.csv"))
+
 #   -----------------------------------------------------------------------
 
 # compute probability density function for each site, based on last 50 years
@@ -274,7 +275,7 @@ wide_yr0 <- site_ppt4 %>%
   group_by(site_code, year, trt) %>% 
   filter(biomass_date == max(biomass_date)) %>% 
   summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
-                    num_drought_days, biomass_date, first_treatment_date),
+                    num_drought_days, biomass_date, first_treatment_date, annual_ppt_used),
                              .funs = list(~mean(., na.rm = TRUE))) %>% 
   group_by(year, site_code) %>% 
   # in cases when different biomass harvest dates (and thus n_treat days) for
@@ -299,6 +300,11 @@ wide_yr0 <- site_ppt4 %>%
                           right = FALSE)
          )
 
+# indicates problem (ie averaged accross different data sources)
+stopifnot(wide_yr0$annual_ppt_used %in% c(0, 1))
+
+wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used)
+
 # seperately grouping first year with 365 trmt days
 yr1_lab = "120 + days trt (first yr w/ 120 days trmt)"
 wide_yr1 <- wide_yr0 %>% 
@@ -322,7 +328,7 @@ wide_yr1 %>%
 
 yr1_sites <- wide_yr1 %>% 
   filter(!is.na(ppt_Control) & !is.na(ppt_Drought),
-         trt_yr_adj == yr1_lab) %>% 
+         trt_yr_adj == yr1_lab, !annual_ppt_used) %>% 
   pull(site_code)
 
 n <- yr1_sites %>% 
@@ -548,7 +554,7 @@ wide2save <- wide_yr1 %>%
 # have not saved the csv with worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-07-31.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-09-24.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",

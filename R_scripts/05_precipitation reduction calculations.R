@@ -68,6 +68,21 @@ p7 <- newest_file_path(
   mdy = TRUE)
 survey1 <- read.csv(p7, as.is = TRUE)
 
+
+# site reported annual ppt ------------------------------------------------
+# sites that didn't provide precip data, but for which annual (calendar year)
+# data was given.
+
+# annual ppt
+appt1 <- read_csv(file.path(path_ms, "Data/precip/SitesMissingPrecip_ReportedMAP.csv"))
+
+appt2 <- appt1 %>% 
+  mutate(annual_ppt = as.numeric(annual_ppt))
+
+# values that don't parse
+appt1$annual_ppt[is.na(appt2$annual_ppt) & !is.na(appt1$annual_ppt)] %>% 
+  unique()
+
 # extract biomass date ----------------------------------------------------
 
 bio2 <- bio1 %>% 
@@ -315,6 +330,8 @@ nrow(anpp2)
 
 theme_set(theme_classic())
 
+
+
 # pdf(file.path(path_oct,
 #               paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
 #              ))
@@ -341,12 +358,39 @@ sites7 %>%
 dev.off()
 
 
+# adding in annual ppt ----------------------------------------------------
 
+sites_full2 <- sites_full1 %>% 
+  # calendar year that best describes prior precip
+  mutate(cal_yr = ifelse(month(biomass_date, abbr = FALSE) > 7, year, year -1),
+         # were treatments applied starting the begining of the calendar year
+         cal_yr_post_trt = ifelse(cal_yr >= year(first_treatment_date) & (biomass_date - first_treatment_date) > 365 , TRUE, FALSE),
+         # is the whole calendar year pre trmt? (or is the important part pre-trt)
+         cal_yr_pre_trt = ifelse(cal_yr < year(first_treatment_date) | biomass_date < first_treatment_date, TRUE, FALSE)) %>% 
+  left_join(appt2[ , c("site_code", "annual_ppt", "year")], 
+            by = c("site_code", "cal_yr" = "year")) %>% 
+  mutate(annual_ppt = ifelse(trt == "Control", annual_ppt, 
+                             ifelse(cal_yr_pre_trt, annual_ppt,
+                                    ifelse(cal_yr_post_trt & trt == "Drought" & (X365day.trt == "Yes"|is.na(X365day.trt)), annual_ppt*(1 - drought_trt),
+                                           NA_real_))),
+         annual_ppt_used = ifelse(is.na(ppt) & !is.na(annual_ppt), TRUE, FALSE),
+         ppt = ifelse(annual_ppt_used, annual_ppt, ppt),
+  )
+  
+  
+   
 
+sites_full2 %>% 
+    filter(annual_ppt_used) %>% 
+  pull(site_code) %>% 
+  unique()
+
+sites_full3 <- sites_full2 %>% 
+  select(names(sites_full1), annual_ppt_used)
 # saving CSV --------------------------------------------------------------
 
-write_csv(sites_full1,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-07-31.csv'))
+write_csv(sites_full3,
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-09-24.csv'))
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 
