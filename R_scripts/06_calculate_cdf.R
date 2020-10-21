@@ -595,7 +595,7 @@ wide2save$site_code %>% unique() %>% sort()
 # unique sites with varying cuttoffs ---------------------------------------
 
 n_sites <- expand_grid(min_n_treat_days = c(120, 300, 365, 0),
-                  max_n_treat_days = 700,
+                  max_n_treat_days = 650,
                   min_reduction = c(0, 15, 25),
                   n_sites = NA)
 
@@ -607,7 +607,7 @@ for(i in 1:nrow(n_sites)) {
    sites <- wide2save %>% filter(perc_reduction > n_sites$min_reduction[i], 
                        n_treat_days >= n_sites$min_n_treat_days[i],
                        n_treat_days <= n_sites$max_n_treat_days[i],
-                       !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
+                       !is.na(ppt_ambient), !is.na(ppt_drought), !annual_ppt_used) %>% 
      pull(site_code) %>% 
      unique() %>% 
      sort()
@@ -636,18 +636,24 @@ jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6,
      width = 4,
      units = "in",
      res = 600)
-wide_year_one %>%   # filtering based on cuttoff
-  filter(trt_yr_adj == yr1_lab) %>% 
+
+df_for_hist <- wide_year_one %>%   # filtering based on cuttoff
+  filter(trt_yr_adj == yr1_lab, !annual_ppt_used) %>% 
   ungroup() %>% 
   select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
   pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
                names_to = "trmt",
                values_to = "ppt") %>% 
+  mutate(perc_ap_map = ppt/wc_map*100)
 
-  mutate(perc_ap_map = ppt/wc_map*100) %>% 
-  ggplot(aes(perc_ap_map)) +
+ggplot(df_for_hist, aes(perc_ap_map)) +
   geom_histogram(color = "black", fill = "dark grey") +
   facet_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
   labs(x = "Percent MAP (Annual Precipitation/MAP*100)",
        y = "# of Sites") 
 dev.off()
+
+# mean percent ap map
+df_for_hist %>% 
+  group_by(trmt) %>% 
+  summarize(perc_ap_map = mean(perc_ap_map, na.rm = TRUE))
