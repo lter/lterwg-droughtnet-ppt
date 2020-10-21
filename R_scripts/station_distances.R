@@ -1,11 +1,10 @@
 # Distances between weather stations and IDE sites
 
-# This script is meant to look at the distances of GHCN stations to sites
-# (ie those auto downloaded using rnoaa and those ) vs distances to sites
-# of PI submitted stations. 
-# If coordinates are good enough also calculate different between GHCN stations
-# and PI submitted stations (in some cases the station auto selected will be 
-# the same as the station provided by PI).
+# this script has been updated--the question it answers is: what is the 
+# distance from site to station for the weather stations used?
+
+# earlier version (see commit history) pulled in distances from survey
+# questionnare
 
 # script started 9/28/19
 
@@ -13,332 +12,118 @@
 # packages etc ------------------------------------------------------------
 
 library(tidyverse)
+library(lubridate)
+source("R_scripts/functions.R")
 theme_set(theme_classic())
 
-
 # directory to may 2019 meeting folder
-path_may <- "E:/Dropbox/IDE Meeting_May2019"
-path_oct <- "E:/Dropbox/IDE Meeting_Oct2019"
+path <- "~/Dropbox"
+
 
 # load data ---------------------------------------------------------------
 
-# survey of who has access to weather station data etc.
-# NOTE: this is not the newest version of file (newest doesn't yet have site_codes)
-survey1 <- read.csv(file.path(path_oct, "Full Biomass/SurveyResults_10-01-2019_SiteswithData.csv"),
-                    as.is = TRUE,
-                    encoding = "UTF-8")
+# from 06_calculate_cdf.R
+p1 <- newest_file_path(
+  path = file.path(path,'IDE MS_Single year extreme/Data/precip'),
+  file_regex = 'precip_by_trmt_year_with_percentiles_\\d{4}-\\d+-\\d+.csv' 
+)
 
-# ghcn data gotten via rnoaa for sites where it was available. 
-ghcn_data1 <- read.csv(file.path(path_oct, 'data/precip/GHCN_daily_precip_2019-10-01.csv'),
-                       as.is = TRUE)
+wide2save <- read_csv(p1)
 
-# info on all the sites 
-site_elev1 <-read.csv(file.path(path_oct, 'IDE Site Info/Site_Elev-Disturb_UPDATED_10-01-2019.csv'),
-                    as.is = TRUE)
+# from 05_precipitation reduction calculations.R
+p2 <- newest_file_path(
+  file.path(path, 'IDE Meeting_Oct2019/data/precip'),
+  "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
 
-# metadata for all ghcnd stations.
-stations <- read.csv(file.path(path_may, 'IDE Site Info/GHCND_Stations.csv'), 
-                     as.is = TRUE)
+sites_full3 <- read_csv(p2)
 
-# process survey ----------------------------------------------------------
+# ghcn data (for distances)
+p3 <- newest_file_path(
+  path = file.path(path, 'IDE Meeting_Oct2019/data/precip'),
+  file_regex = 'GHCN_daily_precip_\\d{4}-\\d+-\\d+.csv' 
+)
 
-head(survey1)
-names(survey1)
-survey2 <- survey1 %>% 
-  rename(
-    site_name = SiteSurvey,
-    pi = What.is.the.PI.s.name.,
-    site_coords = What.are.your.site.s.coordinates.,
-    station_access = Do.you.have.access.to.daily.weather.data.for.your.site.from.a.weather.station.,
-    station_coords = What.are.the.coordinates.for.your.weather.station.,
-    elev_diff = What.is.the.approximate.elevation.difference..m..from.the.closest.weather.station.to.your.site.,
-    distance = What.is.the.approximate.distance..km..from.the.closest.weather.station.to.your.site.,
-    station_id = Provide.the.station.code..if.applicable.,
-    source = What.is.the.source.of.your.daily.weather.) %>% 
-  select(site_code, site_name, site_coords, pi, station_access, distance,
-         station_coords, elev_diff, source, station_id, Comments)
+ghcn1 <- read_csv(p3)
 
-survey2 %>% 
-  filter(!site_code %in% site_elev1$site_code) %>% 
-  select(site_name)
+# submitted station data
+# from 02_process_submitted_weather.R
 
-# no decimal included in the coords, but not sure what correct value should be 
-# survey2[survey2$site_code == "torla.es", ]$station_coords <- "74.1213  47.25902"
+p4 <- newest_file_path(
+  path = file.path(path, 'IDE Meeting_Oct2019/data/precip'),
+  file_regex = 'submitted_weather_station_info_\\d{4}-\\d+-\\d+.csv' 
+)
 
-# parsing the lat/longitude
-survey3 <- survey2 %>% 
-  mutate(
-    # is it in decimal degree format?
-    dec_deg = str_detect(
-      station_coords, 
-      "^[^0-9]*[0-9]{1,3}[,.][0-9]+[^0-9]+[0-9]{1,3}[,.][0-9]+[^0-9]*$"),
-    station_lat = ifelse(
-      dec_deg, 
-      str_extract(station_coords, "^[^0-9]*[0-9]{1,3}[,.][0-9]+"),
-      NA),
-    station_lon = ifelse(
-      dec_deg, 
-      str_extract(station_coords, "[^0-9]+[0-9]{1,3}[,.][0-9]+[^0-9]*$"),
-      NA),
-    station_lat = station_lat %>% 
-      str_replace_all(",",".") %>% 
-      str_replace_all("^[^-0-9]+", "")%>% 
-      str_replace_all("[^-0-9]+$", ""),
-    station_lon = station_lon %>% 
-      str_replace_all(",",".") %>% 
-      str_replace_all("^[^-0-9]+", "") %>% 
-      str_replace_all("[^-0-9]+$", ""),
-    lon_deg = station_coords %>% 
-      str_extract("[0-9]+[^°0-9]*°[^°]+$") %>% 
-      str_extract("[0-9]+"),
-    lon_min = station_coords %>% 
-      str_extract("°[^°]*[0-9]+[^°]*$") %>% 
-      str_extract("[0-9]+"),
-    lon_sec = station_coords %>% 
-      str_extract("°[^°]*[0-9]+[^°]+[0-9.]+[^°]*$") %>% 
-      str_extract("[0-9.]+[^0-9]+$") %>% 
-      str_extract("[0-9.]+"),
-    lat_deg = station_coords %>% 
-      str_extract("^.*[0-9]+[^°]*°") %>% 
-      str_extract("[0-9]+"),
-    lat_min = station_coords %>% 
-      str_extract("°[^°]*[0-9]+") %>% 
-      str_extract("[0-9]+"),
-    lat_sec = station_coords %>% 
-      str_replace("[0-9]+[^°0-9]*°[^°]+$", "") %>% # getting rid of lon
-      str_extract("°[^°]*[0-9]+[^°]+[0-9.]+") %>% 
-      str_extract("[0-9.]+$")
-  ) %>% 
-  select(matches("coord"), matches("lat_"), matches("lon_"),  
-         matches("station_"), everything())
+sub_stn1 <- read_csv(p4)
 
-# parsing distance
-survey3$distance_cor <- survey3$distance %>% 
-  str_replace(",", "\\.") %>% 
-  str_extract("\\d+\\.*\\d*") %>% 
-  as.numeric()
+# determine sites/yrs used -----------------------------------------------
 
-mile <- survey3$distance %>% 
-  str_detect("mile")
-
-meter <- survey3$distance %>% 
-  str_detect(., "[^a-z]meter|(\\d|\\s)m(?!i)")
-
-distance <- 
-  ifelse(mile, 
-         survey3$distance_cor*1.6, 
-         ifelse(meter,
-                survey3$distance_cor/1000,
-                survey3$distance_cor
-  ))
-
-# check if parsed correctly
-# cbind(distance, survey3$distance) %>% View()
-
-# sites that say "on site"
-distance[str_detect(survey3$distance, "[Oo]n\\s*site") & is.na(survey3$distance_cor)] <- 0
-
-distance[distance == 2018] # date interpreted as distance
-
-
-distance[distance == 2018] <- NA
-
-survey4 <- survey3
-survey4$distance <- distance
-
-survey4 <- survey4 %>% 
-  select(-distance_cor) %>% 
-  mutate(lat_ns = ifelse(dec_deg,
-                         NA,
-                         str_extract(station_coords, "[NnSs]")), 
-         lon_we = ifelse(dec_deg,
-                         NA,
-                         str_extract(station_coords, "[WsEd]")),
-         lon_we = ifelse(site_code == "matador.ca", "W", lon_we), # not entered originally
-         lon_we = ifelse(site_code == "rhijn.nl", "E", lon_we),
-         lat_ns = ifelse(site_code == "rhijn.nl", "N", lat_ns),
-         # if seconds not give, assuming is 0
-         lat_sec = ifelse(is.na(lat_sec) & !is.na(lat_deg), 0, lat_sec),
-         lon_sec = ifelse(is.na(lon_sec) & !is.na(lon_deg), 0, lat_sec),
-         ) %>% 
-  mutate_at(.vars = vars(lat_deg, lat_min, lat_sec, lon_deg, lon_min, lon_sec),
-            .funs = as.numeric) %>% 
-  mutate(
-    station_lat = ifelse(
-      is.na(station_lat) & !is.na(lat_deg),
-      biogeo::dms2dd(lat_deg, lat_min, lat_sec, lat_ns),
-      station_lat),
-    station_lon = ifelse(
-      is.na(station_lon) & !is.na(lon_deg),
-      biogeo::dms2dd(lon_deg, lon_min, lon_sec, lon_we),
-      station_lon)) %>%
-  select(station_coords, station_lat, station_lon, everything())
-
-# lat/lon not provided in way it could be parsed above:
-survey4[survey4$site_code %in% c("ethadb.au", "ethadn.au"),]$station_lat <- 
-  biogeo::dms2dd(23, 40.780, 0, "S")
-
-survey4[survey4$site_code %in% c("ethadb.au", "ethadn.au"),]$station_lon <- 
-  biogeo::dms2dd(138, 26.011, 0, "E")
-
-# double check lat/lon calculated for all. 
-survey4 %>% 
-  filter(is.na(station_coords) & (is.na(station_lat) | is.na(station_lon)))
-
-survey4 <- survey4 %>% 
-  mutate(station_lat = str_replace_all(station_lat, " ", "") %>% 
-           as.numeric(),
-         station_lon = str_replace_all(station_lon, " ", "") %>% 
-           as.numeric()
-         )
-
-# process ghcn data -------------------------------------------------------
-
-first <- function(x){
-  # return the first value of a vector, assuming all elements are the same
-  stopifnot(
-    is.vector(x),
-    length(unique(x)) == 1
-  )
-  x[1]
-}
-
-# getting ghcn station for each site:
-ghcn_stations1 <- ghcn_data1 %>% 
-  select(id:diff_elevation) %>% 
+# site and year criteria used for 1 year ms extreme paper. 
+# this could be improved by pulling in specific list of sites used from Kate
+site_yrs <- wide2save %>% 
+  filter(n_treat_days > 120 & n_treat_days < 650, perc_reduction > 15,
+         !annual_ppt_used) %>% 
   group_by(site_code) %>% 
-  summarise_all(.funs = first) %>% 
-  rename(ghcn_id = id, dist_ghcn_site = distance, ghcn_elev = station_elevation,
-         site_elev = site_elevation, elev_diff_ghcn_site = diff_elevation)
-
-stations2 <- stations %>% 
-  filter(element == "PRCP") %>% 
-  select(id:name) %>% 
-  group_by(id) %>% 
-  summarise_all(.funs = first)
-
-# joining in station metadata
-ghcn_stations2 <- ghcn_stations1 %>% 
-  left_join(stations2, by  = c("ghcn_id" = "id")) %>% 
-  rename(ghcn_lat = latitude, ghcn_lon = longitude, ghcn_name = name) %>% 
-  select(-state, - elevation)
+  filter(year == min(year)) %>% 
+  ungroup() %>% 
+  select(site_code, year)
 
 
-# process site data -------------------------------------------------------
+# source of data ----------------------------------------------------------
 
-site_elev2 <- site_elev1 %>% 
-  select(site_name:longitud, elev) %>% 
-  rename(site_lat = latitud, site_lon = longitud, site_elev = elev)
-
-
-# combine tables ----------------------------------------------------------
-
-# check--shouldn't be any rows
-anti_join(ghcn_stations2, site_elev2, by = "site_code") 
-
-
-missing <- anti_join(survey4, site_elev2, by = "site_code") %>% 
-  select(site_code) %>% 
-  filter(!str_detect(site_code, "data")) %>% 
-  pull() 
-missing
-
-if(length(missing > 1)) {
-  warning("not all sites from survey are in the site_elev file")
-}
-  
-# site and station info
-site_stn1 <- ghcn_stations2 %>% 
-  select(-site_elev) %>% 
-  right_join(site_elev2, by = "site_code")
-names(site_stn1)
-
-names(survey4)
-
-# pi_stn is meant to denote pi selected weather station
-site_stn2 <- survey4 %>% 
-  rename(pi_stn_lat = station_lat, 
-         pi_stn_lon = station_lon,
-         pi_stn_id = station_id,
-         pi_stn_access = station_access,
-         elev_diff_site_pi_stn = elev_diff,
-         dist_site_pi_stn = distance,
-         pi_stn_coords = station_coords
-         ) %>% 
-  select(site_code, matches("pi_stn")) %>% 
-  right_join(site_stn1, by = "site_code")
-
-
-
-# calculated distances ----------------------------------------------------
-
-# distance between GHCN selected station and pi specified station
-site_stn2$dist_ghcn_pi_stn <- geosphere::distHaversine(
-  p1 = as.matrix(site_stn2[, c("pi_stn_lon", "pi_stn_lat")]),
-  p2 = as.matrix(site_stn2[, c("ghcn_lon", "ghcn_lat")])
-)/1000 #(convert m to km)
-
-
-# sanity checks -----------------------------------------------------------
-
-missing_ghcn <- site_stn2 %>% 
-  filter(is.na(ghcn_lat) & (pi_stn_access == "Yes")) %>% 
-  select(site_code) %>% 
-  pull()
-
-
-missing_ghcn # sites that can provide data but we didn't GHCN data for. 
-
-# number of sites we should at least in theory be able to get station data for
-site_stn2 %>% 
-  filter(!is.na(ghcn_lat) | (pi_stn_access == "Yes")) %>% 
-  .$site_code %>% 
-  length()
-
-
-# saving data -------------------------------------------------------------
-
-site_stn3 <- site_stn2
-
-# write_csv(site_stn3, 
-#           file.path(path_oct, "data/precip/station_distances_2019-10-01.csv"))
-
-# figures -----------------------------------------------------------------
-
-
-caption <- paste0("Figure generated in station_distances.R script on ", 
-                  lubridate::today())
-
-# pdf(file.path(path_oct, "figures/precip/station_distances_2019-10-01.pdf"),
-#     height = 5, width = 8)
-
-ggplot(site_stn3) + 
-  geom_point(aes(dist_ghcn_site, dist_site_pi_stn, size = dist_ghcn_pi_stn),
-             alpha = 0.5) +
-  geom_abline(slope = 1, intercept = 1) +
-  labs(x = "Distance (IDE site to GHCN station, km)",
-       y = "Distance (IDE site to PI selected station, km)",
-       title = "Distances between IDE sites and weather stations",
-       subtitle = "Coordinates of PI selected stations is from Survey",
-       caption = caption)+
-  guides(size=guide_legend(title="Distance (PI station to GHCN)"))
-
-ggplot(site_stn3) + 
-  geom_histogram(aes(dist_ghcn_site), bins = 20) +
-  labs(x = "Distance (IDE site to GHCN station, km)",
-       title = "Distances between IDE sites and GHCN (automatically selected) stations",
-       caption = caption) 
-
-ggplot(site_stn3) + 
-  geom_histogram(aes(dist_site_pi_stn), bins = 20) +
-  labs(x = "Distance (IDE site to PI selected station, km)",
-       title = "Distances between IDE sites and PI selected stations",
-       subtitle = "Distances are from Survey",
-       caption = caption)+
-  coord_cartesian(xlim = c(0, max(site_stn3$dist_ghcn_site, na.rm = TRUE)))
+# ghcn or submitted data used
+source_used <- sites_full3 %>% 
+  filter(!annual_ppt_used, !is.na(ppt)) %>% 
+  # approx equality check
+  mutate(ghcn_used = abs(ppt - ppt_ghcn) < 0.0001,
+         ghcn_used = ifelse(is.na(ghcn_used), FALSE, ghcn_used),
+         year = year(biomass_date)) %>% 
+  group_by(year, site_code) %>% 
+  summarize(ghcn_used = mean(ghcn_used),
+            ghcn_used = as.logical(ghcn_used)) %>% 
+  right_join(site_yrs, by = c("site_code", "year"))
   
 
+# ghcn distances ----------------------------------------------------------
 
-dev.off()
+# at this point the original ghcn code was writting to just pull
+# data from one wx station. If that were to change then we'd want to
+# change this code to get station specific distances. 
+ghcn2 <- ghcn1 %>% 
+  group_by(site_code) %>% 
+  summarize(ghcn_dist = mean(distance))
 
 
+# submitted distances -----------------------------------------------------
+# distances to stations from submitted wx
+sub_stn2 <- sub_stn1 %>% 
+  filter(!is.na(distance), site_code != "unknown") 
+
+sub_stn2 %>% 
+  group_by(site_code) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+
+sub_stn3 <- sub_stn2 %>% 
+  group_by(site_code) %>% 
+  # to be conservative taking the farther station if two stations given
+  summarize(sub_dist = max(distance))
+
+
+# combine distances -------------------------------------------------------
+
+dist1 <- source_used %>% 
+  ungroup() %>% 
+  left_join(ghcn2, by = "site_code") %>% 
+  left_join(sub_stn3, by = "site_code") %>% 
+  mutate(distance = ifelse(ghcn_used, ghcn_dist, sub_dist))
+
+
+# summary -----------------------------------------------------------------
+
+summary(dist1$distance)
+filter(dist1, distance == max(distance, na.rm = TRUE))
+
+hist(dist1$distance)
+
+plot(sub_dist ~ ghcn_dist, data = dist1)
+abline(a = 0, b = 1)
