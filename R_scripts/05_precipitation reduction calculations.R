@@ -390,7 +390,7 @@ sites_full3 <- sites_full2 %>%
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-09-24.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-11-05.csv'))
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 

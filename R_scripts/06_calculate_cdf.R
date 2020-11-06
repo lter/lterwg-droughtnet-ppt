@@ -554,7 +554,7 @@ wide2save <- wide_yr1 %>%
 # have not saved the csv with worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-09-24.csv"))
+                    "precip_by_trmt_year_with_percentiles_2020-11-05.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",
