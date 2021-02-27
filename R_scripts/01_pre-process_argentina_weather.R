@@ -17,8 +17,8 @@ library(lubridate)
 source("R_scripts/functions.R")
 
 
-path_may <- "E:/Dropbox/IDE Meeting_May2019"
-path_oct <- 'E:/Dropbox/IDE Meeting_Oct2019'
+path_may <- "~/Dropbox/IDE Meeting_May2019"
+path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
 
 # load data ---------------------------------------------------------------
 
@@ -155,6 +155,9 @@ temp2 <- map(temp1, function(df){
   as_tibble()
 })
 temp2$metadata <- temp1$metadata
+
+# saving for use in other scripts
+saveRDS(temp2, file.path(path_may, "IDE_weather/IDE_weather_template.RDS"))
 
 n <- length(sites$site)
 
