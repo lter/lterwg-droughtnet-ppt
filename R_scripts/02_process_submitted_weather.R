@@ -230,7 +230,7 @@ all2$ECN_Wytham$weather <- ecn_weather2 %>%
          min_temp = `MinofAirtempminimum[C]`,
          mean_temp = `AverageofAirtempAv[C]`,
          note_weather = DataQualityComment) %>% 
-  select(wthr_col_names)
+  select(all_of(wthr_col_names))
 
 # station sheet
 all2$ECN_Wytham$metadata <- template$metadata
@@ -451,7 +451,7 @@ all4$SonoraAgrilifeResearchStation$station <-
          site = all4$SonoraAgrilifeResearchStation$sites$site,
          station_name = station_id, # station name not given so using this
          note_station = NA) %>% 
-  select(stn_col_names) # just keeping normal columns
+  select(all_of(stn_col_names)) # just keeping normal columns
 
 #GCN_Suihua
 
@@ -621,6 +621,7 @@ stn4 <- stn3 %>%
                            distance/1000, # m to km
                            distance),
          elev = str_replace(elev, "(?<![A-z])m(?![A-z])", ""), # ok to just remove m
+         elev = str_replace(elev, "^138-176$", "157"), # just picking middle value
          elev = as.numeric(elev)
          ) %>% 
   select(-is_dist_m)
@@ -803,8 +804,8 @@ all6$SonoraAgrilifeResearchStation$weather  <- son_wthr1 %>%
   summarise(precip = sum(precip, na.rm = TRUE),  # converting sub daily to daily
             min_temp = min(temp, na.rm = TRUE),
             max_temp = max(temp, na.rm = TRUE),
-            note_weather = NA) %>% 
-  ungroup()
+            note_weather = NA, 
+            .groups = "drop")
 
 # cusack_panama (monthly data)
 
@@ -820,6 +821,7 @@ pan_wthr3 <- monthly2daily_precip(pan_wthr2, "year", "month", "precip",
                                   station_name = TRUE)
 
 # daily data taken as monthly mean value
+# I think warnings here are ok (duplicated dates, because multiple stations)
 pan_wthr3$min_temp  <- monthly2daily_temp(pan_wthr2, "year", "month", "min_temp")
 pan_wthr3$max_temp  <- monthly2daily_temp(pan_wthr2, "year", "month", "max_temp")
 pan_wthr3$note_weather <- "Values of temp and precip taken from Monthly values"
@@ -867,6 +869,9 @@ check_names_in_list(
 
 
 # weather table--correct data types ------------------------------------------
+
+# I'm not sure what the 'T' flag means
+all7$BFL_SLP$weather$precip[all7$BFL_SLP$weather$precip == "T"] <- NA
 
 # for converting col types
 parse_wthr_cols <- function(x) {
@@ -927,8 +932,8 @@ wthr1 <- extract_elements_2df(all8, element = "weather")
 wthr1 %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
   group_by(file_name) %>% 
-  summarise(n = n()) %>% 
-  ungroup()
+  summarise(n = n(),
+            .groups = "drop")
 
 
 # cimpozuelos ~~~~~~~~~~~
@@ -1015,8 +1020,8 @@ all8$gmdrc_4_20$weather$station_name <- unique(all8$gmdrc_4_20$station$station_n
 missing_date_name <- extract_elements_2df(all8, element = "weather") %>% 
   filter(is.na(date)| is.na(station_name)) %>% 
   group_by(file_name) %>% 
-  summarise(n = n()) %>% 
-  ungroup()
+  summarise(n = n(),
+            .groups = "drop") 
 
 if(nrow(missing_date_name) > 0) {
   warning("some files still missing date/station_names")
@@ -1160,8 +1165,12 @@ names(station_issues)
 
 # fixing individual sites:
 
+# site name used instead of station name so correcting
+all10$baoku$weather$station_name <- all10$baoku$station$station_name 
+
+
 # sites where just spelling between the two sheets 
-# (put weather sheet version in station sheet). 
+# (put weather sheet version in station sheet).
 
 # manually checked that these name swaps make sense
 dif_spell <- c('IMGERS', 'EEA_Ufrgs', 'GCN_Suihua', 'Lamb_Oct112_19')
@@ -1307,7 +1316,7 @@ gig_wthr1 <- left_join(gig_barb, gig_bci, by = "date", suffix = c("_1", "_2")) %
          max_temp = max_temp_2,
          mean_temp = mean_temp_2,
          note_weather = paste("Temp from BCI Station. ", note_weather_1)) %>% 
-  select(wthr_col_names2)
+  select(all_of(wthr_col_names2))
 
 # adding back in the 'barbacoa' data with temp from BCI added in
 all11$Cusack_Panama$weather <- all11$Cusack_Panama$weather %>%
@@ -1414,8 +1423,9 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          'Las Chilcas' = 'chilcasdrt.ar',
                          'San Pablo Valdes' = 'spvdrt.ar',
                          'EEA_Ufrgs' = 'eea.br',
+                         "Elva" = "elvadrt.ee",
                          'GCN-Suihua' = "unknown",# biomass still needs to be entered
-                         'Gigante' = 'unknown',
+                         # 'Gigante' = 'gigante.pa',
                          'gmdrc_granitecove' = 'gmgranite.us',
                          'gmdrc_molarjunction' = 'gmmolar.us',
                          "Haverøya" = 'haver.no', 
@@ -1425,15 +1435,12 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          "Lygra_intermediate" = 'lygraint.no',
                          "Lygra_old" = 'lygraold.no',
                          "meadow_Stubai" = "stubai.at",
-                         'NP' = 'nplatte.us',
-                         'P12' = 'unknown', # biomass still needs to be entered
-                         'P13' = 'unknown',# biomass still needs to be entered
+                         "NP" = "nplatte.us",
                          'Prades' = 'prades.es',
                          'sev_black' = 'sevblack.us',
                          'sev_blue' = 'sevblue.us',
                          'sev_mixed' = "sevmixed.us",  
-                         "Skotsvær" = "unkown", #norway
-                         'ShermanCrane' = 'unknown',# biomass still needs to be entered
+                         "Skotsvær" = "skotsvar.no", #norway
                          "Store Buøya" = 'buoya.no', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown" # haven't sent in bio data
@@ -1457,13 +1464,15 @@ stn6 %>%
   filter(is.na(site_code)) %>% 
   .$site
 
+wrong_site_code <- stn6$site_code[!stn6$site_code %in% site_name_code$site_code] %>% 
+  .[.!= "unknown"]
+if(length(wrong_site_code) != 0) warning("some incorrect site codes")
+
 if(any(is.na(stn6$site_code))) warning("some site codes NA")
 
 # merge into master file df -------------------------------------------------
 all12 <- all11
 
-keep(all12, function(l) any(l$site$site %in% x)) %>% 
-  map(function(l) l$site)
 # now putting stn table back into the lists
 all12 <- map2(all12, names(all12), function(x, name) {
   x$station <- stn6[stn6$file_name == name, ]
@@ -1573,8 +1582,16 @@ dup_site_dates3 <- all_wthr2 %>%
   ) %>% 
   filter(n_dup > 0)
 
+# note one possible cause of failing this check is that
+# new data was submitted by a PI but it includes the data range of the 
+# previously submitted data. In that case move the older submitted
+# data to the "old" folder so it isn't read in by this script
+if(nrow(dup_site_dates3) > 0) {
+  warning("duplicated dates still present") 
+} else {
+  message("check passed")
+}
 
-if(nrow(dup_site_dates3) > 0) warning("duplicated dates still present")
 
 
 # saving CSVs -------------------------------------------------------------
@@ -1583,12 +1600,12 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 write_csv(all_wthr_2save,
-          file.path(path_oct, "data/precip/submitted_daily_weather_2020-06-29.csv"))
+          file.path(path_oct, "data/precip/submitted_daily_weather_2021-03-02.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 write_csv(stn2save,
-          file.path(path_oct, "data/precip/submitted_weather_station_info_2020-06-29.csv"))
+          file.path(path_oct, "data/precip/submitted_weather_station_info_2021-03-02.csv"))
   

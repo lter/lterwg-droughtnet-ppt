@@ -43,7 +43,8 @@ precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
 # reading in site/anpp date data ---------------------------------------
 
 siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
-                      as.is = TRUE, na.strings = c("","<NA>", "NA"))
+                      as.is = TRUE, na.strings = c("","<NA>", "NA")) %>% 
+  as_tibble()
 
 
 # p5 <- newest_file_path(
@@ -58,7 +59,7 @@ p6 <- newest_file_path(
   file.path(path_ms, "Data"),
   "full_biomass_\\d+-\\d+-\\d{4}.csv",
   mdy = TRUE)
-
+p6
 bio1 <- read.csv(p6, as.is = TRUE)
 
 # survey info
@@ -66,6 +67,7 @@ p7 <- newest_file_path(
   file.path(path_ms, "Data"),
   "Survey_\\d+-\\d+-\\d{4}.csv",
   mdy = TRUE)
+p7
 survey1 <- read.csv(p7, as.is = TRUE)
 
 
@@ -76,6 +78,7 @@ survey1 <- read.csv(p7, as.is = TRUE)
 # annual ppt
 appt1 <- read_csv(file.path(path_ms, "Data/precip/SitesMissingPrecip_ReportedMAP.csv"))
 
+# look at next line for explanation of parsing failurs
 appt2 <- appt1 %>% 
   mutate(annual_ppt = as.numeric(annual_ppt))
 
@@ -100,12 +103,42 @@ siteDrt_B <- siteDrt_A %>%
   mutate(drought_trt = str_replace(drought_trt, "%", ""),
          drought_trt = as.numeric(drought_trt)/100)
 
+# 
+siteDrt_A %>% 
+  filter(is.na(siteDrt_B$drought_trt)) %>% 
+  select(site_code, drought_trt)
+
 # b/ didn't parse above
 siteDrt_B$drought_trt[siteDrt_B$site_code == "elizwood.us"] <- 0.5
+
+# b/ not yet updated in data by time of running this code
+siteDrt_B$drought_trt[siteDrt_B$site_code == "sand.us"] <- 0.3
+
+# 
+siteDrt_A %>% 
+  filter(is.na(siteDrt_B$drought_trt)) %>% 
+  select(site_code, drought_trt)
+
+# We're only using control data for brandjberg.dk and stubai.at
+# so ok if they're NA
+if(any(is.na(siteDrt_B$drought_trt) & 
+       ! siteDrt_B$site_code %in% c("brandjberg.dk","stubai.at"))) {
+  warning("some drought_trt values missing")
+}
 
 # cleaning anpp file -------------------------------------------------------
 
 anpp2 <- bio2
+
+is_empty <- function(x) {
+  out <- is.na(x) | x == ""
+  out
+}
+
+# if no indication given that shelter removed then i'm assuming it wasn't
+anpp2$X365day.trt[is_empty(anpp2$X365day.trt) & 
+                    is_empty(anpp2$IfNot365.WhenShelterRemove) &
+                    is_empty(anpp2$IfNot365.WhenShelterSet)] <- "Yes"
 
 is_mdy <- str_detect(anpp2$first_treatment_date, "\\d{1,2}/\\d{1,2}/\\d{4}")         
 
@@ -159,10 +192,12 @@ anpp3 <- siteDrt_B %>%
 # on/off dates ------------------------------------------------------------
 
 # these sites just provided text in the set/remove fields
-on_off_dates <- tibble(site_code = c("cedarsav.us", "cedarsav.us", "cedartrait.us", 
-                     "cedartrait.us"),
-       on = c("2017-04-27", "2018-05-05", "2017-04-27", "2018-05-05"),
-       off = c("2017-09-21", "2018-09-25", "2017-09-20","2018-09-11"),
+on_off_dates <- tibble(site_code = c("cedarsav.us", "cedarsav.us", "cedarsav.us", "cedartrait.us", 
+                     "cedartrait.us", "cedartrait.us"),
+       on = c("2017-04-27", "2018-05-05", "2019-04-30", 
+              "2017-04-27", "2018-05-05", "2019-05-2"),
+       off = c("2017-09-21", "2018-09-25", "2019-09-25",
+               "2017-09-20","2018-09-11", "2019-09-24"),
        year = year(on))
 
 
@@ -201,6 +236,8 @@ anpp3$IfNot365.WhenShelterRemove[rem_date] <-
   paste(day(.), month(., label = TRUE)) %>% 
   str_extract("\\d+\\s[A-z]+$")
 
+
+
 # ghcn data ---------------------------------------------------------------
 
 precip1 <- precip %>% 
@@ -237,6 +274,20 @@ options(warn=1) # print warnings as they occur
 sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
                                   precip_data = precip1)
 
+# for diagnosing problems
+# sites with parsing failures when calculating yearly ppt from ghcn data
+ghcn_probs <- c("antelope.us", "bfl.us", "elizwood.us", "jrnchi.us", 
+                "nnss.us", "octc.us", "sevmixed.us",  "slp.us")
+
+
+site_data = sites2_forghcn %>% 
+  filter(site_code %in% ghcn_probs[1])
+precip_data = precip1 %>% 
+  filter(site_code %in% ghcn_probs[1])
+
+anpp3 %>% 
+  filter(site_code %in% ghcn_probs, !is.na(X365day.trt)) 
+# end diagnosing problems
 
 # calculating using submitted data
 wthr2 <- wthr1 %>% 
@@ -245,10 +296,7 @@ wthr2 <- wthr1 %>%
 # STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
 sites2_forsubmitted <- sites2 %>%
   filter(site_code %in% wthr2$site_code,
-         site_code != "pozos.ar") %>% 
-  mutate(X365day.trt = ifelse(is.na(X365day.trt), "Yes", X365day.trt))
-
-
+        !is.na(bioDat))
 
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
@@ -378,8 +426,9 @@ sites_full2 <- sites_full1 %>%
   )
   
   
-   
-
+  
+# I think this is a problem, using annual ppt is questionable at best
+# use a gridded product instead?
 sites_full2 %>% 
     filter(annual_ppt_used) %>% 
   pull(site_code) %>% 
@@ -390,10 +439,15 @@ sites_full3 <- sites_full2 %>%
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2020-11-05.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2021-03-02.csv'))
+
+
+# checks ------------------------------------------------------------------
+
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 
   pull(site_code) %>% 
   unique()
+
 

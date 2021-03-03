@@ -171,8 +171,10 @@ for (i in 1:nrow(site_ppt2)){
   }
 }
 
-# any tpa data missing for location with precip data?
-# --if yes then need to download the tpa data
+# worldlclim data missing for location with precip data?
+#  rerun 01_worldclim_extract-monthly.R, but the worldclim rasters
+# are needed to do this (and they're not on dropbox b/ too big)
+# I'm not worrying about this at the moment because 
 site_ppt2 %>% 
   filter(!is.na(ppt) & is.na(perc_obs)) %>% 
   .$site_code %>% 
@@ -296,14 +298,17 @@ wide_yr0 <- site_ppt4 %>%
   spread(key = "key", value = "value") %>% 
   as_tibble() %>% 
   mutate(trt_yr_adj = cut(n_treat_days, c(-10000, 1, 365, 700, 10000), 
-                          labels = c("pre-trt", "< 365 days trt", "365 - 700 days trt", "700 + trt days"),
+                          labels = c("pre-trt", "< 365 days trt", 
+                                     "365 - 700 days trt", 
+                                     "700 + trt days"),
                           right = FALSE)
          )
 
 # indicates problem (ie averaged accross different data sources)
+# STOP--fix this problem
 stopifnot(wide_yr0$annual_ppt_used %in% c(0, 1))
 
-wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used)
+wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used) 
 
 # seperately grouping first year with 365 trmt days
 yr1_lab = "120 + days trt (first yr w/ 120 days trmt)"
@@ -331,10 +336,17 @@ yr1_sites <- wide_yr1 %>%
          trt_yr_adj == yr1_lab, !annual_ppt_used) %>% 
   pull(site_code)
 
+wide_yr1 %>% 
+  dplyr::filter(trt_yr_adj == yr1_lab, !is.na(ppt_Control), annual_ppt_used) %>% 
+  pull(site_code) %>% 
+  unique()
+  
+
 n <- yr1_sites %>% 
   unique() %>% 
   length()
 n
+
 wide_yr1b <- wide_yr1 %>% 
   mutate(
     # percent annual precip is of MAP
@@ -420,7 +432,7 @@ g0+
        caption = perc_source) 
 
 g0+
-  labs(xlab = "drough percent of MAP (AP/MAP*100)")+
+  labs(xlab = "drought percent of MAP (AP/MAP*100)")+
   geom_point(aes(x = ppt_Drought/wc_map*100, y = percentile_Drought)) +
   labs(x = paste("drought", perc_ap_map_lab),
        y = "Drought percentile",
@@ -554,7 +566,7 @@ wide2save <- wide_yr1 %>%
 # have not saved the csv with worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2020-11-05.csv"))
+                    "precip_by_trmt_year_with_percentiles_2021-03-02.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",

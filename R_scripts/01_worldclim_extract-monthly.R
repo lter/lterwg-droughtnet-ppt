@@ -9,10 +9,12 @@ library(tidyverse)
 
 # paths -------------------------------------------------------------------
 
-# this is the only path that should need to be updated for a specific computer
+# Note I have removed the monthly worldclim data 
+# from the dropbox folder because it is huge
+# it is currently just living on my external drive.
+
 path_dropbox <- '~/Dropbox'
 
-path_oct <- file.path(path_dropbox, 'IDE Meeting_Oct2019')
 path_ms <- file.path(path_dropbox, 'IDE MS_Single year extreme')
 
 
@@ -27,7 +29,8 @@ site_info2 <- site_info1 %>%
 
 # extract precip ----------------------------------------------------------
 
-folders <- list.files(path = file.path(path_ms, "Data/precip"), 
+
+folders <- list.files("D:/Not on computer/worldclim_can_delete", 
                       full.names = TRUE) %>% 
   .[str_detect(., "wc2.1_2.5m_prec(?!.+zip$)")]
 

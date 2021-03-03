@@ -100,7 +100,7 @@ for(j in unique(latlon$site_code)){
   
 write.csv(
   wcOut, 
-  file.path(path_oct, 'data/precip/submitted_daily_weather_WC_supplemented_2020-06-29.csv')
+  file.path(path_oct, 'data/precip/submitted_daily_weather_WC_supplemented_2021-03-02.csv')
   )
 
 setwd(old_dir)

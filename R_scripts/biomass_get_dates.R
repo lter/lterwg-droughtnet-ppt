@@ -8,14 +8,20 @@
 library(tidyverse)
 library(stringr)
 library(lubridate)
+source("R_scripts/functions.R")
 
-# path to data folders
+# path to dropbox folder
 path <- '~/Dropbox'
 
+# grabbing newest file
+p1 <- newest_file_path(
+  path =  file.path(path, "IDE MS_Single year extreme/Data"),
+  file_regex = "Full_Biomass-SurveyResults_\\d{1,2}-\\d{1,2}-\\d{4}.csv",
+  mdy = TRUE)
 
-bio1 <- read.csv(
-  file.path(path, "IDE MS_Single year extreme/Data/Full_Biomass-SurveyResults_9-24-2020.csv"),
-  as.is = TRUE, na.strings = c("NULL"))
+p1
+
+bio1 <- read.csv(p1, as.is = TRUE, na.strings = c("NULL"))
 
 # extract year of measurement
 # pozos.ar doesn't have biomass date. 

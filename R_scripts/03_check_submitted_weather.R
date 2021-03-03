@@ -13,6 +13,7 @@
 # packages etc ------------------------------------------------------------
 
 library(tidyverse)
+library(lubridate)
 source("R_scripts/functions.R")
 path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
 path <- "~/Dropbox"
@@ -169,7 +170,10 @@ annual
 
 # sites suspected to be in inches--need to confirm
 
-inches <- c("thompson.us", "oklah.us")
+inches <- c("thompson.us", "oklah.us", "bfl.us", "slp.us")
+
+#cm <- c("dang.cn") # originally I thought this site might be in cm, doesn't
+# look like it based on other years
 
 wthr4 <- wthr3 %>% 
   mutate(precip = ifelse(site_code %in% inches,
@@ -193,7 +197,7 @@ wthr4 %>%
 
 dest <- file.path(
   path_oct,
-  "data/precip/submitted_daily_weather_bad_vals_removed_2020-06-29.csv")
+  "data/precip/submitted_daily_weather_bad_vals_removed_2021-03-02.csv")
 
-# write_csv(wthr4, dest)
+write_csv(wthr4, dest)
   
