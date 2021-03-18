@@ -46,15 +46,6 @@ siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"),
                       as.is = TRUE, na.strings = c("","<NA>", "NA")) %>% 
   as_tibble()
 
-
-# p5 <- newest_file_path(
-#   file.path(path_ms, "Data"),
-#   "anpp_clean_\\d+-\\d+-\\d{4}.csv",
-#   mdy = TRUE)
-# 
-# anpp1 <- read.csv(p5, as.is = TRUE)
-# head(anpp1)
-
 p6 <- newest_file_path(
   file.path(path_ms, "Data"),
   "full_biomass_\\d+-\\d+-\\d{4}.csv",
@@ -103,7 +94,7 @@ siteDrt_B <- siteDrt_A %>%
   mutate(drought_trt = str_replace(drought_trt, "%", ""),
          drought_trt = as.numeric(drought_trt)/100)
 
-# 
+# Look at parsing failures
 siteDrt_A %>% 
   filter(is.na(siteDrt_B$drought_trt)) %>% 
   select(site_code, drought_trt)
@@ -142,18 +133,37 @@ anpp2$X365day.trt[is_empty(anpp2$X365day.trt) &
 
 is_mdy <- str_detect(anpp2$first_treatment_date, "\\d{1,2}/\\d{1,2}/\\d{4}")         
 
-anpp2$dummy_date <- ymd("1900-01-01")      
-anpp2$dummy_date[is_mdy] <- mdy(anpp2$first_treatment_date[is_mdy])
-anpp2$dummy_date[!is_mdy] <- ymd(anpp2$first_treatment_date[!is_mdy])
+# converting dates to characters so subseting type issues don't arise
+anpp2$dummy_date <- NA_character_ 
+anpp2$dummy_date[is_mdy] <- mdy(anpp2$first_treatment_date[is_mdy]) %>% 
+  as.character()
+anpp2$dummy_date[!is_mdy] <- ymd(anpp2$first_treatment_date[!is_mdy]) %>% 
+  as.character
 
 # in the end results will be joined back in
 anpp2 <- anpp2 %>% 
   select(-first_treatment_date) %>% 
   rename(first_treatment_date = dummy_date) %>% 
-  # parsing failures because one biomass date entered as "2017"
-  mutate(biomass_date = ymd(biomass_date))
+  mutate(biomass_date = ifelse(
+    str_detect(biomass_date, "\\d{1,2}/\\d{1,2}/\\d{4}"),
+    as.character(mdy(biomass_date)),
+    ifelse(str_detect(biomass_date, "\\d{4}/\\d{1,2}/\\d{1,2}"),
+           as.character(ymd(biomass_date)),
+           # other date pattern (e.g. just year)
+           NA_character_)),
+    biomass_date = as.Date(biomass_date),
+    first_treatment_date = as.Date(first_treatment_date))
 
-filter(anpp2, is.na(biomass_date))
+# check that date parsing failurs were really justified (ie year only given)
+bad_dates <- bio2[is.na(anpp2$biomass_date), ]$biomass_date
+
+
+if(!all(str_detect(bad_dates, "^\\d{4}$"))) {
+  warning("unjustified date parsing issues")
+  print(bad_dates)
+}
+
+
 # sites that don't have "Control"
 no_control <- anpp2 %>% 
   group_by(site_code) %>% 
@@ -274,20 +284,6 @@ options(warn=1) # print warnings as they occur
 sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
                                   precip_data = precip1)
 
-# for diagnosing problems
-# sites with parsing failures when calculating yearly ppt from ghcn data
-ghcn_probs <- c("antelope.us", "bfl.us", "elizwood.us", "jrnchi.us", 
-                "nnss.us", "octc.us", "sevmixed.us",  "slp.us")
-
-
-site_data = sites2_forghcn %>% 
-  filter(site_code %in% ghcn_probs[1])
-precip_data = precip1 %>% 
-  filter(site_code %in% ghcn_probs[1])
-
-anpp3 %>% 
-  filter(site_code %in% ghcn_probs, !is.na(X365day.trt)) 
-# end diagnosing problems
 
 # calculating using submitted data
 wthr2 <- wthr1 %>% 
