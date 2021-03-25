@@ -139,7 +139,7 @@ write_lines(metadata,  file.path(
 
 write_csv(mly2, file.path(
   path, "IDE MS_Single year extreme/Data/precip",
-  "worldclim_monthly_ppt_tavg_by_site.csv" 
+  "worldclim_mean_monthly_ppt_tavg_by_site.csv" 
 ))
 
 write_csv(seas1, file.path(
