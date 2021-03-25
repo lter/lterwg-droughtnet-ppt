@@ -820,3 +820,29 @@ discard_dup_station_data <- function(df, primary, secondary, other_cols = FALSE)
   out <- bind_rows(df_comb, df_other)
   out
 }
+
+
+# seasonality_index -------------------------------------------------------
+
+seasonality_index <- function(x){
+  # args:
+  #   x--monthly precipitation
+  # returns:
+  #   precipitation seasonality index, as defined here:
+  #  https://esdac.jrc.ec.europa.eu/public_path/shared_folder/projects/DIS4ME/indicator_descriptions/rainfall_seasonality.htm
+  #  derived by Walsh and Lawler (1981)
+  #   note: this is best when calculated for each year, and then an average
+  #   it is not as good to calculate it with average monthly precipitation
+  stopifnot(length(x) == 12)
+  Ri <- sum(x) # annual precipitation
+  SI <- sum(abs(x - Ri/12))/Ri
+  SI
+}
+
+# example
+if (FALSE) {
+  # less variable
+  seasonality_index(rnorm(12, mean = 10, sd = 2))
+  # more variable
+  seasonality_index(rnorm(12, mean = 10, sd = 4))
+}
