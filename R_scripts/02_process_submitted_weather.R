@@ -500,7 +500,7 @@ station_rows_complete <- map_lgl(all5, function(x){
 names(all5[!station_rows_complete])
 
 # viewing the data
-map(all5[!station_rows_complete], function(x) x$station)
+# map(all5[!station_rows_complete], function(x) x$station)
 
 # filling in blank site name
 all5$Ciempozuelos$station$site[2] <- all5$Ciempozuelos$station$site[1]
@@ -597,7 +597,7 @@ stn3 <- stn2 %>%
   ) %>% 
   mutate_at(vars(station_latitud, station_longitud),
             .funs = as.numeric) %>% 
-  select(stn_col_names, "file_name") # just keeping the main cols
+  select(all_of(stn_col_names), "file_name") # just keeping the main cols
 
 # CHECK: shouldn't be any NAs in lat/lon if parsed correctly--other than the 8 GCN sites
 stn3 %>% 
@@ -1443,7 +1443,8 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          "Skotsvær" = "skotsvar.no", #norway
                          "Store Buøya" = 'buoya.no', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
-                         'Tovetorp' = "unknown" # haven't sent in bio data
+                         'Tovetorp' = "unknown", # haven't sent in bio data
+                         'Wupatki' = 'antelope.us'
 )
 # sites that I  couldn't find a code for
 not_matching_lookup[not_matching_lookup == "unknown"] %>% 

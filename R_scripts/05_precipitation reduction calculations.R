@@ -147,7 +147,7 @@ anpp2 <- anpp2 %>%
   mutate(biomass_date = ifelse(
     str_detect(biomass_date, "\\d{1,2}/\\d{1,2}/\\d{4}"),
     as.character(mdy(biomass_date)),
-    ifelse(str_detect(biomass_date, "\\d{4}/\\d{1,2}/\\d{1,2}"),
+    ifelse(str_detect(biomass_date, "\\d{4}/\\d{1,2}/\\d{1,2}|\\d{4}-\\d{1,2}-\\d{1,2}"),
            as.character(ymd(biomass_date)),
            # other date pattern (e.g. just year)
            NA_character_)),

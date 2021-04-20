@@ -311,9 +311,9 @@ stopifnot(wide_yr0$annual_ppt_used %in% c(0, 1))
 wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used) 
 
 # seperately grouping first year with 365 trmt days
-yr1_lab = "120 + days trt (first yr w/ 120 days trmt)"
+yr1_lab = "113 + days trt (first yr w/ 113 days trmt)"
 wide_yr1 <- wide_yr0 %>% 
-  filter(n_treat_days >= 120 & n_treat_days <= 650) %>% 
+  filter(n_treat_days >= 113 & n_treat_days <= 657) %>% 
   group_by(site_code) %>% 
   filter(n_treat_days_adj == min(n_treat_days_adj)) %>% 
   mutate(trt_yr_adj = yr1_lab) %>% 
@@ -606,8 +606,8 @@ wide2save$site_code %>% unique() %>% sort()
 
 # unique sites with varying cuttoffs ---------------------------------------
 
-n_sites <- expand_grid(min_n_treat_days = c(120, 300, 365, 0),
-                  max_n_treat_days = 650,
+n_sites <- expand_grid(min_n_treat_days = c(113, 300, 365, 0),
+                  max_n_treat_days = 657,
                   min_reduction = c(0, 15, 25),
                   n_sites = NA)
 
