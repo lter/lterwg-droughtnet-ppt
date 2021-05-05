@@ -45,7 +45,7 @@ webdav_path="/vsicurl/https://files.isric.org/soilgrids/latest/data/"
 # i think safe to assume lat/lon are in this format
 spdata <- st_as_sf(site2,coords = c("longitud", "latitud"), crs = 4326)
 
-# reproject to homolosine 
+# reproject to homolosine (projection that the soil data is in)
 igh <- '+proj=igh +lat_0=0 +lon_0=0 +datum=WGS84 +units=m +no_defs'
 spdata_igh <- st_transform(spdata, igh)
 
@@ -68,6 +68,55 @@ fun_pixel_values=function(rowPX,data,VOI,VOI_LYR){
 
 # looping through each site for 0-5cm depths
 # units are per thousand
+# I'm not sure why many of these are NAs
 sand05_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
                        VOI = voi, VOI_LYR = voi_layer)
+voi_layer <- paste(voi, "5-15cm", layer, sep = "_")
+sand15_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
+                       VOI = voi, VOI_LYR = voi_layer)
 
+voi_layer <- paste(voi, "5-15cm", layer, sep = "_")
+sand15_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
+                       VOI = voi, VOI_LYR = voi_layer)
+
+voi_layer <- paste(voi, "15-30cm", layer, sep = "_")
+sand30_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
+                       VOI = voi, VOI_LYR = voi_layer)
+
+voi_layer <- paste(voi, "30-60cm", layer, sep = "_")
+sand60_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
+                       VOI = voi, VOI_LYR = voi_layer)
+
+voi_layer <- paste(voi, "60-100cm", layer, sep = "_")
+sand100_vals <- map_dbl(1:nrow(data_igh), fun_pixel_values, data = data_igh,
+                       VOI = voi, VOI_LYR = voi_layer)
+
+# replace negative values with NA
+replace_neg <- function(x) ifelse(x < 0, NA, x)
+
+site3 <- site2 %>% 
+  mutate(sand0_5 = sand05_vals,
+         sand5_15 = sand15_vals,
+         sand15_30 = sand30_vals,
+         sand30_60 = sand60_vals,
+         sand60_100 = sand100_vals) %>% 
+  mutate_at(.vars = vars(matches("sand")),
+            .funs = replace_neg) %>% 
+  rowwise() %>% 
+  mutate(sand_mean = stats::weighted.mean(
+    x = c(sand0_5, sand5_15, sand15_30,sand30_60, sand60_100), 
+    # weighted by the cm of depth
+    w = c(5, 10, 15, 30, 40),
+    na.rm = TRUE),
+    sand_mean = ifelse(is.nan(sand_mean), NA, sand_mean)) %>% 
+  select(site_code, sand_mean, everything(), -longitud, -latitud) %>% 
+  # convert to percent
+  mutate_if(.predicate = is.numeric,
+            .fun = list(function(x) x/10))
+
+
+# save file ---------------------------------------------------------------
+
+write_csv(site3,
+          file.path(path, "IDE MS_Single year extreme/Data",
+                    "site_sand_from_soilgrid.csv"))
