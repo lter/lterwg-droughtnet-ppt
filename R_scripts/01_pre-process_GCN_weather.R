@@ -17,7 +17,7 @@ library(lubridate)
 
 source("R_scripts/functions.R")
 
-path_may <- "E:/Dropbox/IDE Meeting_May2019"
+path_may <- "~/Dropbox/IDE Meeting_May2019"
 
 
 # read in files -----------------------------------------------------------
