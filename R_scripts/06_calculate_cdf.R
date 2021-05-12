@@ -566,11 +566,38 @@ wide2save <- wide_yr1 %>%
 # have not saved the csv with worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2021-03-02.csv"))
+                    "precip_by_trmt_year_with_percentiles_2021-05-12.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",
                       "sites_with_year1_ppt_data.csv"))
+
+
+# testing ######################
+
+mis_sites <- c("credoj.au",
+               "credom.au",
+               "dang.cn",
+               "guaribas.br",
+               "matta.il",
+              "passogavia.it",
+               "yanchi.cn",
+              " youyu.cn",
+              "lcnorth.cl", 
+             "lcsouth.cl",
+              "qdtnorth.cl",  
+              "qdtsouth.cl")
+
+mis_sites[! mis_sites %in% wide2save$site_code]
+
+wide2save %>% 
+  filter(site_code %in% mis_sites) %>% 
+  View()
+
+wide2save %>% 
+  filter(str_detect(site_code, ".cn$")) %>% 
+  pull(site_code)
+# end testing ################
 
 # checks ------------------------------------------------------------------
 

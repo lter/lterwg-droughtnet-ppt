@@ -74,8 +74,25 @@ appt2 <- appt1 %>%
   mutate(annual_ppt = as.numeric(annual_ppt))
 
 # values that don't parse
-appt1$annual_ppt[is.na(appt2$annual_ppt) & !is.na(appt1$annual_ppt)] %>% 
+no_parse <- appt1$annual_ppt[is.na(appt2$annual_ppt) & !is.na(appt1$annual_ppt)] %>% 
   unique()
+
+# shouldn't be any numbers in unparsed values
+stopifnot(!str_detect(no_parse, "\\d+")) 
+
+
+appt2 <- appt2 %>% 
+  distinct() # duplicated rows present
+
+# match exactly 4 digits (i.e. note made about the year)
+# in all but one case these notes are about ppt not actually being for 
+# the entire year
+four_dig <- str_detect(appt2$note_climate, "(?<!\\d)\\d{4}(?!\\d+)") 
+
+appt2$annual_ppt[four_dig & 
+                   # excluding one site where note isn't about incomplete ppt
+                   !str_detect(appt2$note_climate, "change that occurred in 2018") 
+                 & !is.na(appt2$note_climate)] <- NA
 
 # extract biomass date ----------------------------------------------------
 
@@ -435,7 +452,7 @@ sites_full3 <- sites_full2 %>%
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2021-03-02.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2021-05-12.csv'))
 
 
 # checks ------------------------------------------------------------------
