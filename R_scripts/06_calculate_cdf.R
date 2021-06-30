@@ -141,6 +141,14 @@ site_ppt2 <- site_ppt %>%
          first_treatment_date = ymd(first_treatment_date))
 
 
+# sites for pub fig -------------------------------------------------------
+
+# site list for sites to be included in histogram of site % MAP
+
+sites95 <- read_csv(file.path('~/Dropbox/IDE MS_Single year extreme',
+                              "Data/95sites.csv"))
+
+
 # calculating percentiles given annual precip --------------------------------
 
 for (i in 1:nrow(site_ppt2)){
@@ -677,7 +685,8 @@ jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6,
      res = 600)
 
 df_for_hist <- wide_year_one %>%   # filtering based on cuttoff
-  filter(trt_yr_adj == yr1_lab, !annual_ppt_used) %>% 
+  filter(trt_yr_adj == yr1_lab, !annual_ppt_used, 
+         site_code %in% sites95$site_code) %>% 
   ungroup() %>% 
   select(site_code, year, ppt_Drought, ppt_Control, wc_map) %>% 
   pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
@@ -685,11 +694,15 @@ df_for_hist <- wide_year_one %>%   # filtering based on cuttoff
                values_to = "ppt") %>% 
   mutate(perc_ap_map = ppt/wc_map*100)
 
+breaks <- seq(from = 0, to = 200, by = 10)
+
 ggplot(df_for_hist, aes(perc_ap_map)) +
-  geom_histogram(color = "black", fill = "dark grey") +
-  facet_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
+  geom_histogram(color = "black", fill = "dark grey", breaks = breaks) +
+  lemon::facet_rep_wrap(~trmt, ncol = 1, labeller = as_labeller(trmt_labs)) +
   labs(x = "Percent MAP (Annual Precipitation/MAP*100)",
-       y = "# of Sites") 
+       y = "# of Sites") +
+  theme_classic() +
+  theme(strip.background = element_blank())
 dev.off()
 
 # mean percent ap map
