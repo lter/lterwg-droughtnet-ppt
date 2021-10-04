@@ -376,7 +376,7 @@ sites_full1 <- sites7 %>%
   select(-matches("\\.(x|y)$")) 
 
 # should be true 
-nrow(sites_full1)==nrow(anpp2)
+stopifnot((nrow(sites_full1)==nrow(anpp2)) == TRUE)
 
 # sites where GHCN used for at least 1 year
 sites_full1 %>% 

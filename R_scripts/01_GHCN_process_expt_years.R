@@ -130,8 +130,10 @@ nearest_df <- bind_rows(nearest)
 
 # data frame of precip data from nearest station to each site
 # see functions.r file for details
+# set refresh = TRUE if want it to re-download everything, not used
+# cached data (use this if haven't run the code in a long time)
 precip <- ghcn_download_parse(nearest_df, return_list = TRUE,
-                              config = httr::verbose()) 
+                              config = httr::verbose(), refresh = TRUE) 
 
 precipFull <- lapply(precip, ghcn_parse_dates)
 
@@ -197,7 +199,8 @@ precipFull2 <- lapply(precipFull, function(df){
     # start at row 2 b/ row 1 (closes station), already pulled above
     for (i in 2:nrow(near)){ 
       # download data
-      tmp1 <- ghcn_download_parse(near[i, ], return_list = FALSE) 
+      tmp1 <- ghcn_download_parse(near[i, ], return_list = FALSE,
+                                  refresh = TRUE) 
       tmp2 <- ghcn_parse_dates(tmp1) # parse
       tmp3 <- tmp2 %>% 
         filter(year %in% years) # filter years for experiment

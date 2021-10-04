@@ -146,7 +146,7 @@ site_ppt2 <- site_ppt %>%
 # site list for sites to be included in histogram of site % MAP
 
 sites95 <- read_csv(file.path('~/Dropbox/IDE MS_Single year extreme',
-                              "Data/95sites.csv"))
+                              "Data/97sites.csv"))
 
 
 # calculating percentiles given annual precip --------------------------------
@@ -161,7 +161,7 @@ for (i in 1:nrow(site_ppt2)){
   f <-cdf1[[site_code]]
   
   if(is.null(f)){
-    warning(paste("no tpa data was available for:", site_code))
+    warning(paste("no data was available for:", site_code))
     site_ppt2$perc_obs[i] <- NA
     site_ppt2$perc_norm[i] <- NA
   } else {
@@ -182,11 +182,15 @@ for (i in 1:nrow(site_ppt2)){
 # worldlclim data missing for location with precip data?
 #  rerun 01_worldclim_extract-monthly.R, but the worldclim rasters
 # are needed to do this (and they're not on dropbox b/ too big)
-# I'm not worrying about this at the moment because 
-site_ppt2 %>% 
+out <- site_ppt2 %>% 
   filter(!is.na(ppt) & is.na(perc_obs)) %>% 
   .$site_code %>% 
   unique()
+
+if(length(out) > 0) {
+  warning("worldclim data not extracted for the following sites:\n", out)
+
+}
 
 # figures -----------------------------------------------------------------
 
@@ -313,7 +317,6 @@ wide_yr0 <- site_ppt4 %>%
          )
 
 # indicates problem (ie averaged accross different data sources)
-# STOP--fix this problem
 stopifnot(wide_yr0$annual_ppt_used %in% c(0, 1))
 
 wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used) 
@@ -571,7 +574,7 @@ wide2save <- wide_yr1 %>%
   filter(trt_yr_adj != yr1_lab) %>% 
   mutate(perc_reduction = 100-ppt_drought/ppt_ambient*100)
 
-# have not saved the csv with worldclim percentiles
+# this includes the  worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
                     "precip_by_trmt_year_with_percentiles_2021-05-12.csv"))
@@ -599,8 +602,7 @@ mis_sites <- c("credoj.au",
 mis_sites[! mis_sites %in% wide2save$site_code]
 
 wide2save %>% 
-  filter(site_code %in% mis_sites) %>% 
-  View()
+  filter(site_code %in% mis_sites) 
 
 wide2save %>% 
   filter(str_detect(site_code, ".cn$")) %>% 
@@ -673,7 +675,7 @@ sites_list <- sites_list  %>%
 write_csv(sites_list, file.path(path_ms, "Data/precip",
                      "first_yr_sites_by_cutoff.csv"))
 
-# histograms for ESA ------------------------------------------------------
+# histograms for publication--------------------------------------------------
 
 trmt_labs <- c("ppt_Control" = "Control Treatment",
                "ppt_Drought" = "Drought Treatment")
