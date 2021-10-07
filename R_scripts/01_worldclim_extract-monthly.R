@@ -72,3 +72,10 @@ wc_ppt2
 write_csv(wc_ppt2, 
           file.path(path_ms, "Data/precip", "worldclim_monthly_precip.csv"))
 
+# data check
+
+# no sites should have NAs
+wc_ppt2 %>% 
+  filter(is.na(wc_ppt)) %>% 
+  pull(site_code) %>% 
+  unique()

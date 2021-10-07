@@ -41,6 +41,14 @@ precip2 <- precip1 %>%
 
 precip3 <- split(precip2, precip2$site_code)
 
+# calculate and save inter-annual CV
+
+cv <- precip2 %>% 
+  group_by(site_code) %>% 
+  summarise(map = mean(totalPRE),
+            cv = sd(totalPRE)/map*100)
+
+write_csv(cv, file.path(path_ms, "Data/precip", "worldclim_interannual_cv.csv"))
 
 # load worldclim map data -----------------------------------------------------
 

@@ -6,6 +6,9 @@
 # (this is means of daily average temp) from each site
 # and then calculate various precipitation seasonality metrics
 
+# note this code could be re-done so that it uses the worldclim_monthly_precip.csv
+# file (ppt for each month/site since the 1960s)
+
 # dependencies ------------------------------------------------------------
 
 library(tidyverse)
