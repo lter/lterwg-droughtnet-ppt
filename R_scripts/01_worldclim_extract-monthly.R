@@ -26,10 +26,22 @@ site_info1 <- read.csv(file.path(path_ms, "Data\\Site_Elev-Disturb.csv"),
 site_info2 <- site_info1 %>% 
   select(site_code, latitud, longitud)
 
+# sites that Baoku emailed
+new_site_df <- tribble(
+  ~site_code, ~latitud, ~longitud,
+  "maodeng.cn", 44.1, 116.28,
+  "siziwang.cn", 41.8, 111.9,
+  "taihang.cn", 37.5244, 114.155
+)
+
+# if any of new sites are in the site_info they don't need to be added
+stopifnot(!new_site_df %in% site_info2$site_code)
+
+site_info2 <- bind_rows(site_info2, new_site_df)
 
 # extract precip ----------------------------------------------------------
 
-
+# these files are on my toshiba external drive
 folders <- list.files("D:/Not on computer/worldclim_can_delete", 
                       full.names = TRUE) %>% 
   .[str_detect(., "wc2.1_2.5m_prec(?!.+zip$)")]
@@ -75,7 +87,11 @@ write_csv(wc_ppt2,
 # data check
 
 # no sites should have NAs
-wc_ppt2 %>% 
+missing <- wc_ppt2 %>% 
   filter(is.na(wc_ppt)) %>% 
   pull(site_code) %>% 
   unique()
+if(length(missing) > 0) {
+  warning("some sites have missing data")
+  print(missing)
+}

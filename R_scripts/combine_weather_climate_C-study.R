@@ -28,6 +28,10 @@ sites1 <- readxl::read_xlsx(file.path(
 site_codes <- sites1$`Site codes`[!is.na(sites1$`Site codes`)] %>% 
   unique()
 
+new_sites <- c("maodeng.cn", "siziwang.cn", "taihang.cn") # new sites Baoku wanted data for
+
+site_codes <- unique(c(site_codes, new_sites))
+
 # * submitted weather data ------------------------------------------------
 # compiled/cleaned weather data submitted by PIs
 
@@ -99,6 +103,14 @@ wthr1$site_code %>%
 
 # clean climate data ------------------------------------------------------
 
+# check
+missing_sites <- site_codes[!site_codes %in% clim1$site_code]
+
+if(length(missing_sites) > 0) {
+  warning("climate data not present for the following sites:\n",
+          paste(missing_sites, collapse = "\n"))
+}
+
 # calculate annual data
 clim2 <- clim1 %>% 
   filter(site_code %in% site_codes) %>% 
@@ -111,7 +123,7 @@ clim2 <- clim1 %>%
 
 clim2$site_code %>% 
   unique() %>% 
-  length() # 21 sites have data
+  length() # 25 sites have data
 
 # save data ---------------------------------------------------------------
 
@@ -123,3 +135,5 @@ write_csv(wthr1,
 
 write_csv(clim2, 
           file.path(path, "IDE_data_May 2018/BaokuData/climate_C-study.csv"))
+
+
