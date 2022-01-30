@@ -12,7 +12,7 @@
 
 # packages etc ------------------------------------------------------------
 
-library(tidyverse)
+library(tidyverse, warn.conflicts = FALSE)
 library(lubridate)
 source("R_scripts/functions.R")
 path_oct <- "~/Dropbox/IDE Meeting_Oct2019"

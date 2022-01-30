@@ -5,9 +5,7 @@
 
 # script started 9/30/19
 
-# WORK IN PROGRESS--
-
-# once finished this script is meant to:
+#  this script is meant to:
 
 # 1 Load each spreadsheet
 # 2a Check whether appropriate sheets (site, station, weather) are present
@@ -1200,6 +1198,11 @@ all10$SantaCruzLow$weather$station_name %>% unique()
 
 all10$SantaCruzLow$weather$station_name <- 
   all10$SantaCruzLow$station$station_name
+
+# SERDP
+all10$SERDP_clean$weather$station_name <- all10$SERDP_clean$weather$station_name %>% 
+  str_replace("Boise - KBOI", "Boise_KBOI") %>% 
+  str_replace("Jornada HQ", "Jornada Headquarters")
 
 # check station names now rectified:
 
