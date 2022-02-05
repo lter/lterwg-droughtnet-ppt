@@ -152,13 +152,9 @@ site_ppt2 <- site_ppt %>%
 # sites for pub fig -------------------------------------------------------
 
 # site list for sites to be included in histogram of site % MAP
-
-# this file no longer exists
-# sites95 <- read_csv(file.path('~/Dropbox/IDE MS_Single year extreme',
-#                               "Data/97sites.csv"))
-
-sites95 <- read_csv(file.path('~/Dropbox/IDE MS_Single year extreme',
-                              "Data/DS3Ave_ALLSites_Fig4data.csv"))
+sites95 <- read_csv(file.path(path_ms,
+                              "Data/95SiteInfo-DS3.csv")) %>% 
+  rename(site_code = `Site code`)
 
 
 # calculating percentiles given annual precip --------------------------------
