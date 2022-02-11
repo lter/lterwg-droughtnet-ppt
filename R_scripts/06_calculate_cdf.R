@@ -389,6 +389,7 @@ wide_year_one <- wide_yr1b %>%
   mutate(is_trmt_365 = ifelse(n_treat_days_adj < n_treat_days, "No", "Yes"))
 
 # figures -----------------------------------------------------------------
+if (FALSE){ # set to FALSE to not run the figure making code
 theme_set(theme_classic())
 
 base1 <- list(
@@ -566,7 +567,7 @@ map(trt_years, function(yr) {
 dev.off()
 
 
-
+}
 
 # saving the data (csv) ---------------------------------------------------
 

@@ -88,6 +88,8 @@ file_names3
 # shorter name
 file_names3[file_names3 == "ECN_Wytham_DAILY_met_data_2015_2019_for_DroughtNet"] <- "ECN_Wytham"
 file_names3[file_names3 == "Climate_data_2014_15_and_2015_16_rainfall_season_Matta_LTER"] <- "Matta_LTER"
+# new data sheet provided but renaming so older code doesn't break:
+file_names3[file_names3 == "PassoGavia_2021"] <- "PassoGavia"
 
 file_paths <- file.path(path_may, "IDE_weather/submitted_data", file_names)
 names(file_paths) <- file_names3
