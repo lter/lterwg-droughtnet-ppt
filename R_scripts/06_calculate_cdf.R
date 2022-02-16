@@ -722,3 +722,4 @@ df_for_hist %>%
   summarize(perc_ap_map = mean(perc_ap_map, na.rm = TRUE))
 
 df_for_hist$site_code %>% unique() %>% sort()
+

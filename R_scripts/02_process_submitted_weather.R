@@ -839,6 +839,9 @@ all6$Yarramundi_on_site_met_data_2013_2019$weather <-
          mean_temp = Tair) %>% 
   select(-matches("^RH"))
 
+# MPG 
+all6$MPGRanch$weather <- all6$MPGRanch$weather %>% 
+  rename(date = date_day)
 
 # checking column consistency: 
 
@@ -860,6 +863,7 @@ all7 <- map2(all7, names(all6), function(x, name){
 
 wthr_col_names2 <- c(wthr_col_names, "mean_temp")
 wthr_col_string2 <- wthr_col_names2 %>% sort() %>% paste(collapse = ",")
+
 
 # check if all col names fixed
 check_names_in_list(
@@ -1449,6 +1453,7 @@ not_matching_lookup <- c('AA' = 'oreaa.us',
                          "Store Buøya" = 'buoya.no', #norway
                          'Syferkuil South Africa' = 'syferkuil.za',
                          'Tovetorp' = "unknown", # haven't sent in bio data
+                         'Ukulinga experimental farm' = 'ukulingadrt.za',
                          'Wupatki' = 'antelope.us'
 )
 # sites that I  couldn't find a code for
