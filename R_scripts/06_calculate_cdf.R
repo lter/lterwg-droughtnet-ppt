@@ -153,7 +153,7 @@ site_ppt2 <- site_ppt %>%
 
 # site list for sites to be included in histogram of site % MAP
 sites95 <- read_csv(file.path(path_ms,
-                              "Data/95SiteInfo-DS3.csv")) %>% 
+                              "Data/96SiteInfo-DS3.csv")) %>% 
   rename(site_code = `Site code`)
 
 
