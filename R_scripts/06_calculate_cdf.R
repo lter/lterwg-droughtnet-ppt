@@ -717,9 +717,27 @@ ggplot(df_for_hist, aes(perc_ap_map)) +
 dev.off()
 
 # mean percent ap map
-df_for_hist %>% 
+perc_ap_map <- df_for_hist %>% 
   group_by(trmt) %>% 
   summarize(perc_ap_map = mean(perc_ap_map, na.rm = TRUE))
 
 df_for_hist$site_code %>% unique() %>% sort()
 
+
+# print info about sites in the histogram
+sink(file.path(path_ms, "Figures/precip/percent_MAP_hists_info.txt"))
+n <- df_for_hist$site_code %>% 
+  unique() %>% 
+  length()
+
+
+cat("Information about percent_MAP_hists.jpeg\n\n")
+cat("Number of sites shown in histogram: ", n, "\n\n")
+
+cat("On average, drought plots received ", 
+    round(perc_ap_map$perc_ap_map[perc_ap_map$trmt == "ppt_Drought"], 1), 
+    "% of mean annual precipitation.\n")
+cat("On average, control plots received ", 
+    round(perc_ap_map$perc_ap_map[perc_ap_map$trmt == "ppt_Control"], 1), 
+    "% of mean annual precipitation.\n")
+sink()
