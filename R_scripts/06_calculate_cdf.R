@@ -153,16 +153,15 @@ site_ppt2 <- site_ppt %>%
 
 # site list for sites to be included in histogram of site % MAP
 sites95 <- read_csv(file.path(path_ms,
-                              "Data/96SiteInfo-DS3.csv")) %>% 
-  rename(site_code = `Site code`)
+                              "Data/94sites.csv")) 
 
 
 # calculating percentiles given annual precip --------------------------------
 
 for (i in 1:nrow(site_ppt2)){
-  print(i)
+  #print(i)
   site_code <- site_ppt2$site_code[i]
-  print(site_code)
+  #print(site_code) # print when troubleshooting
   ppt <- site_ppt2$ppt[i] # precip for the site/year of interest
 
   # percentile based on cdf for the site
