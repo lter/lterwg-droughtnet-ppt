@@ -141,7 +141,6 @@ p1 <- newest_file_path(
   "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
 p1
 
-# temp--change path back to p1
 site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
 
 site_ppt2 <- site_ppt %>% 
@@ -648,6 +647,46 @@ wide2save %>%
 
 wide2save$site_code %>% unique() %>% sort()
 
+
+# * checking for missing years --------------------------------------------
+
+diff_na <- function(x) {
+  c(NA_real_, diff(x))
+}
+
+# years that are missing but have years of data before and after them.
+# this should only be because there were too many days with NA ppt that year
+# or there is no biomass data for that year
+missing_years <- wide2save %>% 
+  arrange(site_code, year) %>% 
+  group_by(site_code) %>% 
+  mutate(n = n()) %>% 
+  filter(n > 1) %>% 
+  mutate(diffs_yr = diff_na(year)) %>% 
+  filter(diffs_yr > 1) %>% 
+  # this doesn't currently account for the fact
+  # that could have multiple consecutive yrs missing
+  mutate(missing_year = year -1) %>% 
+  select(site_code, missing_year)
+
+reason_missing <- missing_years %>% 
+  left_join(site_ppt, by = c("site_code", 'missing_year' = 'year')) %>% 
+  ungroup() %>% 
+  mutate(sub_na = rowSums(.[ c("ppt_num_NA_sub", "ppt_num_wc_interp_sub")],
+                          na.rm = TRUE)) %>% 
+  group_by(site_code, missing_year) %>% 
+  summarise(across(c(ppt_num_NA_ghcn, sub_na), mean, na.rm = TRUE),
+            biomass_data_missing = all(is.na(biomass_date))) %>% 
+  mutate(too_many_missing = (ppt_num_NA_ghcn > 30 | is.na(ppt_num_NA_ghcn)) & sub_na > 30) %>% 
+  filter(!biomass_data_missing & !too_many_missing)
+
+
+if(any(!reason_missing$biomass_data_missing & 
+       !reason_missing$too_many_missing)) {
+  stop('some years have missing data for an unknown reason')
+} else {
+  message('check passed')
+}
 
 # unique sites with varying cuttoffs ---------------------------------------
 
