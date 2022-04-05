@@ -3,7 +3,7 @@
 # this script is designed to check the compiled submitted weather data
 # the data is compiled in process_submitted_weather.R
 
-# this is file is meant count missing values, check for unreasonabl values, etc. 
+# this is file is meant count missing values, check for unreasonable values, etc. 
 # for starters just checking the precip (not temp) data
 # and fix obvious data issues where possible. 
 

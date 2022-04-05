@@ -12,9 +12,11 @@ library(lubridate)
 source('R_scripts/functions.R') # functions used in script
 source("R_scripts/biomass_get_dates.R") # biomass dates
 
+# get path to dropbox (so only update this path once for all scripts)
+source("R_scripts/dropbox_path.R")
+
 # paths to data folders
-path <- '~/Dropbox'
-path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
+path_oct <- file.path(path, '/IDE Meeting_Oct2019')
 
 # parse site elevation ----------------------------------------------------
 
@@ -63,7 +65,6 @@ nearStation0 <- meteo_nearby_stations(site,lat_colname='lat',lon_colname = 'long
                                       radius = 100)
 near <- nearStation0[[1]]
 site_code <- names(nearStation0)[1]
-
 
 # adding station and site elevation to all stations within 100km of a given site.
 stations_elev <- stations %>% 
