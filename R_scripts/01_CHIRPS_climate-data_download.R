@@ -1,19 +1,24 @@
-# Written by Martin Holdrege
+# Martin Holdrege
 
 # Script started April 5, 2022
 
-# Purpose:
+# Purpose: Download daily precip data for sites from the CHIRPs dataset
+# This is pulling the data from google earth engine, and is connecting to the 
+# gee API via the rgee package. The Chirps data isn't available for all sites
+# (it goes from -50S to 50N deg. latitude). At this point this code is 
+# grabbing the while time series of ppt available (1981 to present)
 
+# Note, the earth engine tasks run by this script took almost 24 hours to run.
 
 # dependencies ------------------------------------------------------------
 
 source("R_scripts/dropbox_path.R") # this loads the path to the dropbox
 library(rgee) # see https://r-spatial.github.io/rgee/ for install details
-library(tidyverse)
+library(tidyverse, quietly = TRUE)
+library(googledrive)
 
 # connect to gee ----------------------------------------------------------
-# note: this script requires a google earth engine account to 
-# work, 
+# note: this script requires a google earth engine account and gdrive account
 rgee::ee_Initialize(user = 'martinholdrege', drive = TRUE)
 
 # load site locations -----------------------------------------------------
@@ -104,6 +109,39 @@ for (site_code in site_codes) {
 
 # ee_drive_to_local(task = task_vector, 
 #                   dsn = file.path("~", file_name))
+
+
+# download from drive -----------------------------------------------------
+# Note the code below should only be run once the gee tasks above, have finished
+# running
+
+# The CHIRPS dataset only goes from -50 to 50 degress latitud,
+# so values will be missing for the other sites 
+# here only want to download the good sites
+# down the line, consider updating the code above, so files are only
+# created for sites between -50 and 50
+site3 <- site2 %>% 
+  filter(latitud >= -50 & latitud <= 50) %>% 
+  print(n = 25)
+
+files1 <- drive_ls(path = "CHIRPS") %>% 
+  mutate(site_code = str_extract(name, ("(?<=ppt_)[a-z]+\\.[a-z]{2}")))
+
+# only file names 
+files2 <- files1 %>% 
+  filter(site_code %in% site3$site_code) %>% 
+  mutate(new_file_name = str_replace(
+    name, "(?<=\\d{4}-\\d{2}-\\d{2})_\\d{4}_.+(?=.csv$)", ""))
+
+for (i in 1:nrow(files2)) {
+  drive_download(file = files2$id[i],
+                 path = file.path(path, "IDE/data_raw/climate/CHIRPS",
+                                  files2$new_file_name[i]),
+                 overwrite = TRUE)
+}
+#drive_download(files2$id)
+
+
 
 
 
