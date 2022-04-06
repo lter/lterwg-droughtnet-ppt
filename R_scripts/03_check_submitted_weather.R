@@ -15,8 +15,9 @@
 library(tidyverse, warn.conflicts = FALSE)
 library(lubridate)
 source("R_scripts/functions.R")
-path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
-path <- "~/Dropbox"
+source("R_scripts/dropbox_path.R") # where path to dropbox should be set
+path_oct <- file.path(path, "IDE Meeting_Oct2019")
+
 
 # read in submitted weather -----------------------------------------------
 
@@ -197,7 +198,7 @@ wthr4 %>%
 
 dest <- file.path(
   path_oct,
-  "data/precip/submitted_daily_weather_bad_vals_removed_2021-03-02.csv")
+  "data/precip/submitted_daily_weather_bad_vals_removed_2022-04-06.csv")
 
 write_csv(wthr4, dest)
   

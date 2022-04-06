@@ -31,12 +31,14 @@ library(readxl)
 library(lubridate)
 
 source("R_scripts/functions.R")
+source("R_scripts/dropbox_path.R") # where path to dropbox should be set
+path_may <- file.path(path, "IDE Meeting_May2019")
 
-path_may <- "~/Dropbox/IDE Meeting_May2019"
+path_oct <- file.path(path, "IDE Meeting_Oct2019")
+path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
-path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
-path_ms <-  "~/Dropbox/IDE MS_Single year extreme"
-
+# where submitted weather data is located
+path_sub <- "~/Dropbox/IDE/data_raw/climate/submitted_data/"
 # site info ---------------------------------------------------------------
 
 
@@ -48,8 +50,8 @@ site_name_code <- siteElev %>%
   select(site_name, site_code)
 
 # survey results
-sites_wthrdata1 <- read_xlsx(file.path(path_may, 
-                    "IDE_weather/Sites_WeatherStationData_11-26-2019.xlsx"))
+sites_wthrdata1 <- read_xlsx(file.path(path, "IDE/data_raw/climate",
+                    "Sites_WeatherStationData_11-26-2019.xlsx"))
 
 sites_wthrdata2 <- sites_wthrdata1 %>% 
   rename(site_name = `What is your site name?`) %>% 
@@ -57,7 +59,7 @@ sites_wthrdata2 <- sites_wthrdata1 %>%
 
 # check xlsx sheets -------------------------------------------------------
 
-all_names <- list.files(file.path(path_may, "IDE_weather/submitted_data"))
+all_names <- list.files(path_sub)
 
 file_names <- all_names %>% 
   .[str_detect(., "\\.xlsx$")] %>% # excluding sub-folders here
@@ -91,7 +93,7 @@ file_names3[file_names3 == "Climate_data_2014_15_and_2015_16_rainfall_season_Mat
 # new data sheet provided but renaming so older code doesn't break:
 file_names3[file_names3 == "PassoGavia_2021"] <- "PassoGavia"
 
-file_paths <- file.path(path_may, "IDE_weather/submitted_data", file_names)
+file_paths <- file.path(path_sub, file_names)
 names(file_paths) <- file_names3
 
 sheets1 <- lapply(file_paths, excel_sheets)
@@ -119,8 +121,8 @@ all2 <- all1
 # (created in pre-process_GCN_weather.R script)
 
 gcn1 <- readRDS(
-  file.path(path_may, 
-            "IDE_weather/submitted_data/GCN/GCN-weather-cleaned_2019-12-02.rds")
+  file.path(path_sub, 
+            "GCN/GCN-weather-cleaned_2019-12-02.rds")
 )
 
 names(gcn1) 
@@ -260,7 +262,7 @@ pur_wthr1 <- all2$Purdue_daily_data_for$`Purdue - Daily Weather Data`
 pur_stn1 <- all2$Purdue_daily_data_for$Metadata
 names(pur_stn1) <- c("name", "value")
 all2$Purdue_daily_data_for$weather <- pur_wthr1 %>% 
-  select(wthr_col_names)
+  select(all_of(wthr_col_names))
 
 all2$Purdue_daily_data_for$station <- template$station %>% 
   mutate(
@@ -322,8 +324,6 @@ map2_lgl(all1$Norway_2019$Ark1, all1$Norway_2019$weather, function(x, y) {
 })
 
 all2$Norway_2019$Ark1 <- NULL
-
-
 
 # check if all sheets present -----------------------------------------------
 
@@ -1017,6 +1017,10 @@ all8[c("SantaCruzMiddle", "SantaCruzHigh")] <- map(
 all8$Yarramundi_on_site_met_data_2013_2019$weather$station_name <- 
   all8$Yarramundi_on_site_met_data_2013_2019$station$station_name
 
+# changling (all same station)
+x <- unique(all8$baoku$weather$station_name)
+all8$baoku$weather$station_name <- x[!is.na(x)]
+
 # some rows missing the station name
 all8$gmdrc_4_20$weather$station_name <- unique(all8$gmdrc_4_20$station$station_name)
 
@@ -1029,6 +1033,8 @@ missing_date_name <- extract_elements_2df(all8, element = "weather") %>%
 
 if(nrow(missing_date_name) > 0) {
   warning("some files still missing date/station_names")
+} else {
+  message('check passed')
 }
 
 
@@ -1290,20 +1296,20 @@ all11$Boulder$station <- all11$Boulder$station %>%
 
 # Cowichan ~~~~~
 
-all11$Cowichan_2019_11_5$weather$note_weather %>% unique()
+all11$Cowichan_2022_4_4_corrected$weather$note_weather %>% unique()
 # all11$Cowichan_2019_11_5$weather %>% summary()
 
-ncc_stn <- all11$Cowichan_2019_11_5$weather %>% 
+ncc_stn <- all11$Cowichan_2022_4_4_corrected$weather %>% 
   filter(station_name == "CowichanNCC") # preferred station
 
-NCow_stn <- all11$Cowichan_2019_11_5$weather %>% 
+NCow_stn <- all11$Cowichan_2022_4_4_corrected$weather %>% 
   filter(station_name == "NCowichanStation")
 
 
 # my thinking here is to use the station data from the site,
 # unless it is NA, then use the other site:
 
-all11$Cowichan_2019_11_5$weather <- comb_primary_secondary_stns(ncc_stn, NCow_stn) 
+all11$Cowichan_2022_4_4_corrected$weather <- comb_primary_secondary_stns(ncc_stn, NCow_stn) 
 
 # cusack ~~~~~~
 
@@ -1611,12 +1617,12 @@ all_wthr_2save <- all_wthr2 %>%
   select(-site)
 
 write_csv(all_wthr_2save,
-          file.path(path_oct, "data/precip/submitted_daily_weather_2021-03-02.csv"))
+          file.path(path_oct, "data/precip/submitted_daily_weather_2022-04-06.csv"))
 
 stn2save <- stn6 %>% 
   select(site_code, site_name, everything(), -site, -file_name) %>% 
   rename(station_elev = elev)
 
 write_csv(stn2save,
-          file.path(path_oct, "data/precip/submitted_weather_station_info_2021-03-02.csv"))
+          file.path(path_oct, "data/precip/submitted_weather_station_info_2022-04-06.csv"))
   

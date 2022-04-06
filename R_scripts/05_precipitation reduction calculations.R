@@ -5,15 +5,14 @@
 
 # packages etc ------------------------------------------------------------
 
-
 library(tidyverse)
 library(stringr)
 library(lubridate)
 source("R_scripts/functions.R")
-
-path <- '~/Dropbox/IDE Meeting_May2019'
-path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
-path_ms <-  "~/Dropbox/IDE MS_Single year extreme"
+source("R_scripts/dropbox_path.R") # where path to dropbox should be set
+#path <- '~/Dropbox/IDE Meeting_May2019'
+path_oct <- file.path(path, '/IDE Meeting_Oct2019')
+path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 
 # reading in precip data -----------------------------------------------------
@@ -34,7 +33,7 @@ dly_wthr_path <- newest_file_path(
 )
 dly_wthr_path
 
-wthr1 <- read_csv(dly_wthr_path)
+wthr1 <- read_csv(dly_wthr_path, show_col_types = FALSE)
 wthr1$X1 <- NULL
 
 # sites where we have only GHCN data
@@ -316,7 +315,6 @@ sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
 
 # combining ghcn and submitted results ------------------------------------
 
-
 sites4 <- full_join(sites3_ghcn, sites3_submitted, 
                     by = c(names(sites1)),
                     suffix = c("_ghcn", "_sub"))
@@ -449,14 +447,14 @@ sites_full2 %>%
 
 sites_full3 <- sites_full2 %>% 
   select(names(sites_full1), annual_ppt_used)
+
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2021-05-12.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2022-04-06.csv'))
 
 
 # checks ------------------------------------------------------------------
-
 
 sites5 %>% 
   filter(X365day.trt != "Yes") %>% 

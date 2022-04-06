@@ -3,7 +3,8 @@ library(raster)
 library(rgdal)
 
 source("R_scripts/functions.R")
-path_oct <- "~/Dropbox/IDE Meeting_Oct2019"
+source("R_scripts/dropbox_path.R") # where path to dropbox should be set
+path_oct <- file.path(path, "IDE Meeting_Oct2019")
 
 old_dir <- getwd()
 
@@ -100,7 +101,7 @@ for(j in unique(latlon$site_code)){
   
 write.csv(
   wcOut, 
-  file.path(path_oct, 'data/precip/submitted_daily_weather_WC_supplemented_2021-03-02.csv')
+  file.path(path_oct, 'data/precip/submitted_daily_weather_WC_supplemented_2022-04-06.csv')
   )
 
 setwd(old_dir)

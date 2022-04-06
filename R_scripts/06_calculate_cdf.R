@@ -18,10 +18,10 @@ library(tidyverse)
 library(lubridate)
 library(spatstat)
 source("R_scripts/functions.R")
-
+source("R_scripts/dropbox_path.R") # where path to dropbox should be set
 # path to data folders
-path_oct <- '~/Dropbox/IDE Meeting_Oct2019'
-path_ms <- '~/Dropbox/IDE MS_Single year extreme'
+path_oct <- file.path(path, 'IDE Meeting_Oct2019')
+path_ms <- file.path(path, 'IDE MS_Single year extreme')
 
 # load worldclim monthly precip data --------------------------------------
 
@@ -152,7 +152,7 @@ site_ppt2 <- site_ppt %>%
 
 # site list for sites to be included in histogram of site % MAP
 sites95 <- read_csv(file.path(path_ms,
-                              "Data/94sites.csv")) 
+                              "Data/msyr1_sites.csv")) 
 
 
 # calculating percentiles given annual precip --------------------------------
@@ -335,7 +335,13 @@ wide_yr1 <- wide_yr0 %>%
   filter(n_treat_days_adj == min(n_treat_days_adj)) %>% 
   mutate(trt_yr_adj = yr1_lab) %>% 
   bind_rows(wide_yr0) %>% 
-  left_join(site_info[, c("site_code", "wc_map")], by = "site_code")
+  # the precip column is site submitted precip
+  left_join(site_info[, c("site_code", 'wc_map', "precip")], by = "site_code") %>% 
+  rename(site_map = precip) 
+
+if (sum(is.na(wide_yr1$site_map)) > 0) {
+  warning('site MAP not available for all sites (substitute in world clim?)')
+}
 
 wide_yr1 %>% 
   filter(is.na(ppt_Control)) %>% 
@@ -367,9 +373,9 @@ n
 wide_yr1b <- wide_yr1 %>% 
   mutate(
     # percent annual precip is of MAP
-    perc_ap_map = ppt_Control/wc_map*100,
+    perc_ap_map = ppt_Control/site_map*100,
     # log of ap/map ratio
-    log_ap_map = log(ppt_Control/wc_map))
+    log_ap_map = log(ppt_Control/site_map))
 
 # have added in the 1/31/20 data set:
 # "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
@@ -584,7 +590,7 @@ wide2save <- wide_yr1 %>%
 # this includes the  worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2021-05-12.csv"))
+                    "precip_by_trmt_year_with_percentiles_2022-04-06.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",
