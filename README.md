@@ -34,45 +34,60 @@ Extract monthly precip from world clim (this requires the monthly world clim ras
 
 Uses the rnoaa package to automatically grab weather data from the nearest global historical climatology network weather station (if available).
 
+Used to pull daily GHCN data for the years of interest. Gets daily data for closest station (within 100 km w/ less than 500 m elevation difference) that has good data for the pre-treatment calendar year (and year before that) and first treatment yr and 2nd treatment year. If biomass was measured for additional years then the precip data was pulled for those years but it wasn't required to be "good".
+This script outputs a csv of daily precip data for all the sites where it existed. 
+
 ## `02_process_submitted_weather.R`
 
 The main script that pulls together the weather data that the sites submitted
 
-## 
+## `03_check_submitted_weather.R`
 
+Takes the output of `02_process_submitted_weather.R` and checks for some potential data errors.
+
+## `04_worldclim_monthly_precip_substitution.R`
+
+Takes the output of `03_check_submitted_weather.R` and replaces missing values with long term means (i.e. average expected amount of precip) from worldclim.
+
+## `05_precipitation reduction calculations.R`
+
+Uses submitted weather data (output of `04_worldclim_monthly_precip_substitution.R`), ghcn data (output of chirps precip data `01_GHCN_process_expt_years.R`) and CHIRPs data (output of `01_CHIRPS_climate-data-_download.R`), to calculate the amount of ppt received in both drought and control plots, for the 365 days prior to biomass harvest. 
+The output is in long form (1 row for each site, plot, and year).  
+
+For the drought treatments the percentage reduction that shelters impose was used to calculate precip received by drought plots, so output contains annual precip for both control and drought. 
+
+User submitted weather data is used if available, if not then GHCN data is used, if not then CHIRPS data is used.
+
+## `06_calculate_cdf.R`
+
+Takes the output of `05_precipitation reduction calculations.R`, and calculates the percentile of historic annual ppt (from worldclim). The percentiles are of the actual precipitation that occured at the drought/control plots for the given treatment years.  Most importatnly this script combines the data into a cleaner data file with 1 row per year and site. 
+This script creates the main important output used by other analyses (precip_by_trmt_year_with_percentiles_yyyy-mm-dd.csv).
 
 
 ## `functions.r`
 
 This script is sourced by other scripts in this repository. It should contain functions that were made for use in these other scripts. 
 
-## `DN site - GHCN station options.R`
-
-Output from this script used in the `GHCN process.R` script. It was used to select better stations for some sites, when the first bit of code in `GHCN process` selected/used data from bad stations. It is used in the 2nd half of `GHCN process`.
-
 ## `biomass_get_dates.R`
 
-Short script that extracts the years that biomass was harvested. This script was than sourced in `GHCN_process_expt_years.R` script. May need to be updated/checked as new data from sites comes in. 
+Short script that extracts the years that biomass was harvested. This script was than sourced in `01_GHCN_process_expt_years.R` script. May need to be updated/checked as new data from sites comes in. 
 
-## `GHCN_process_expt_years.R`
+## `worldclim_seasonality.R`
 
-Used to pull daily GHCN data for the years of interest. Gets daily data for closest station (within 100 km w/ less than 500 m elevation difference) that has good data for the pre-treatment calendar year (and year before that) and first treatment yr and 2nd treatment year. If biomass was measured for additional years then the precip data was pulled for those years but it wasn't required to be "good".
-This script outputs a csv of daily precip data for all the sites where it existed. 
+Script--for a one of analysis (not sure this output is used anywhere anymore)
 
-## `precipitation reduction calculations.R`
+Purpose of this code is to pull mean monthly precipitation mean monthly temp
+(this is means of daily average temp) from each site
+and then calculate various precipitation seasonality metrics
 
-Takes output from `GHCN_process_expt_years.R` and calculates annual precipitation for the first and 2nd treatment year. That is, the precipitation was summed for the 12 months prior to the respective biomass harvest. For the drought treatments the percentage reduction that shelters impose was used to calculate precip received by drought plots, so output contains annual precip for both control and drought. 
+## `combine_weather_climate_C-study.R`
 
-## `calculate_cdf.R`
+Pull together climate and weather data for Baoku Shi for soil C
+sequestration study. This is only for a subset of IDE sites.
 
-Calculates the probability density function and cumulative density function for each site, from 50 years tpa (annual) data. Then calculates what the percentiles were of the actual precipitation was at the drought/control plots for the given treatment years. 
-
-## `biomass_sensitivity_vs_ppt_reductions.R`
-
-Pulls in biomass effect size (likely to change as full biomass.csv changes) as calculated in a seperate script on dropbox. Makes figures of effect size vs various metrics of precipitation reductions. 
-
-
-
+## `soil_extract_from_isric.R`
+Purpose--extract soil info (percent sand) for the IDE sites
+from ISRIC world soil information (output not used by other scripts in this repo)
 
 # Old scripts that really aren't used anymore:
 
@@ -85,4 +100,13 @@ Created to look at the distances between automatically selected GHCN stations an
 Used to get historical GHCN precip data (from best/closest) stations to each IDE site. It cleans the historical data to only contain good years (i.e. missing up 31 days precip) and must contain a certain number (30 years) of data. The CV of annual precip is then calculated from this data.
 
 In preliminary analysis we were only considering stations good if they are within 100 km and 500 m elevation of the IDE site. 
+
+## `DN site - GHCN station options.R`
+
+Output from this script used in the `GHCN process.R` script. It was used to select better stations for some sites, when the first bit of code in `GHCN process` selected/used data from bad stations. It is used in the 2nd half of `GHCN process`.
+
+## `biomass_sensitivity_vs_ppt_reductions.R`
+
+Pulls in biomass effect size (likely to change as full biomass.csv changes) as calculated in a seperate script on dropbox. Makes figures of effect size vs various metrics of precipitation reductions. 
+
 
