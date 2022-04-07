@@ -10,15 +10,41 @@ As of the April 2022 meeting the main purpose of the repository is to compile us
 
 # Brief description of Scripts:
 
+All scripts are found in the R_scripts folder.
+
+Note about names--number prefixes in the script names provides the general order in which scripts need to be run. 
+
+Note--not all file paths have been updated in all scripts but the workflow going forward
+is to set the path to dropbox in the dropbox_path.R script, and have this script sourced by other scripts. That way (in theory at least) assuming the user has access to the droughtnet dropbox folders, only one path will need to be changed for these scripts to run. 
+
+## `01_pre-process_site-name_weather.R`
+
+These are scripts that pre-process site submitted data. The outputs of these scripts are then read
+in by the `02_process_submitted_weather.R` script. Note these pre-processing scripts only exist for some sites, where extra pre-processing is needed. Note--these scripts don't need to be re-run, so you can move onto running the `02_process_submitted_weather.R`
+
+## `01_CHIRPS_climate-data-_download.R`
+
+This script connects to google earth engine to extract daily precipitation data for each site (this only works for sites between 50S and 50N latitude). This script requires more setup to run than others (e.g. having a earth engine account). This is getting data from the CHIRPS gridded data product. 
+
+## `01_worldclim_extract-monthly`
+
+Extract monthly precip from world clim (this requires the monthly world clim rasters to have been downloaded, they aren't stored on the dropbox because they are in the neighborhood of 100GB). 
+
+## `01_GHCN_process_expt_years.R`
+
+Uses the rnoaa package to automatically grab weather data from the nearest global historical climatology network weather station (if available).
+
+## `02_process_submitted_weather.R`
+
+The main script that pulls together the weather data that the sites submitted
+
+## 
+
+
+
 ## `functions.r`
 
 This script is sourced by other scripts in this repository. It should contain functions that were made for use in these other scripts. 
-
-## `GHCN process.R` 
-
-Used to get historical GHCN precip data (from best/closest) stations to each IDE site. It cleans the historical data to only contain good years (i.e. missing up 31 days precip) and must contain a certain number (30 years) of data. The CV of annual precip is then calculated from this data.
-
-In preliminary analysis we were only considering stations good if they are within 100 km and 500 m elevation of the IDE site. 
 
 ## `DN site - GHCN station options.R`
 
@@ -45,10 +71,18 @@ Calculates the probability density function and cumulative density function for 
 
 Pulls in biomass effect size (likely to change as full biomass.csv changes) as calculated in a seperate script on dropbox. Makes figures of effect size vs various metrics of precipitation reductions. 
 
-## `station_distances.R`
+
+
+
+# Old scripts that really aren't used anymore:
+
+## `07_station_distances.R`
 
 Created to look at the distances between automatically selected GHCN stations and IDE sites and PI selected/provided weather stations. Will need to redone once all the data has been submitted. 
 
+## `GHCN process.R` 
 
+Used to get historical GHCN precip data (from best/closest) stations to each IDE site. It cleans the historical data to only contain good years (i.e. missing up 31 days precip) and must contain a certain number (30 years) of data. The CV of annual precip is then calculated from this data.
 
+In preliminary analysis we were only considering stations good if they are within 100 km and 500 m elevation of the IDE site. 
 
