@@ -39,6 +39,42 @@ wthr1$X1 <- NULL
 # sites where we have only GHCN data
 precip$site_code[!precip$site_code %in% wthr1$site_code] %>% unique()
 
+
+# * reading in CHIRPS datasets --------------------------------------------
+# data ppt data 1981, to present. from CHIRPS gridded product (downloaded
+# in 01_CHIRPS_climate-data_download.R script). Note this data is only 
+# available for sites with latitudes between -50 and 50 degrees.
+
+paths_chirps <- list.files(
+  path = file.path(path, "IDE/data_raw/climate/CHIRPS"),
+  pattern = "^CHIRPS.+.csv$", full.names = TRUE)
+
+# extracting site_code from file name
+names(paths_chirps) <- str_extract(basename(paths_chirps), 
+                                   "(?<=ppt_)[a-z]+\\.[a-z]{2}")
+chirps1 <- map(paths_chirps, read_csv, 
+               col_select = c("date", "precipitation", "site_code"),
+               show_col_types = FALSE, na = c("-9999", -9999))
+
+# discarding sites for which all values are missing (this might
+# occur if a sight is at the edge of the -50 or 50 deg latitude line)
+is_missing <- map_lgl(chirps1, function(df) all(is.na(df$precipitation)))
+
+# the noor.ir site has missing values b/ the grid cells don't go all
+# the way to the inland sea it is located on
+missing_names <- names(which(is_missing))
+
+if(!all(missing_names == 'noor.ir')) {
+  stop('unexpected sites have missing values')
+}
+
+chirps2 <- bind_rows(chirps1[!is_missing]) %>% 
+  rename(ppt = precipitation)
+
+if (sum(is.na(chirps2$ppt)) > 0) {
+  stop('some sites still have missing values')
+}
+
 # reading in site/anpp date data ---------------------------------------
 
 siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
@@ -70,7 +106,7 @@ appt1 <- read_csv(file.path(path_ms, "Data/precip/SitesMissingPrecip_ReportedMAP
 
 # look at next line for explanation of parsing failurs
 appt2 <- appt1 %>% 
-  mutate(annual_ppt = as.numeric(annual_ppt))
+  mutate(annual_ppt = as.numeric(annual_ppt)) 
 
 # values that don't parse
 no_parse <- appt1$annual_ppt[is.na(appt2$annual_ppt) & !is.na(appt1$annual_ppt)] %>% 
@@ -80,8 +116,6 @@ no_parse <- appt1$annual_ppt[is.na(appt2$annual_ppt) & !is.na(appt1$annual_ppt)]
 stopifnot(!str_detect(no_parse, "\\d+")) 
 
 
-appt2 <- appt2 %>% 
-  distinct() # duplicated rows present
 
 # match exactly 4 digits (i.e. note made about the year)
 # in all but one case these notes are about ppt not actually being for 
@@ -93,6 +127,10 @@ appt2$annual_ppt[four_dig &
                    !str_detect(appt2$note_climate, "change that occurred in 2018") 
                  & !is.na(appt2$note_climate)] <- NA
 
+appt2 <- appt2 %>% 
+  # doing this b/ of some
+  group_by(site_code, year) %>% 
+  summarize(annual_ppt = mean(annual_ppt))
 # extract biomass date ----------------------------------------------------
 
 bio2 <- bio1 %>% 
@@ -172,7 +210,6 @@ anpp2 <- anpp2 %>%
 
 # check that date parsing failurs were really justified (ie year only given)
 bad_dates <- bio2[is.na(anpp2$biomass_date), ]$biomass_date
-
 
 if(!all(str_detect(bad_dates, "^\\d{4}$"))) {
   warning("unjustified date parsing issues")
@@ -292,6 +329,9 @@ sites2 <- sites1 %>%
 
 # yearly control/drt precip -----------------------------------------------
 
+
+# * ghcn ------------------------------------------------------------------
+
 # first calculating using ghcn data
 sites2_forghcn <- sites2 %>% 
   filter(site_code %in% precip1$site_code)
@@ -300,6 +340,7 @@ options(warn=1) # print warnings as they occur
 sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
                                   precip_data = precip1)
 
+# * submitted data --------------------------------------------------------
 
 # calculating using submitted data
 wthr2 <- wthr1 %>% 
@@ -313,18 +354,34 @@ sites2_forsubmitted <- sites2 %>%
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2)
 
+
+# * chirps data -----------------------------------------------------------
+sites2_forchirps <- sites2 %>% 
+  filter(site_code %in% chirps2$site_code)
+
+sites3_chirps <- calc_yearly_precip(site_data = sites2_forchirps,
+                                  precip_data = chirps2)
+
+sites4_chirps <- sites3_chirps 
+
+# adding col name suffix's for joining
+col_names <- names(sites3_chirps)
+new_col_names <- ifelse(col_names %in% names(sites1),
+                        col_names,
+                        paste0(col_names, "_chirps"))
+names(sites4_chirps) <- new_col_names
 # combining ghcn and submitted results ------------------------------------
 
 sites4 <- full_join(sites3_ghcn, sites3_submitted, 
                     by = c(names(sites1)),
-                    suffix = c("_ghcn", "_sub"))
-
+                    suffix = c("_ghcn", "_sub")) %>% 
+  full_join(sites4_chirps, by = names(sites1))
+names(sites4)
 nrow(sites4)
 nrow(sites2)
 
 sites5 <- sites4 %>% 
-  select(-ppt_num_wc_interp_ghcn)
-
+  select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps)
 
 # merge back to main anpp file --------------------------------------------
 
@@ -335,28 +392,38 @@ sites6 <- anpp3 %>%
   mutate(ppt_ghcn = ifelse(trt == "Control", ppt_ambient_ghcn, 
                            ppt_drought_ghcn),
          ppt_sub = ifelse(trt == "Control", ppt_ambient_sub, 
-                           ppt_drought_sub)) 
+                           ppt_drought_sub),
+         ppt_chirps = ifelse(trt == "Control", ppt_ambient_chirps, 
+                            ppt_drought_chirps)) 
 # should be 0:
 sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, na.rm = TRUE)
 
 
 # use submitted data if it has fewer than 30 missing values, 
-# else use GHCN data, if both have >30 missing values than put NA and not using
-# sumbitted data if more than 30 days were interpolated
+# else use GHCN data, if both have >30 missing values than using
+# chirps data (if available) 
+# Also don't use submitted data if more than 30 days were interpolated
 sites7 <- sites6 %>% 
   mutate(num_drought_days = ifelse(is.na(num_drought_days_sub), 
                                    num_drought_days_ghcn, 
                                    num_drought_days_sub)) %>% 
   select(-num_drought_days_sub, -num_drought_days_ghcn, 
          -matches("_(drought)|(ambient)_"), num_drought_days) %>%
-  mutate(ppt = ifelse(rowSums(.[, c("ppt_num_NA_sub", "ppt_num_wc_interp_sub")], na.rm = TRUE) < 30 & !is.na(ppt_sub),
-                      ppt_sub,
-                      ifelse(ppt_num_NA_ghcn < 30,
-                             ppt_ghcn,
-                             NA))
+  mutate(
+    ppt = case_when(
+      rowSums(.[, c("ppt_num_NA_sub", "ppt_num_wc_interp_sub")], na.rm = TRUE) < 30 
+      & !is.na(ppt_sub) ~ppt_sub,
+      ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ ppt_ghcn,
+      TRUE ~ ppt_chirps),
+    ppt_source = case_when(
+      rowSums(.[, c("ppt_num_NA_sub", "ppt_num_wc_interp_sub")], na.rm = TRUE) < 30 
+      & !is.na(ppt_sub) ~ 'submitted',
+      ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ 'ghcn',
+      !is.na(ppt_chirps) ~ 'chirps')
   )
 
-sites7
+sites7$ppt_source %>% 
+  table()
 
 # this code causing problems because of imperfect join
 sites_full1 <- sites7 %>% 
@@ -436,8 +503,16 @@ sites_full2 <- sites_full1 %>%
          ppt = ifelse(annual_ppt_used, annual_ppt, ppt),
   )
   
+test <- sites_full2 %>% 
+  group_by(site_code, plot, block, year) %>% 
+  filter(biomass_date == max(biomass_date)) %>% 
+  summarize(n = n()) %>% 
+  filter(n > 1) %>% 
+  pull(site_code)  
   
-  
+if (length(test > 0)) {
+  stop('duplicated rows present in sites_full2')
+} 
 # I think this is a problem, using annual ppt is questionable at best
 # use a gridded product instead?
 sites_full2 %>% 
@@ -446,7 +521,7 @@ sites_full2 %>%
   unique()
 
 sites_full3 <- sites_full2 %>% 
-  select(names(sites_full1), annual_ppt_used)
+  select(all_of(names(sites_full1)), annual_ppt_used)
 
 # saving CSV --------------------------------------------------------------
 
