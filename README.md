@@ -1,10 +1,12 @@
-# pcent_cv_ppt
+# LTER working group (droughtnet) precipitation data wrangling and analysis
 
 Repository started during the May 2019 Drought Net/IDE meeting.
 
-The repository was started for scripts that calculate the interannual cv of precipitation for each site, based on GHCN weather station data (when available) for each IDE site. It has expanded to contain various scripts that use GHCN data. 
+The repository was started for scripts that calculate the interannual cv of precipitation for each site, based on GHCN weather station data (when available) for each IDE site. It has expanded to contain various scripts that use GHCN data, compile user submitted weather data, as well as pulling in gridded precipitation data products (including CHIRPS).
 
 The initial conclusion from the May 2019 meeting was that interannual CV from the station data matched pretty well with CV from the interpolated global products (e.g. from the TPA tool) so this data may not need to be pursued too much further in the future. 
+
+As of the April 2022 meeting the main purpose of the repository is to compile user submitted data, GHCN station data and CHIRPS data to calculate the amount of ppt reaching drought and control plots for the 365 days before biomass sampling each year.
 
 # Brief description of Scripts:
 
