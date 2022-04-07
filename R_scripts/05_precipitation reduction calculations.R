@@ -2,7 +2,6 @@
 ###### Calculate precipitation reduction based on daily precip and shelter installation  ####
 #############################################################################################
 
-
 # packages etc ------------------------------------------------------------
 
 library(tidyverse)
@@ -10,7 +9,7 @@ library(stringr)
 library(lubridate)
 source("R_scripts/functions.R")
 source("R_scripts/dropbox_path.R") # where path to dropbox should be set
-#path <- '~/Dropbox/IDE Meeting_May2019'
+
 path_oct <- file.path(path, '/IDE Meeting_Oct2019')
 path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
@@ -23,7 +22,7 @@ p1 <- newest_file_path(
   file_regex = 'GHCN_daily_precip_\\d{4}-\\d+-\\d+.csv' 
 )
 p1
-precip <- read.csv(p1,as.is = TRUE)
+precip <- read.csv(p1, as.is = TRUE)
 
 # submitted data
 # grabbing most recent submitted daily weather file
@@ -468,6 +467,7 @@ sites7 %>%
   filter(ppt_sub == 0 | ppt_ghcn == 0) %>% 
   pull(site_code) %>% 
   unique()
+
 
 sites7 %>% 
   filter((ppt_num_NA_sub + ppt_num_wc_interp_sub) < 30 & ppt_num_NA_ghcn < 30,

@@ -9,6 +9,11 @@
 # long term (50 years) tpa data set for the site. 
 # percentiles calculated using emperical cdf and normal approximated cdf
 
+# Note--output currently does not have ppt_source column (all NAs)
+# and there are some duplicated rows
+
+# additionally--the output should be for all years, not just for year 1
+
 # script started 5/23/19
 
 
@@ -285,6 +290,16 @@ if(length(test) > 0) warning('duplication issues')
 # also an issue with n_treat_days_adj (is average), --this is also issue
 # for brandjberg where there are two first_treat_dates (off by years)
 
+# function to replace the control value with the drought value
+# (e.g. for when biomass dates are different)
+use_drt_value <- function(x, trt) {
+  out <- ifelse(length(x[trt == "Drought"]) > 0 && 
+                  !is.na(x[trt == "Drought"]),
+                x[trt == "Drought"],
+                x[trt == "Control"])
+  out
+}
+
 # not problem ~ solved--just keeping the max date for trmt/control
 wide_yr0 <- site_ppt4 %>% 
   select(-matches("(sub)|(ghcn)|(chirps)$"),-plot, -block) %>%  
@@ -293,20 +308,21 @@ wide_yr0 <- site_ppt4 %>%
   # drought_days etc values
   group_by(site_code, year, trt) %>% 
   filter(biomass_date == max(biomass_date)) %>% 
-  summarise_at(vars(matches("percentile"), matches("ppt"), n_treat_days, n_treat_days_adj,
-                    num_drought_days, biomass_date, first_treatment_date, annual_ppt_used),
-                             .funs = list(~mean(., na.rm = TRUE))) %>% 
+  summarise(across(
+      .cols = c(matches("percentile"), ppt, n_treat_days, n_treat_days_adj,
+                   num_drought_days, biomass_date, first_treatment_date, annual_ppt_used),
+      .fns = mean, na.rm = TRUE
+    ),
+    # in theory there could be more than 1 ppt_source, so just grabbing first
+    ppt_source = unique(ppt_source)[1],
+    .groups = 'drop') %>% 
   group_by(year, site_code) %>% 
   # in cases when different biomass harvest dates (and thus n_treat days) for
   # control and drought trmts then use the trmt date/days
-  mutate(biomass_date = ifelse(length(biomass_date[trt == "Drought"]) > 0 && 
-                                 !is.na(biomass_date[trt == "Drought"]),
-                               biomass_date[trt == "Drought"],
-                               biomass_date[trt == "Control"]),
-         n_treat_days_adj = ifelse(length(n_treat_days_adj[trt == "Drought"]) > 0 && 
-                                     !is.na(n_treat_days_adj[trt == "Drought"]) ,
-                                   n_treat_days_adj[trt == "Drought"],
-                                   n_treat_days_adj[trt == "Control"]),
+  mutate(biomass_date = use_drt_value(biomass_date, trt),
+         n_treat_days_adj = use_drt_value(n_treat_days_adj, trt),
+         n_treat_days = use_drt_value(n_treat_days, trt),
+         num_drought_days = use_drt_value(num_drought_days, trt),
          biomass_date = as.Date(biomass_date, origin = "1970-01-01")) %>% 
   ungroup() %>% 
   gather(key = "key", value = "value", ppt, percentile) %>% 
@@ -326,7 +342,14 @@ stopifnot(wide_yr0$annual_ppt_used %in% c(0, 1))
 
 wide_yr0$annual_ppt_used <- as.logical(wide_yr0$annual_ppt_used) 
 
-# seperately grouping first year with 365 trmt days
+test <- duplicated(wide_yr0[ c("year", "site_code")])
+
+if(sum(test) > 0) {
+  warning('duplicated year/site_code combinations present')
+}
+
+
+# separately grouping first year with 365 trmt days
 yr1_lab = "113 + days trt (first yr w/ 113 days trmt)"
 wide_yr1 <- wide_yr0 %>% 
   filter(n_treat_days >= 113 & n_treat_days <= 657) %>% 
@@ -342,15 +365,17 @@ if (sum(is.na(wide_yr1$site_map)) > 0) {
   warning('site MAP not available for all sites (substitute in world clim?)')
 }
 
-wide_yr1 %>% 
-  filter(is.na(ppt_Control)) %>% 
-  pull(site_code) %>% 
-  unique()
+# some site/years only collected data on control plots
+test <- wide_yr1 %>% 
+  filter(is.na(ppt_Drought) & !is.na(ppt_Control)) %>% 
+  select(year, site_code) %>% 
+  left_join(site_ppt2) %>% 
+  pull(trt)
 
-wide_yr1 %>% 
-  filter(!is.na(ppt_Drought)) %>% 
-  pull(site_code) %>% 
-  unique()
+if (!all(test == 'Control')) {
+  warning('drought ppt missing for times when drought biomass was created')
+}
+
 # sites without data
 
 yr1_sites <- wide_yr1 %>% 
@@ -363,7 +388,6 @@ wide_yr1 %>%
   pull(site_code) %>% 
   unique()
   
-
 n <- yr1_sites %>% 
   unique() %>% 
   length()
