@@ -14,10 +14,8 @@
 library(tidyverse)
 library(lubridate)
 source("R_scripts/functions.R")
+source("R_scripts/dropbox_path.R") # path to dropbox
 theme_set(theme_classic())
-
-# directory to may 2019 meeting folder
-path <- "~/Dropbox"
 
 
 # load data ---------------------------------------------------------------
@@ -60,7 +58,7 @@ sub_stn1 <- read_csv(p4)
 # site and year criteria used for 1 year ms extreme paper. 
 # this could be improved by pulling in specific list of sites used from Kate
 site_yrs <- wide2save %>% 
-  filter(n_treat_days > 120 & n_treat_days < 650, perc_reduction > 15,
+  filter(n_treat_days >= 113 & n_treat_days <= 657, perc_reduction > 15,
          !annual_ppt_used) %>% 
   group_by(site_code) %>% 
   filter(year == min(year)) %>% 
@@ -72,17 +70,28 @@ site_yrs <- wide2save %>%
 
 # ghcn or submitted data used
 source_used <- sites_full3 %>% 
+  # here just interested in submitted data and 
+  # ghcn data (i.e. data from a weather station, 
+  # not a gridded data product).
+  mutate(ppt_source = factor(ppt_source,
+                                levels = c("submitted", "ghcn")),
+         # 1 is submitted, 2 is ghcn
+         ppt_source = as.numeric(ppt_source)) %>% 
   filter(!annual_ppt_used, !is.na(ppt)) %>% 
   # approx equality check
-  mutate(ghcn_used = abs(ppt - ppt_ghcn) < 0.0001,
-         ghcn_used = ifelse(is.na(ghcn_used), FALSE, ghcn_used),
-         year = year(biomass_date)) %>% 
+  mutate(year = year(biomass_date)) %>% 
   group_by(year, site_code) %>% 
-  summarize(ghcn_used = mean(ghcn_used),
-            ghcn_used = as.logical(ghcn_used)) %>% 
+  summarize(ppt_source = mean(ppt_source),
+            .groups = 'drop') %>% 
   right_join(site_yrs, by = c("site_code", "year"))
   
 
+test <- source_used$ppt_source %>% unique()
+test
+
+if(!all(test %in% c(1, 2, NA))) {
+  warning('multiple data sources used in one year at a given site')
+}
 # ghcn distances ----------------------------------------------------------
 
 # at this point the original ghcn code was writting to just pull
@@ -115,7 +124,7 @@ dist1 <- source_used %>%
   ungroup() %>% 
   left_join(ghcn2, by = "site_code") %>% 
   left_join(sub_stn3, by = "site_code") %>% 
-  mutate(distance = ifelse(ghcn_used, ghcn_dist, sub_dist))
+  mutate(distance = ifelse(ppt_source ==2, ghcn_dist, sub_dist))
 
 
 # summary -----------------------------------------------------------------
@@ -127,3 +136,4 @@ hist(dist1$distance)
 
 plot(sub_dist ~ ghcn_dist, data = dist1)
 abline(a = 0, b = 1)
+
