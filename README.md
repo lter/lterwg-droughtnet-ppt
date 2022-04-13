@@ -63,9 +63,12 @@ User submitted weather data is used if available, if not then GHCN data is used,
 Takes the output of `05_precipitation reduction calculations.R`, and calculates the percentile of historic annual ppt (from worldclim). The percentiles are of the actual precipitation that occured at the drought/control plots for the given treatment years.  Most importatnly this script combines the data into a cleaner data file with 1 row per year and site. 
 This script creates the main important output used by other analyses (precip_by_trmt_year_with_percentiles_yyyy-mm-dd.csv).
 
+## `07_station_distances.R`
 
-## `functions.r`
+Created to calculate the average distances between weather stations from which data was used (both user submitted and GHCN) and IDE sites.
+This script doesn't create output that is used in other scripts. 
 
+## `functions.R`
 This script is sourced by other scripts in this repository. It should contain functions that were made for use in these other scripts. 
 
 ## `biomass_get_dates.R`
@@ -91,9 +94,7 @@ from ISRIC world soil information (output not used by other scripts in this repo
 
 # Old scripts that really aren't used anymore:
 
-## `07_station_distances.R`
 
-Created to look at the distances between automatically selected GHCN stations and IDE sites and PI selected/provided weather stations. Will need to redone once all the data has been submitted. 
 
 ## `GHCN process.R` 
 
