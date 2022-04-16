@@ -182,7 +182,7 @@ wthr4 <- wthr3 %>%
                          precip))
 
 
-wthr4 %>% 
+prob_sites <- wthr4 %>% 
   mutate(year = year(date)) %>% 
   group_by(year, site_code, site_name) %>% 
   summarise(n_vals = sum(!is.na(precip)),
@@ -193,7 +193,16 @@ wthr4 %>%
   arrange(site_code) %>% 
   print(n = 40)
 
+# sgsdrt.us has known issue with the data in 2020 and 2021 due to 
+# NEON sensor issues, I'm intentionally writing this code to make 
+# make NA years that are flagged in prob_sites to be anamolous for sgsdrt.us
+# code is flexible so if input data improved the code below won't run
 
+if ('sgsdrt.us' %in% prob_sites$site_code) {
+  wthr4$precip[wthr4$site_code == "sgsdrt.us" &
+          year(wthr4$date) %in%
+            prob_sites$year[prob_sites$site_code == 'sgsdrt.us']] <- NA
+}
 # saving CSV --------------------------------------------------------------
 
 dest <- file.path(
