@@ -248,10 +248,7 @@ site_ppt4 <- site_ppt3 %>%
   mutate(n_treat_days_adj = ifelse(is.na(n_treat_days_adj),
                                    n_treat_days,
                                    n_treat_days_adj)
-         ) %>% 
-  # filtering out brandjberg it isn't used.
-  # Also it has two treatment start dates which is causing problems below
-  filter(site_code != "brandjberg.dk")
+         ) 
 
 # testing ~~~~~~~~~
 # for inconsistencies---mostly resolved
@@ -271,7 +268,7 @@ if(length(test$site_code) > 0) {
 
 # no non-unique block 
 test <- site_ppt4%>% 
-  group_by(site_code, plot, block, year) %>% 
+  group_by(site_code, trt,plot, block, year) %>% 
   filter(biomass_date == max(biomass_date)) %>% 
   summarize(n = n()) %>% 
   filter(n > 1) %>% 
@@ -315,6 +312,7 @@ wide_yr0 <- site_ppt4 %>%
     ),
     # in theory there could be more than 1 ppt_source, so just grabbing first
     ppt_source = unique(ppt_source)[1],
+    fake_bioDat = unique(fake_bioDat)[1],
     .groups = 'drop') %>% 
   group_by(year, site_code) %>% 
   # in cases when different biomass harvest dates (and thus n_treat days) for
@@ -432,7 +430,7 @@ wide2save <- wide_yr1 %>%
 # this includes the  worldclim percentiles
 write_csv(wide2save,
           file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2022-04-06.csv"))
+                    "precip_by_trmt_year_with_percentiles_2022-04-16.csv"))
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",
@@ -583,7 +581,7 @@ jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6,
 
 df_for_hist <- wide_year_one %>%   # filtering based on cuttoff
   filter(trt_yr_adj == yr1_lab, !annual_ppt_used, 
-         site_code %in% sites95$site_code) %>% 
+         site_code %in% sites95$site_code, !fake_bioDat) %>% 
   ungroup() %>% 
   select(site_code, year, ppt_Drought, ppt_Control, site_map) %>% 
   pivot_longer(cols = c("ppt_Drought", "ppt_Control"),
@@ -630,3 +628,4 @@ cat("On average, control plots received ",
     round(perc_ap_map$perc_ap_map[perc_ap_map$trmt == "ppt_Control"], 1), 
     "% of mean annual precipitation.\n")
 sink()
+
