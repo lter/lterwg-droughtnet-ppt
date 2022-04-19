@@ -36,7 +36,7 @@ path_ms <- file.path(path, 'IDE MS_Single year extreme')
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 # this is the same value set in the 05_precipitation reduction calculations.R script
-days_before <- 730 #365 
+days_before <- 365 # 730 #365 
 
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 days_string2 <- paste0(days_before, "-", days_before - 365, "days")
@@ -573,7 +573,8 @@ sites_list <- sites_list  %>%
   arrange(min_n_treat_days, min_reduction, site_code)
 
 write_csv(sites_list, file.path(path_ms, "Data/precip",
-                     "first_yr_sites_by_cutoff.csv"))
+                     paste0("first_yr_sites_by_cutoff", days_string2,
+                     ".csv")))
 
 # histograms for publication--------------------------------------------------
 
