@@ -496,10 +496,6 @@ wide2save$site_code %>% unique() %>% sort()
 
 # * checking for missing years --------------------------------------------
 
-diff_na <- function(x) {
-  c(NA_real_, diff(x))
-}
-
 # years that are missing but have years of data before and after them.
 # this should only be because there were too many days with NA ppt that year
 # or there is no biomass data for that year

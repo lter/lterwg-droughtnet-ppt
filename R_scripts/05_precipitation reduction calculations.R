@@ -367,7 +367,64 @@ pre_years <- map_dfr(yrs_before, function(x) {
   out
 })
 
-sites2 <- bind_rows(pre_years, sites2a)
+sites2b <- bind_rows(pre_years, sites2a)
+
+
+# fill in missing years ---------------------------------------------------
+# Note--an issue is when sites provided biomass dates for say 2016 and 2018,
+# but not for 2017, this code creates a fake biomass date for 2017,
+# so ppt will be extracted for that year. 
+# Importantly the fake biomass date is the maximum of the biomass dates
+# for that site the year before. Note--that choice may not always be optimal
+
+# this data frame provides site, year, and the number of years
+# missing prior to that year
+n_prev_missing1 <- sites2b %>% 
+  ungroup() %>% 
+  select(site_code, year) %>% 
+  arrange(site_code, year) %>% 
+  filter(!duplicated(.)) %>% 
+  group_by(site_code) %>% 
+  mutate(n = n()) %>% 
+  filter(n > 1) %>% 
+  mutate(diffs_yr = diff_na(year)) %>% 
+  filter(diffs_yr > 1) %>% 
+  # this doesn't currently account for the fact
+  # that could have multiple consecutive yrs missing
+  mutate(n_prev_missing = diffs_yr - 1) %>% 
+  select(-n, -diffs_yr)
+
+n_prev_missing2 <- n_prev_missing1 %>% 
+  left_join(sites2b, by = c("site_code", "year")) %>% 
+  group_by(site_code, year) %>% 
+  filter(bioDat == max(bioDat)) 
+
+check <- n_prev_missing2 %>% 
+  summarise(n = n()) %>% 
+  filter(n > 1)
+if(nrow(check) > 0) {
+  stop("Duplicates present in n_prev_missing2")
+}
+
+# creates rows and biomass dates for the missing years
+imputed_years <- n_prev_missing2 %>% 
+  group_by(site_code, year) %>% 
+  nest() %>% 
+  mutate(data2 = pmap(list(site_code, year, data), function(site, yr, df) {
+    # repeat once for each missing years
+    out <- df[rep(1, df$n_prev_missing), ]  
+    out$year <-  yr - 1:df$n_prev_missing # calculating previous years
+    out$bioDat <- out$bioDat - years(1:df$n_prev_missing) # fake biomass dates
+    out$fake_bioDat <- TRUE
+    out$site_code <- site
+    out
+  })) %>% 
+  pull(data2) %>% 
+  bind_rows() %>% 
+  select(site_code, year, everything(), -n_prev_missing)
+
+sites2 <- bind_rows(sites2b, imputed_years)
+
 # yearly control/drt precip -----------------------------------------------
 
 # * ghcn ------------------------------------------------------------------
@@ -428,7 +485,8 @@ sites5 <- sites4 %>%
 
 # merge back to main anpp file --------------------------------------------
 anpp3$fake_bioDat <- FALSE
-pre_years_ctrl <- pre_years[names(pre_years) %in% names(anpp3)] %>% 
+fake_years <- bind_rows(pre_years, imputed_years)
+pre_years_ctrl <- fake_years[names(fake_years) %in% names(anpp3)] %>% 
   mutate(trt = 'Control')
 
 pre_years_drt <- pre_years_ctrl %>% 
@@ -510,15 +568,6 @@ test <- sites_full1 %>%
 if(nrow(test) > 0) {
   stop("likely a join issue, missing fake_bioDat but ppt calculated")
 }
-
-# sites where GHCN used for at least 1 year
-sites_full1 %>% 
-  filter(!is.na(ppt) & ppt != ppt_sub) %>% 
-  pull(site_code) %>% 
-  unique()
-
-nrow(sites_full1) # shouldn't have added rows with join
-nrow(anpp2)
 
 # comparing ghcn & chirps to submitted data ----------------------------------------
 
@@ -611,7 +660,7 @@ sites_full3 <- sites_full2 %>%
 # saving CSV --------------------------------------------------------------
 
 write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2022-04-16.csv'))
+          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2022-04-19.csv'))
 
 
 # checks ------------------------------------------------------------------
