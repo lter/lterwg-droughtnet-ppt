@@ -28,6 +28,19 @@ source("R_scripts/dropbox_path.R") # where path to dropbox should be set
 path_oct <- file.path(path, 'IDE Meeting_Oct2019')
 path_ms <- file.path(path, 'IDE MS_Single year extreme')
 
+# user defined parameters --------------------------------------------------
+
+# the number of days before a given biomass date that the year of precip 
+# started
+# ie. 365 would mean you are calculating precip for 365-0 
+# days before biomass date, 730 would mean 730 to 365 days before
+# biomass treatment (should be a multiple of 365)
+# this is the same value set in the 05_precipitation reduction calculations.R script
+days_before <- 365 
+
+days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
+days_string2 <- paste0(days_before, "-", days_before - 365, "days")
+
 # load worldclim monthly precip data --------------------------------------
 
 # can get tpa tool data from previous commits. 
@@ -143,7 +156,7 @@ cdf1 <- lapply(density, function(x){
 
 p1 <- newest_file_path(
   file.path(path_oct, 'data/precip'),
-  "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
+  paste0("anpp_clean_trt_ppt_no-perc", days_string, "\\d{4}-\\d+-\\d+.csv"))
 p1
 
 site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
@@ -415,9 +428,6 @@ wide_year_one <- wide_yr1b %>%
 
 # saving the data (csv) ---------------------------------------------------
 
-# write_csv(site_ppt4,
-#           file.path(path_ms, "Data/precip", "anpp_clean_trt_ppt_06-26-2020.csv"))
-
 wide2save <- wide_yr1 %>% 
   rename(ppt_ambient = ppt_Control,
          ppt_drought = ppt_Drought,
@@ -428,13 +438,14 @@ wide2save <- wide_yr1 %>%
   mutate(perc_reduction = 100-ppt_drought/ppt_ambient*100)
 
 # this includes the  worldclim percentiles
-write_csv(wide2save,
-          file.path(path_ms, "Data/precip",
-                    "precip_by_trmt_year_with_percentiles_2022-04-16.csv"))
+write_csv(wide2save, file.path(
+  path_ms, "Data/precip",
+  paste0("precip_by_trmt_year_with_percentiles", days_string, "2022-04-16.csv")))
+
 
 tibble(site_code = yr1_sites) %>% 
   write_csv(file.path(path_ms, "Data/precip",
-                      "sites_with_year1_ppt_data.csv"))
+                      paste0("sites_with_year1_ppt_data", days_string2, ".csv")))
 
 
 # testing ######################
@@ -570,10 +581,9 @@ trmt_labs <- c("ppt_Control" = "Control Treatment",
                "ppt_Drought" = "Drought Treatment")
 # control and drought as percent of MAP
 
-jpeg(file.path(path_ms, "Figures/precip/percent_MAP_hists.jpeg"), height = 6, 
-     width = 4,
-     units = "in",
-     res = 600)
+jpeg(file.path(
+  path_ms, paste0("Figures/precip/percent_MAP_hists_", days_string2, ".jpeg")), 
+  height = 6, width = 4, units = "in",res = 600)
 
 df_for_hist <- wide_year_one %>%   # filtering based on cuttoff
   filter(trt_yr_adj == yr1_lab, !annual_ppt_used, 
@@ -606,7 +616,10 @@ df_for_hist$site_code %>% unique() %>% sort()
 
 
 # print info about sites in the histogram
-sink(file.path(path_ms, "Figures/precip/percent_MAP_hists_info.txt"))
+sink(file.path(
+  path_ms, 
+  paste0("Figures/precip/percent_MAP_hists_info_", days_string2, ".txt")))
+
 n <- df_for_hist %>% 
   filter(!is.na(ppt)) %>% 
   pull(site_code) %>% 
@@ -614,7 +627,7 @@ n <- df_for_hist %>%
   length()
 
 
-cat("Information about percent_MAP_hists.jpeg\n\n")
+cat("Information about percent_MAP_hists_", days_string2, ".jpeg\n\n")
 cat("Number of sites shown in histogram: ", n, "\n\n")
 
 cat("On average, drought plots received ", 

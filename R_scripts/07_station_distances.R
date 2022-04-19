@@ -17,13 +17,22 @@ source("R_scripts/functions.R")
 source("R_scripts/dropbox_path.R") # path to dropbox
 theme_set(theme_classic())
 
+# the number of days before a given biomass date that the year of precip 
+# started
+# ie. 365 would mean you are calculating precip for 365-0 
+# days before biomass date, 730 would mean 730 to 365 days before
+# biomass treatment (should be a multiple of 365)
+# this is the same value set in the 05_precipitation reduction calculations.R script
+days_before <- 365 
 
+days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 # load data ---------------------------------------------------------------
 
 # from 06_calculate_cdf.R
 p1 <- newest_file_path(
   path = file.path(path,'IDE MS_Single year extreme/Data/precip'),
-  file_regex = 'precip_by_trmt_year_with_percentiles_\\d{4}-\\d+-\\d+.csv' 
+  file_regex = paste0('precip_by_trmt_year_with_percentiles', days_string,
+                      '\\d{4}-\\d+-\\d+.csv')
 )
 
 wide2save <- read_csv(p1)
@@ -31,7 +40,7 @@ wide2save <- read_csv(p1)
 # from 05_precipitation reduction calculations.R
 p2 <- newest_file_path(
   file.path(path, 'IDE Meeting_Oct2019/data/precip'),
-  "anpp_clean_trt_ppt_no-perc_\\d{4}-\\d+-\\d+.csv")
+  paste0("anpp_clean_trt_ppt_no-perc", days_string, "\\d{4}-\\d+-\\d+.csv"))
 
 sites_full3 <- read_csv(p2)
 

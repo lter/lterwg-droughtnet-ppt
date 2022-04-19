@@ -14,6 +14,16 @@ path_oct <- file.path(path, '/IDE Meeting_Oct2019')
 path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 
+# user defined parameters --------------------------------------------------
+
+# the number of days before a given biomass date to start summing
+# the precip, ie. 365 would mean you are calculating precip for 365-0 
+# days before biomass date, 730 would mean 730 to 365 days before
+# biomass treatment (should be a multiple of 365)
+days_before <- 365 
+
+days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
+
 # reading in precip data -----------------------------------------------------
 
 # GHCN data--getting newest file based on file name
@@ -435,7 +445,8 @@ sites2_forghcn <- sites2 %>%
 
 options(warn=1) # print warnings as they occur
 sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
-                                  precip_data = precip1)
+                                  precip_data = precip1,
+                                  days_before = days_before)
 
 # * submitted data --------------------------------------------------------
 
@@ -449,7 +460,8 @@ sites2_forsubmitted <- sites2 %>%
         !is.na(bioDat))
 
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
-                                       precip_data = wthr2)
+                                       precip_data = wthr2,
+                                       days_before = days_before)
 
 
 # * chirps data -----------------------------------------------------------
@@ -457,7 +469,8 @@ sites2_forchirps <- sites2 %>%
   filter(site_code %in% chirps2$site_code)
 
 sites3_chirps <- calc_yearly_precip(site_data = sites2_forchirps,
-                                  precip_data = chirps2)
+                                  precip_data = chirps2,
+                                  days_before = days_before)
 
 sites4_chirps <- sites3_chirps 
 
@@ -576,7 +589,8 @@ theme_set(theme_classic())
 
 
 # pdf(file.path(path_oct,
-#               paste0("figures/precip/ghcn_vs_submitted_precip_", today(), ".pdf")
+#               paste0("figures/precip/ghcn_vs_submitted_precip", days_string,
+#                       today(), ".pdf")
 #              ))
 
 
@@ -659,8 +673,10 @@ sites_full3 <- sites_full2 %>%
 
 # saving CSV --------------------------------------------------------------
 
-write_csv(sites_full3,
-          file.path(path_oct, 'data/precip/anpp_clean_trt_ppt_no-perc_2022-04-19.csv'))
+write_csv(sites_full3, file.path(
+  path_oct, 
+  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-04-19.csv')
+  ))
 
 
 # checks ------------------------------------------------------------------

@@ -465,7 +465,8 @@ comb_primary_secondary_stns <- function(df1, df2, other_cols = FALSE) {
 
 # yearly control and drt precip -------------------------------------------
 
-calc_yearly_precip <- function(site_data, precip_data){
+calc_yearly_precip <- function(site_data, precip_data, 
+                               days_before = 365){
   # site_data--df with biomass dates, treatment dates etc.
   # precip_data--df with daily precip by site code
   # returns site_data with added control and drought precip cols among others
@@ -479,7 +480,11 @@ calc_yearly_precip <- function(site_data, precip_data){
     is.data.frame(site_data),
     is.data.frame(precip_data),
     all(needed_cols1 %in% names(site_data)),
-    all(needed_cols2 %in% names (precip_data))
+    all(needed_cols2 %in% names (precip_data)),
+    # days_before should a multiple of 365 
+    # (this isn't computationally necessary but if not the case
+    # suggests incorrect use of argument)
+    days_before%%365 == 0
   )
   
   for (i in 1:nrow(site_data)) {
@@ -487,14 +492,15 @@ calc_yearly_precip <- function(site_data, precip_data){
     row <- site_data[i, ]
     print(row$site_code)
     site_ppt <- precip_data[precip_data$site_code == row$site_code,]
-    start_date <- as.Date(row$bioDat-365)
+    start_date <- as.Date(row$bioDat-days_before)
+    end_date <- start_date + 365 # make end date 1 year after start date
     site_dates <- tibble(
-      date = seq(start_date, row$bioDat, by = 1)
+      date = seq(start_date, end_date, by = 1)
     )
     # joining in since someting data doesn't go whole year which causes problems
     site_ppt2 <- site_dates %>% 
       left_join(site_ppt, by = "date") %>%
-      filter(date >= start_date & date < row$bioDat) %>% 
+      filter(date >= start_date & date < end_date) %>% 
       mutate(n_treat_days = difftime(date, row$trtDat, units="days"))
     
     # when did the shelter come off:
