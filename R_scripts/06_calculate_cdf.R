@@ -36,7 +36,7 @@ path_ms <- file.path(path, 'IDE MS_Single year extreme')
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 # this is the same value set in the 05_precipitation reduction calculations.R script
-days_before <- 365 # 730 #365 
+days_before <- 730 #365 # 
 
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 days_string2 <- paste0(days_before, "-", days_before - 365, "days")
