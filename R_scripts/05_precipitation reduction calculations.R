@@ -20,7 +20,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # the precip, ie. 365 would mean you are calculating precip for 365-0 
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
-days_before <- 730 # 365  # 
+days_before <- 730 #365  #
 
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
@@ -60,7 +60,7 @@ paths_chirps <- list.files(
 
 # extracting site_code from file name
 names(paths_chirps) <- str_extract(basename(paths_chirps), 
-                                   "(?<=ppt_)[a-z]+\\.[a-z]{2}")
+                                   "(?<=ppt_).+\\.[a-z]{2}(?=_\\d{4})")
 chirps1 <- map(paths_chirps, read_csv, 
                col_select = c("date", "precipitation", "site_code"),
                show_col_types = FALSE, na = c("-9999", -9999))
@@ -169,8 +169,8 @@ siteDrt_A %>%
 # b/ didn't parse above
 siteDrt_B$drought_trt[siteDrt_B$site_code == "elizwood.us"] <- 0.5
 
-# b/ not yet updated in data by time of running this code
-siteDrt_B$drought_trt[siteDrt_B$site_code == "sand.us"] <- 0.3
+# No drought treatment provided--update this when available
+siteDrt_B$drought_trt[siteDrt_B$site_code == "hoelstein.ch"]
 
 # 
 siteDrt_A %>% 
@@ -675,7 +675,7 @@ sites_full3 <- sites_full2 %>%
 
 write_csv(sites_full3, file.path(
   path_oct, 
-  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-04-19.csv')
+  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-05-18.csv')
   ))
 
 
