@@ -32,12 +32,33 @@ site1 <- read_csv(file.path(
 
 chirps1 <- ee$ImageCollection('UCSB-CHG/CHIRPS/DAILY')$select('precipitation')
 
+
+# already downloaded ------------------------------------------------------
+# list of sites for which chirps data was already downloaded
+# this chunk is here so that when new sites are added, you don't have
+# to run all the GEE code again (which can take many hours)
+
+chirps_paths <- list.files(file.path(path, "IDE/data_raw/climate/CHIRPS/"),
+                           "CHIRPS_ppt_")
+
+# sites for which data was already downloaded
+downloaded_sites <- chirps_paths %>% 
+  str_extract("(?<=CHIRPS_ppt_).+(?=_1981)")
+
+
 # create feature collection of site codes--------------------------------
 # creating a feature collection (like a shapefile) for use by earth engine
 
+# The CHIRPS dataset only goes from -50 to 50 degress latitud,
+# so values will be missing for the other sites 
+# here only want to download the good sites
 site2 <- site1 %>% 
   select(site_code, latitud, longitud) %>% 
-  mutate(longitud = as.numeric(longitud))
+  mutate(longitud = as.numeric(longitud),
+         latitud = as.numeric(latitud)) %>% 
+  filter(latitud >= -50 & latitud <= 50) %>% 
+  filter(!site_code %in% downloaded_sites) %>% 
+  print()
 
 fc_l1 <- pmap(site2, function(site_code, latitud, longitud) {
 
@@ -118,20 +139,18 @@ for (site_code in site_codes) {
 # The CHIRPS dataset only goes from -50 to 50 degress latitud,
 # so values will be missing for the other sites 
 # here only want to download the good sites
-# down the line, consider updating the code above, so files are only
-# created for sites between -50 and 50
-site3 <- site2 %>% 
-  filter(latitud >= -50 & latitud <= 50) %>% 
-  print(n = 25)
+site3 <- site2 
 
 files1 <- drive_ls(path = "CHIRPS") %>% 
-  mutate(site_code = str_extract(name, ("(?<=ppt_)[a-z]+\\.[a-z]{2}")))
+  mutate(site_code = str_extract(name, ("(?<=ppt_)[a-z_0-9]+\\.[a-z]{2}(?=_\\d{4})")))
 
 # only file names 
 files2 <- files1 %>% 
   filter(site_code %in% site3$site_code) %>% 
   mutate(new_file_name = str_replace(
-    name, "(?<=\\d{4}-\\d{2}-\\d{2})_\\d{4}_.+(?=.csv$)", ""))
+    name, "(?<=\\d{4}-\\d{2}-\\d{2})_\\d{4}_.+(?=.csv$)", "")) %>% 
+  arrange(name) 
+
 
 for (i in 1:nrow(files2)) {
   drive_download(file = files2$id[i],
