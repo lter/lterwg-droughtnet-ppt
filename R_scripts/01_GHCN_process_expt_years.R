@@ -234,7 +234,7 @@ precipFull4 <- nearStation2_df %>%
   right_join(precipFull3, by = c("id", "site_code"))
 
 write.csv(precipFull4,
-          file.path(path_oct, 'data/precip/GHCN_daily_precip_2021-03-02.csv'),
+          file.path(path_oct, 'data/precip/GHCN_daily_precip_2022-05-18.csv'),
           row.names = FALSE)
 
 # data check (comparing to manualy calculated values)

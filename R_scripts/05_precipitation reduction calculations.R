@@ -675,7 +675,7 @@ sites_full3 <- sites_full2 %>%
 
 write_csv(sites_full3, file.path(
   path_oct, 
-  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-05-18.csv')
+  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-05-19.csv')
   ))
 
 

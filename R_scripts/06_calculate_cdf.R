@@ -36,7 +36,7 @@ path_ms <- file.path(path, 'IDE MS_Single year extreme')
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 # this is the same value set in the 05_precipitation reduction calculations.R script
-days_before <- 730 # 365 #
+days_before <-  730 # 365 #
 
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 days_string2 <- paste0(days_before, "-", days_before - 365, "days")
@@ -391,15 +391,15 @@ if (!all(test == 'Control')) {
 
 yr1_sites <- wide_yr1 %>% 
   filter(!is.na(ppt_Control) & !is.na(ppt_Drought),
-         trt_yr_adj == yr1_lab, !annual_ppt_used) %>% 
-  pull(site_code)
+         trt_yr_adj == yr1_lab) %>% 
+  select(site_code, annual_ppt_used)
 
 wide_yr1 %>% 
   dplyr::filter(trt_yr_adj == yr1_lab, !is.na(ppt_Control), annual_ppt_used) %>% 
   pull(site_code) %>% 
   unique()
   
-n <- yr1_sites %>% 
+n <- yr1_sites$site_code %>% 
   unique() %>% 
   length()
 n
@@ -410,6 +410,7 @@ wide_yr1b <- wide_yr1 %>%
     perc_ap_map = ppt_Control/site_map*100,
     # log of ap/map ratio
     log_ap_map = log(ppt_Control/site_map))
+
 
 # have added in the 1/31/20 data set:
 # "cerrillos.ar"  "chacra.ar"     "chilcasdrt.ar" "morient.ar"    "riomayo.ar"  
@@ -443,8 +444,7 @@ write_csv(wide2save, file.path(
   paste0("precip_by_trmt_year_with_percentiles", days_string, "2022-05-18.csv")))
 
 
-tibble(site_code = yr1_sites) %>% 
-  write_csv(file.path(path_ms, "Data/precip",
+write_csv(yr1_sites, file.path(path_ms, "Data/precip",
                       paste0("sites_with_year1_ppt_data", days_string2, ".csv")))
 
 
@@ -556,14 +556,16 @@ for(i in 1:nrow(n_sites)) {
    sites <- wide2save %>% filter(perc_reduction > n_sites$min_reduction[i], 
                        n_treat_days >= n_sites$min_n_treat_days[i],
                        n_treat_days <= n_sites$max_n_treat_days[i],
-                       !is.na(ppt_ambient), !is.na(ppt_drought), !annual_ppt_used) %>% 
-     pull(site_code) %>% 
-     unique() %>% 
-     sort()
-  n_sites$n_sites[i] <- length(sites)
-  df <- n_sites[rep(i, length(sites)), 
+                       !is.na(ppt_ambient), !is.na(ppt_drought)) %>% 
+     select(site_code, annual_ppt_used) %>% 
+     distinct() %>% 
+     arrange(site_code)
+    
+  n_sites$n_sites[i] <- length(sites$site_code)
+  df <- n_sites[rep(i, length(sites$site_code)), 
                 c('min_n_treat_days', 'max_n_treat_days', 'min_reduction')]
-  df$site_code <- sites
+  df$site_code <- sites$site_code
+  df$annual_ppt_used <- sites$annual_ppt_used
   sites_list <- bind_rows(sites_list, df)
 }
 n_sites  %>% 
