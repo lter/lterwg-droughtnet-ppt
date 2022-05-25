@@ -21,7 +21,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 days_before <- 730 #365  #
-
+date_string <- "2022-05-25" # for use in output files
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
 # reading in precip data -----------------------------------------------------
@@ -675,7 +675,8 @@ sites_full3 <- sites_full2 %>%
 
 write_csv(sites_full3, file.path(
   path_oct, 
-  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string, '2022-05-19.csv')
+  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string,
+         date_string,'.csv')
   ))
 
 
