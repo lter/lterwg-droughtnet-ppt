@@ -20,8 +20,8 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # the precip, ie. 365 would mean you are calculating precip for 365-0 
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
-days_before <- 730 #365  #
-date_string <- "2022-05-25" # for use in output files
+days_before <- 365  #730 #
+date_string <- "2022-06-06" # for use in output files
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
 # reading in precip data -----------------------------------------------------
@@ -172,6 +172,8 @@ siteDrt_B$drought_trt[siteDrt_B$site_code == "elizwood.us"] <- 0.5
 # No drought treatment provided--update this when available
 siteDrt_B$drought_trt[siteDrt_B$site_code == "hoelstein.ch"]
 
+# No drought treatment provided--update this when available
+siteDrt_B$drought_trt[siteDrt_B$site_code == "tovetorp.se"]
 # 
 siteDrt_A %>% 
   filter(is.na(siteDrt_B$drought_trt)) %>% 
@@ -267,13 +269,23 @@ anpp3 <- siteDrt_B %>%
 
 # on/off dates ------------------------------------------------------------
 
+# sand.us dates emailed by Kate on 6/6/2022
+
 # these sites just provided text in the set/remove fields
-on_off_dates <- tibble(site_code = c("cedarsav.us", "cedarsav.us", "cedarsav.us", "cedartrait.us", 
-                     "cedartrait.us", "cedartrait.us"),
+on_off_dates <- tibble(site_code = 
+                         c("cedarsav.us", "cedarsav.us", "cedarsav.us", 
+                           "cedartrait.us", "cedartrait.us", "cedartrait.us",
+                           'sand.us', 'sand.us', 'sand.us'),
        on = c("2017-04-27", "2018-05-05", "2019-04-30", 
-              "2017-04-27", "2018-05-05", "2019-05-2"),
+              "2017-04-27", "2018-05-05", "2019-05-2",
+              '2020-6-22', '2021-5-27', '2022-4-30'),
        off = c("2017-09-21", "2018-09-25", "2019-09-25",
-               "2017-09-20","2018-09-11", "2019-09-24"),
+               "2017-09-20","2018-09-11", "2019-09-24",
+               # Note the last date (2022-10-1) is my best
+               # guess based on past years (at the time of 
+               # writing this date is in the future--the place
+               # holder is so that code doesn't break donw)
+               '2020-10-3', '2021-9-26', '2022-10-1'),
        year = year(on))
 
 
@@ -283,14 +295,9 @@ anpp3 <- anpp3 %>%
   mutate(
     IfNot365.WhenShelterSet = ifelse(is.na(on), IfNot365.WhenShelterSet, on),
     IfNot365.WhenShelterRemove = ifelse(is.na(off), IfNot365.WhenShelterRemove, off),
-    IfNot365.WhenShelterSet = ifelse(
-    year == 2016 & site_code == "cedarsav.us",
-    "",
-    IfNot365.WhenShelterSet),
-    IfNot365.WhenShelterRemove = ifelse(
-      year == 2016 & site_code == "cedarsav.us",
-      "",
-      IfNot365.WhenShelterRemove)) %>% 
+    # remove/set dates aren't meaningful before the first treatment date
+    IfNot365.WhenShelterSet = ifelse(bioDat < trtDat, NA, IfNot365.WhenShelterSet),
+    IfNot365.WhenShelterRemove = ifelse(bioDat < trtDat, NA, IfNot365.WhenShelterRemove)) %>% 
   select(-on, -off)
 
 # reformatting some dates so that they can be used by the function 
