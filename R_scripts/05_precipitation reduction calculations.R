@@ -20,8 +20,8 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # the precip, ie. 365 would mean you are calculating precip for 365-0 
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
-days_before <- 730 #365  #
-date_string <- "2022-09-11" # for use in output files
+days_before <- 365 #730 #1095 #1460  #
+date_string <- "2022-11-20" # for use in output files
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
 # reading in precip data -----------------------------------------------------
