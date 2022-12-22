@@ -859,3 +859,31 @@ if (FALSE) {
   # more variable
   seasonality_index(rnorm(12, mean = 10, sd = 4))
 }
+
+
+
+# extract clim data from mswep --------------------------------------------
+
+#' extract mswep ppt data
+#'
+#' @param r spatraster (containing daily ppt 'rasters')
+#' @param site spatvector containing coordinates of ide sites
+#'
+#' @return dataframe with site_code, date, and precip columns
+extract_mswep <- function(r, site) {
+  r_extracted <- terra::extract(r, site, bind = TRUE)
+  
+  # one row for each site, columns 
+  # are site_code 
+  df <- as.data.frame(r_extracted)
+  # first cold should be site_code
+  # additional cols should be precipitation for a given day
+  stopifnot(names(df[, 1]) == "site_code",
+            str_detect(names(df[, 2:ncol(df)]), "^precipitation"))
+  df2 <- df
+  names(df2) <- c("site_code", paste0("precip_", time(r)))
+  out <- pivot_longer(df2, -"site_code", names_to = "date",
+                      values_to = "precip") %>% 
+    mutate(date = str_replace(date, "^precip_", ""))
+  out
+}
