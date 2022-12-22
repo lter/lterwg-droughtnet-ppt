@@ -19,10 +19,11 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # the number of days before a given biomass date to start summing
 # the precip, ie. 365 would mean you are calculating precip for 365-0 
 # days before biomass date, 730 would mean 730 to 365 days before
-# biomass treatment (should be a multiple of 365)
-days_before <- 365 #730 #1095 #1460  #
+# biomass treatment (should be a multiple of 365). 
+# this code loops through days_before_vec and creates output for
+# each 
+days_before_vec <- c(365, 730, 1095, 1460)
 date_string <- "2022-12-22" # for use in output file names
-days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
 # reading in precip data -----------------------------------------------------
 
@@ -458,279 +459,283 @@ sites2 <- bind_rows(sites2b, imputed_years)
 
 # yearly control/drt precip -----------------------------------------------
 
-# * ghcn ------------------------------------------------------------------
-
-# first calculating using ghcn data
-sites2_forghcn <- sites2 %>% 
-  filter(site_code %in% precip1$site_code)
-
-options(warn=1) # print warnings as they occur
-sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
-                                  precip_data = precip1,
-                                  days_before = days_before)
-
-# * submitted data --------------------------------------------------------
-
-# calculating using submitted data
-wthr2 <- wthr1 %>% 
-  rename(ppt = precip)
-
-# STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
-sites2_forsubmitted <- sites2 %>%
-  filter(site_code %in% wthr2$site_code,
-        !is.na(bioDat))
-
-sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
-                                       precip_data = wthr2,
-                                       days_before = days_before)
-
-
-# * chirps data -----------------------------------------------------------
-sites2_forchirps <- sites2 %>% 
-  filter(site_code %in% chirps2$site_code)
-
-sites3_chirps <- calc_yearly_precip(site_data = sites2_forchirps,
-                                  precip_data = chirps2,
-                                  days_before = days_before)
-
-sites4_chirps <- sites3_chirps 
-
-# adding col name suffix's for joining
-col_names <- names(sites3_chirps)
-new_col_names <- ifelse(col_names %in% names(sites1),
-                        col_names,
-                        paste0(col_names, "_chirps"))
-names(sites4_chirps) <- new_col_names
-
-
-# * mswep -----------------------------------------------------------------
-sites2_formswep <- sites2 %>% 
-  filter(site_code %in% mswep2$site_code)
-
-sites3_mswep <- calc_yearly_precip(site_data = sites2_formswep,
-                                    precip_data = mswep2,
+for(days_before in days_before_vec){
+  
+  days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
+  # * ghcn ------------------------------------------------------------------
+  
+  # first calculating using ghcn data
+  sites2_forghcn <- sites2 %>% 
+    filter(site_code %in% precip1$site_code)
+  
+  options(warn=1) # print warnings as they occur
+  sites3_ghcn <- calc_yearly_precip(site_data = sites2_forghcn,
+                                    precip_data = precip1,
                                     days_before = days_before)
-
-sites4_mswep <- sites3_mswep
-
-# adding col name suffix's for joining
-col_names <- names(sites3_chirps)
-new_col_names <- ifelse(col_names %in% names(sites1),
-                        col_names,
-                        paste0(col_names, "_mswep"))
-names(sites4_mswep) <- new_col_names
-
-# combining ghcn and submitted results ------------------------------------
-
-sites4 <- full_join(sites3_ghcn, sites3_submitted, 
-                    by = c(names(sites1)),
-                    suffix = c("_ghcn", "_sub")) %>% 
-  full_join(sites4_chirps, by = names(sites1)) %>% 
-  full_join(sites4_mswep, by = names(sites1)) %>% 
-  rowwise() %>% 
-  mutate(fake_bioDat = mean(c(fake_bioDat_sub, fake_bioDat_ghcn, 
-                           fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
-         fake_bioDat = as.logical(fake_bioDat)) %>% 
-  ungroup() %>% 
-  select(-matches("fake_bioDat_"))
-
-sites5 <- sites4 %>% 
-  select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps,
-         -ppt_num_wc_interp_mswep)
-
-# merge back to main anpp file --------------------------------------------
-anpp3$fake_bioDat <- FALSE
-fake_years <- bind_rows(pre_years, imputed_years)
-pre_years_ctrl <- fake_years[names(fake_years) %in% names(anpp3)] %>% 
-  mutate(trt = 'Control')
-
-pre_years_drt <- pre_years_ctrl %>% 
-  mutate(trt = 'Drought')
-
-
-# adding in fake bioDat rows for both control and drought trmt
-anpp4 <- bind_rows(pre_years_ctrl, pre_years_drt, anpp3) 
   
-
-sites6 <- anpp4 %>% 
-  left_join(select(sites5, -fake_bioDat), 
-            by = c("site_code", "year", "bioDat", "trtDat", 
-                   "X365day.trt", "IfNot365.WhenShelterRemove", 
-                   "IfNot365.WhenShelterSet", "drought_trt")) %>% 
-  mutate(ppt_ghcn = ifelse(trt == "Control", ppt_ambient_ghcn, 
-                           ppt_drought_ghcn),
-         ppt_sub = ifelse(trt == "Control", ppt_ambient_sub, 
-                           ppt_drought_sub),
-         ppt_chirps = ifelse(trt == "Control", ppt_ambient_chirps, 
-                            ppt_drought_chirps),
-         ppt_mswep = ifelse(trt == "Control", ppt_ambient_mswep, 
-                             ppt_drought_mswep)) 
-# should be 0:
-test <- sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, 
-            na.rm = TRUE)
-stopifnot(test == 0)
-
-
-# use submitted data if it has fewer than 30 missing values, 
-# else use GHCN data, if both have >30 missing values than using
-# chirps data (if available) 
-# Also don't use submitted data if more than 30 days were interpolated
-sites7 <- sites6 %>% 
-  arrange(site_code, year) %>% 
-  mutate(num_drought_days = ifelse(is.na(num_drought_days_sub), 
-                                   num_drought_days_ghcn, 
-                                   num_drought_days_sub)) %>% 
-  select(-num_drought_days_sub, -num_drought_days_ghcn, 
-         -matches("_(drought)|(ambient)_"), num_drought_days) %>%
-  rowwise() %>% 
-  mutate(
-    ppt = case_when(
-      sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
-      & !is.na(ppt_sub) ~ppt_sub,
-      ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ ppt_ghcn,
-      !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ ppt_chirps,
-      !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ ppt_mswep),
-    ppt_source = case_when(
-      sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
-      & !is.na(ppt_sub) ~ 'submitted',
-      ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ 'ghcn',
-      !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ "chirps",
-      !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ "mswep")
-  ) %>% 
-  ungroup()
-
-# * assign trt to fake_bioDat rows ----------------------------------------
-
-test <- sites7 %>% 
-  filter(fake_bioDat, bioDat > trtDat)
-test
-
-# * join in anpp2 ---------------------------------------------------------
-
-# this code causing problems because of imperfect join
-sites_full1 <- sites7 %>% 
-  rename(biomass_date = bioDat,
-         first_treatment_date = trtDat) %>% 
-  left_join(anpp2, by = c("site_code", "block", "plot", "subplot", "year", "trt", 
-                          "biomass_date", "first_treatment_date", "X365day.trt")) %>% 
-  # solving issue of adjustments above causing join incompatibility with cedartrait
-  mutate(IfNot365.WhenShelterRemove = ifelse(is.na(IfNot365.WhenShelterRemove.x),
-                                             IfNot365.WhenShelterRemove.y,
-                                             IfNot365.WhenShelterRemove.x),
-         IfNot365.WhenShelterSet = ifelse(is.na(IfNot365.WhenShelterSet.x),
-                                             IfNot365.WhenShelterSet.y,
-                                             IfNot365.WhenShelterSet.x)) %>% 
-  select(-matches("\\.(x|y)$")) 
-
-test <- sites_full1 %>% 
-  filter(is.na(fake_bioDat) & !is.na(ppt))
-if(nrow(test) > 0) {
-  stop("likely a join issue, missing fake_bioDat but ppt calculated")
-}
-
-# comparing ghcn & chirps to submitted data ----------------------------------------
-
-theme_set(theme_classic())
-
-
-
-pdf(file.path(path_oct,
-              paste0("figures/precip/ghcn_vs_submitted_precip", days_string,
-                      date_string, ".pdf")
-             ))
-
-
-# ghcn data for this site is bad
-sites7 %>% 
-  filter(ppt_sub == 0 | ppt_ghcn == 0) %>% 
-  pull(site_code) %>% 
-  unique()
-
-
-df <- sites7 %>% 
-  filter((ppt_num_NA_sub + ppt_num_wc_interp_sub) < 30 & ppt_num_NA_ghcn < 30,
-         trt == "Control") %>% 
-  group_by(site_code, year) %>% 
-  mutate(ppt_sub = mean(ppt_sub),
-         ppt_ghcn = mean(ppt_ghcn),
-         ppt_chirps = mean(ppt_chirps)) 
-
-
-ggplot(df, aes(ppt_sub, ppt_ghcn)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0) +
-  labs(y = "365 day precip sum from GHCN (mm)",
-       x = "365 day precip sum from submitted data (mm)")
-
-ggplot(df, aes(ppt_sub, ppt_chirps)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0) +
-  labs(y = "365 day precip sum from chirps (mm)",
-       x = "365 day precip sum from submitted data (mm)")
-
-dev.off()
-
-# these are sites worth looking at b/ data sources give very different
-# results
-check <- df %>% 
-  filter(ppt_sub/ppt_chirps >2)
-# check
-
-# adding in annual ppt ----------------------------------------------------
-# if no daily data available using the site submitted calendar
-# year precip. 
-
-sites_full2 <- sites_full1 %>% 
-  # calendar year that best describes prior precip
-  mutate(cal_yr = ifelse(month(biomass_date, abbr = FALSE) > 7, year, year -1),
-         # were treatments applied starting the begining of the calendar year
-         cal_yr_post_trt = ifelse(cal_yr >= year(first_treatment_date) & (biomass_date - first_treatment_date) > 365 , TRUE, FALSE),
-         # is the whole calendar year pre trmt? (or is the important part pre-trt)
-         cal_yr_pre_trt = ifelse(cal_yr < year(first_treatment_date) | biomass_date < first_treatment_date, TRUE, FALSE)) %>% 
-  left_join(appt2[ , c("site_code", "annual_ppt", "year")], 
-            by = c("site_code", "cal_yr" = "year")) %>% 
-  mutate(annual_ppt = ifelse(trt == "Control", annual_ppt, 
-                             ifelse(cal_yr_pre_trt, annual_ppt,
-                                    ifelse(cal_yr_post_trt & trt == "Drought" & (X365day.trt == "Yes"|is.na(X365day.trt)), annual_ppt*(1 - drought_trt),
-                                           NA_real_))),
-         annual_ppt_used = ifelse(is.na(ppt) & !is.na(annual_ppt), TRUE, FALSE),
-         ppt = ifelse(annual_ppt_used, annual_ppt, ppt),
-  )
+  # * submitted data --------------------------------------------------------
   
-test <- sites_full2 %>% 
-  group_by(site_code, trt, plot, block, year) %>% 
-  filter(biomass_date == max(biomass_date)) %>% 
-  summarize(n = n()) %>% 
-  filter(n > 1) %>% 
-  pull(site_code)  
+  # calculating using submitted data
+  wthr2 <- wthr1 %>% 
+    rename(ppt = precip)
   
-if (length(test > 0)) {
-  stop('duplicated rows present in sites_full2')
-} 
-# I think this is a problem, using annual ppt is questionable at best
-# use a gridded product instead?
-sites_full2 %>% 
-    filter(annual_ppt_used) %>% 
-  pull(site_code) %>% 
-  unique()
+  # STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
+  sites2_forsubmitted <- sites2 %>%
+    filter(site_code %in% wthr2$site_code,
+          !is.na(bioDat))
+  
+  sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
+                                         precip_data = wthr2,
+                                         days_before = days_before)
+  
+  
+  # * chirps data -----------------------------------------------------------
+  sites2_forchirps <- sites2 %>% 
+    filter(site_code %in% chirps2$site_code)
+  
+  sites3_chirps <- calc_yearly_precip(site_data = sites2_forchirps,
+                                    precip_data = chirps2,
+                                    days_before = days_before)
+  
+  sites4_chirps <- sites3_chirps 
+  
+  # adding col name suffix's for joining
+  col_names <- names(sites3_chirps)
+  new_col_names <- ifelse(col_names %in% names(sites1),
+                          col_names,
+                          paste0(col_names, "_chirps"))
+  names(sites4_chirps) <- new_col_names
+  
+  
+  # * mswep -----------------------------------------------------------------
+  sites2_formswep <- sites2 %>% 
+    filter(site_code %in% mswep2$site_code)
+  
+  sites3_mswep <- calc_yearly_precip(site_data = sites2_formswep,
+                                      precip_data = mswep2,
+                                      days_before = days_before)
+  
+  sites4_mswep <- sites3_mswep
+  
+  # adding col name suffix's for joining
+  col_names <- names(sites3_chirps)
+  new_col_names <- ifelse(col_names %in% names(sites1),
+                          col_names,
+                          paste0(col_names, "_mswep"))
+  names(sites4_mswep) <- new_col_names
+  
+  # combining ghcn and submitted results ------------------------------------
+  
+  sites4 <- full_join(sites3_ghcn, sites3_submitted, 
+                      by = c(names(sites1)),
+                      suffix = c("_ghcn", "_sub")) %>% 
+    full_join(sites4_chirps, by = names(sites1)) %>% 
+    full_join(sites4_mswep, by = names(sites1)) %>% 
+    rowwise() %>% 
+    mutate(fake_bioDat = mean(c(fake_bioDat_sub, fake_bioDat_ghcn, 
+                             fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
+           fake_bioDat = as.logical(fake_bioDat)) %>% 
+    ungroup() %>% 
+    select(-matches("fake_bioDat_"))
+  
+  sites5 <- sites4 %>% 
+    select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps,
+           -ppt_num_wc_interp_mswep)
+  
+  # merge back to main anpp file --------------------------------------------
+  anpp3$fake_bioDat <- FALSE
+  fake_years <- bind_rows(pre_years, imputed_years)
+  pre_years_ctrl <- fake_years[names(fake_years) %in% names(anpp3)] %>% 
+    mutate(trt = 'Control')
+  
+  pre_years_drt <- pre_years_ctrl %>% 
+    mutate(trt = 'Drought')
+  
+  
+  # adding in fake bioDat rows for both control and drought trmt
+  anpp4 <- bind_rows(pre_years_ctrl, pre_years_drt, anpp3) 
+    
+  
+  sites6 <- anpp4 %>% 
+    left_join(select(sites5, -fake_bioDat), 
+              by = c("site_code", "year", "bioDat", "trtDat", 
+                     "X365day.trt", "IfNot365.WhenShelterRemove", 
+                     "IfNot365.WhenShelterSet", "drought_trt")) %>% 
+    mutate(ppt_ghcn = ifelse(trt == "Control", ppt_ambient_ghcn, 
+                             ppt_drought_ghcn),
+           ppt_sub = ifelse(trt == "Control", ppt_ambient_sub, 
+                             ppt_drought_sub),
+           ppt_chirps = ifelse(trt == "Control", ppt_ambient_chirps, 
+                              ppt_drought_chirps),
+           ppt_mswep = ifelse(trt == "Control", ppt_ambient_mswep, 
+                               ppt_drought_mswep)) 
+  # should be 0:
+  test <- sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, 
+              na.rm = TRUE)
+  stopifnot(test == 0)
+  
+  
+  # use submitted data if it has fewer than 30 missing values, 
+  # else use GHCN data, if both have >30 missing values than using
+  # chirps data (if available) 
+  # Also don't use submitted data if more than 30 days were interpolated
+  sites7 <- sites6 %>% 
+    arrange(site_code, year) %>% 
+    mutate(num_drought_days = ifelse(is.na(num_drought_days_sub), 
+                                     num_drought_days_ghcn, 
+                                     num_drought_days_sub)) %>% 
+    select(-num_drought_days_sub, -num_drought_days_ghcn, 
+           -matches("_(drought)|(ambient)_"), num_drought_days) %>%
+    rowwise() %>% 
+    mutate(
+      ppt = case_when(
+        sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
+        & !is.na(ppt_sub) ~ppt_sub,
+        ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ ppt_ghcn,
+        !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ ppt_chirps,
+        !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ ppt_mswep),
+      ppt_source = case_when(
+        sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
+        & !is.na(ppt_sub) ~ 'submitted',
+        ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ 'ghcn',
+        !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ "chirps",
+        !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ "mswep")
+    ) %>% 
+    ungroup()
+  
+  # * assign trt to fake_bioDat rows ----------------------------------------
+  
+  test <- sites7 %>% 
+    filter(fake_bioDat, bioDat > trtDat)
+  test
+  
+  # * join in anpp2 ---------------------------------------------------------
+  
+  # this code causing problems because of imperfect join
+  sites_full1 <- sites7 %>% 
+    rename(biomass_date = bioDat,
+           first_treatment_date = trtDat) %>% 
+    left_join(anpp2, by = c("site_code", "block", "plot", "subplot", "year", "trt", 
+                            "biomass_date", "first_treatment_date", "X365day.trt")) %>% 
+    # solving issue of adjustments above causing join incompatibility with cedartrait
+    mutate(IfNot365.WhenShelterRemove = ifelse(is.na(IfNot365.WhenShelterRemove.x),
+                                               IfNot365.WhenShelterRemove.y,
+                                               IfNot365.WhenShelterRemove.x),
+           IfNot365.WhenShelterSet = ifelse(is.na(IfNot365.WhenShelterSet.x),
+                                               IfNot365.WhenShelterSet.y,
+                                               IfNot365.WhenShelterSet.x)) %>% 
+    select(-matches("\\.(x|y)$")) 
+  
+  test <- sites_full1 %>% 
+    filter(is.na(fake_bioDat) & !is.na(ppt))
+  if(nrow(test) > 0) {
+    stop("likely a join issue, missing fake_bioDat but ppt calculated")
+  }
+  
+  # comparing ghcn & chirps to submitted data ----------------------------------------
+  
+  theme_set(theme_classic())
+  
+  
+  
+  pdf(file.path(path_oct,
+                paste0("figures/precip/ghcn_vs_submitted_precip", days_string,
+                        date_string, ".pdf")
+               ))
+  
+  
+  # ghcn data for this site is bad
+  sites7 %>% 
+    filter(ppt_sub == 0 | ppt_ghcn == 0) %>% 
+    pull(site_code) %>% 
+    unique()
+  
+  
+  df <- sites7 %>% 
+    filter((ppt_num_NA_sub + ppt_num_wc_interp_sub) < 30 & ppt_num_NA_ghcn < 30,
+           trt == "Control") %>% 
+    group_by(site_code, year) %>% 
+    mutate(ppt_sub = mean(ppt_sub),
+           ppt_ghcn = mean(ppt_ghcn),
+           ppt_chirps = mean(ppt_chirps)) 
+  
+  
+  ggplot(df, aes(ppt_sub, ppt_ghcn)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0) +
+    labs(y = "365 day precip sum from GHCN (mm)",
+         x = "365 day precip sum from submitted data (mm)")
+  
+  ggplot(df, aes(ppt_sub, ppt_chirps)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0) +
+    labs(y = "365 day precip sum from chirps (mm)",
+         x = "365 day precip sum from submitted data (mm)")
+  
+  dev.off()
+  
+  # these are sites worth looking at b/ data sources give very different
+  # results
+  check <- df %>% 
+    filter(ppt_sub/ppt_chirps >2)
+  # check
+  
+  # adding in annual ppt ----------------------------------------------------
+  # if no daily data available using the site submitted calendar
+  # year precip. 
+  
+  sites_full2 <- sites_full1 %>% 
+    # calendar year that best describes prior precip
+    mutate(cal_yr = ifelse(month(biomass_date, abbr = FALSE) > 7, year, year -1),
+           # were treatments applied starting the begining of the calendar year
+           cal_yr_post_trt = ifelse(cal_yr >= year(first_treatment_date) & (biomass_date - first_treatment_date) > 365 , TRUE, FALSE),
+           # is the whole calendar year pre trmt? (or is the important part pre-trt)
+           cal_yr_pre_trt = ifelse(cal_yr < year(first_treatment_date) | biomass_date < first_treatment_date, TRUE, FALSE)) %>% 
+    left_join(appt2[ , c("site_code", "annual_ppt", "year")], 
+              by = c("site_code", "cal_yr" = "year")) %>% 
+    mutate(annual_ppt = ifelse(trt == "Control", annual_ppt, 
+                               ifelse(cal_yr_pre_trt, annual_ppt,
+                                      ifelse(cal_yr_post_trt & trt == "Drought" & (X365day.trt == "Yes"|is.na(X365day.trt)), annual_ppt*(1 - drought_trt),
+                                             NA_real_))),
+           annual_ppt_used = ifelse(is.na(ppt) & !is.na(annual_ppt), TRUE, FALSE),
+           ppt = ifelse(annual_ppt_used, annual_ppt, ppt),
+    )
+    
+  test <- sites_full2 %>% 
+    group_by(site_code, trt, plot, block, year) %>% 
+    filter(biomass_date == max(biomass_date)) %>% 
+    summarize(n = n()) %>% 
+    filter(n > 1) %>% 
+    pull(site_code)  
+    
+  if (length(test > 0)) {
+    stop('duplicated rows present in sites_full2')
+  } 
+  # I think this is a problem, using annual ppt is questionable at best
+  # use a gridded product instead?
+  sites_full2 %>% 
+      filter(annual_ppt_used) %>% 
+    pull(site_code) %>% 
+    unique()
+  
+  sites_full3 <- sites_full2 %>% 
+    select(all_of(names(sites_full1)), annual_ppt_used)
+  
+  # saving CSV --------------------------------------------------------------
+  
+  write_csv(sites_full3, file.path(
+    path_oct, 
+    paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string,
+           date_string,'.csv')
+    ))
+  
+  
+  # checks ------------------------------------------------------------------
+  
+  sites5 %>% 
+    filter(X365day.trt != "Yes") %>% 
+    pull(site_code) %>% 
+    unique()
 
-sites_full3 <- sites_full2 %>% 
-  select(all_of(names(sites_full1)), annual_ppt_used)
 
-# saving CSV --------------------------------------------------------------
-
-write_csv(sites_full3, file.path(
-  path_oct, 
-  paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string,
-         date_string,'.csv')
-  ))
-
-
-# checks ------------------------------------------------------------------
-
-sites5 %>% 
-  filter(X365day.trt != "Yes") %>% 
-  pull(site_code) %>% 
-  unique()
-
-
+} # end looping throug days_before_vec
