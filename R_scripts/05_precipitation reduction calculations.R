@@ -21,7 +21,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 days_before <- 365 #730 #1095 #1460  #
-date_string <- "2022-11-20" # for use in output files
+date_string <- "2022-12-22" # for use in output file names
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 
 # reading in precip data -----------------------------------------------------
@@ -83,6 +83,20 @@ chirps2 <- bind_rows(chirps1[!is_missing]) %>%
 if (sum(is.na(chirps2$ppt)) > 0) {
   stop('some sites still have missing values')
 }
+
+
+# *reading in mswep dataset -----------------------------------------------
+# this data is from the mswep gridded ppt product (http://www.gloh2o.org/mswep/). 
+# this data is compiled in the "R_scripts/02_mswep_extract_daily_ppt.R" script
+p_mswep <- newest_file_path(
+  path = file.path(path,'IDE/data_raw/climate/mswep/'),
+  file_regex = 'mswep_ppt_daily_all-sites_\\d{4}-\\d+-\\d+.csv' 
+)
+
+mswep1 <- read_csv(p_mswep, show_col_types = FALSE)
+
+mswep2 <- mswep1 %>% 
+  rename(ppt = precip)
 
 # reading in site/anpp date data ---------------------------------------
 
@@ -487,21 +501,42 @@ new_col_names <- ifelse(col_names %in% names(sites1),
                         col_names,
                         paste0(col_names, "_chirps"))
 names(sites4_chirps) <- new_col_names
+
+
+# * mswep -----------------------------------------------------------------
+sites2_formswep <- sites2 %>% 
+  filter(site_code %in% mswep2$site_code)
+
+sites3_mswep <- calc_yearly_precip(site_data = sites2_formswep,
+                                    precip_data = mswep2,
+                                    days_before = days_before)
+
+sites4_mswep <- sites3_mswep
+
+# adding col name suffix's for joining
+col_names <- names(sites3_chirps)
+new_col_names <- ifelse(col_names %in% names(sites1),
+                        col_names,
+                        paste0(col_names, "_mswep"))
+names(sites4_mswep) <- new_col_names
+
 # combining ghcn and submitted results ------------------------------------
 
 sites4 <- full_join(sites3_ghcn, sites3_submitted, 
                     by = c(names(sites1)),
                     suffix = c("_ghcn", "_sub")) %>% 
   full_join(sites4_chirps, by = names(sites1)) %>% 
+  full_join(sites4_mswep, by = names(sites1)) %>% 
   rowwise() %>% 
   mutate(fake_bioDat = mean(c(fake_bioDat_sub, fake_bioDat_ghcn, 
-                           fake_bioDat_chirps), na.rm = TRUE),
+                           fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
          fake_bioDat = as.logical(fake_bioDat)) %>% 
   ungroup() %>% 
   select(-matches("fake_bioDat_"))
 
 sites5 <- sites4 %>% 
-  select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps)
+  select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps,
+         -ppt_num_wc_interp_mswep)
 
 # merge back to main anpp file --------------------------------------------
 anpp3$fake_bioDat <- FALSE
@@ -527,7 +562,9 @@ sites6 <- anpp4 %>%
          ppt_sub = ifelse(trt == "Control", ppt_ambient_sub, 
                            ppt_drought_sub),
          ppt_chirps = ifelse(trt == "Control", ppt_ambient_chirps, 
-                            ppt_drought_chirps)) 
+                            ppt_drought_chirps),
+         ppt_mswep = ifelse(trt == "Control", ppt_ambient_mswep, 
+                             ppt_drought_mswep)) 
 # should be 0:
 test <- sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, 
             na.rm = TRUE)
@@ -551,12 +588,14 @@ sites7 <- sites6 %>%
       sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
       & !is.na(ppt_sub) ~ppt_sub,
       ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ ppt_ghcn,
-      TRUE ~ ppt_chirps),
+      !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ ppt_chirps,
+      !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ ppt_mswep),
     ppt_source = case_when(
       sum(c(ppt_num_NA_sub, ppt_num_wc_interp_sub), na.rm = TRUE) < 30 
       & !is.na(ppt_sub) ~ 'submitted',
       ppt_num_NA_ghcn < 30 & !is.na(ppt_ghcn) ~ 'ghcn',
-      !is.na(ppt_chirps) ~ 'chirps')
+      !is.na(ppt_chirps) & ppt_num_NA_chirps < 30 ~ "chirps",
+      !is.na(ppt_mswep) & ppt_num_NA_mswep < 30 ~ "mswep")
   ) %>% 
   ungroup()
 
@@ -597,7 +636,7 @@ theme_set(theme_classic())
 
 pdf(file.path(path_oct,
               paste0("figures/precip/ghcn_vs_submitted_precip", days_string,
-                      today(), ".pdf")
+                      date_string, ".pdf")
              ))
 
 

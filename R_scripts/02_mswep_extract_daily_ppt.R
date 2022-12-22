@@ -11,6 +11,7 @@
 
 library(terra)
 library(tidyverse)
+library(lubridate)
 source("R_scripts/dropbox_path.R")
 source("R_scripts/functions.R")
 
@@ -28,13 +29,41 @@ r_paths <- list.files("D:/IDE_climate_rasters/MSWEP_V280/Daily/",
                       full.names = TRUE) %>% 
   sort()
 
-names(r_paths) <- basename(r_paths) %>% 
+# year and day of year from file name
+ydoy <- basename(r_paths) %>% 
   str_replace("\\.nc", "")
+names(r_paths) <- ydoy
 # * site locations -------------------------------------------------------
 
 site1 <- read_csv(
   file.path(path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"),
   show_col_types = FALSE)
+
+
+# check file names --------------------------------------------------------
+# checking if all dates are found in the file names or whether some dates
+# are missing
+
+# the year
+y <- str_extract(ydoy, "^\\d{4}") %>% 
+  as.numeric()
+doy <- str_extract(ydoy, "\\d{3}$") %>% 
+  as.numeric()
+stopifnot(doy >=0 & doy <= 366)
+
+# fake dates/ where each date is the first day of that year
+dates <- ymd(paste0(y, "-01-01"))
+
+# converting to actual date by setting day of year
+yday(dates) <- doy
+
+# differences between consecutive dates
+d <- diff(dates)
+min(dates); max(dates)
+if(any(d !=1)) {
+  stop('date range of mswep files is not complete\n',
+       'problems around:\n', dates[d!=1])
+}
 
 # prepare data ------------------------------------------------------------
 
