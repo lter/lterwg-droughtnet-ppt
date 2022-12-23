@@ -6,9 +6,9 @@
 # (substitute your path there as needed). Alternatively it
 # tries to automatically figure out where dropbox is located
 
-path1 <- "C:/Users/ohler/Dropbox/" # path to the dropbox folder (tim's computer)
+path1 <- "C:/Users/ohler/Dropbox" # path to the dropbox folder (tim's computer)
 
-path2 <- "D:/Dropbox/" # Martin's path 
+path2 <- "D:/Dropbox" # Martin's path 
 
 path <- NULL # (substitute your path here as needed)
 if (dir.exists(path1)) {

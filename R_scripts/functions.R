@@ -488,9 +488,9 @@ calc_yearly_precip <- function(site_data, precip_data,
   )
   
   for (i in 1:nrow(site_data)) {
-    print(i)
+   # print(i)
     row <- site_data[i, ]
-    print(row$site_code)
+    #print(row$site_code)
     site_ppt <- precip_data[precip_data$site_code == row$site_code,]
     start_date <- as.Date(row$bioDat-days_before)
     end_date <- start_date + 365 # make end date 1 year after start date
