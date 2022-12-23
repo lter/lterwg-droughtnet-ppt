@@ -2,7 +2,7 @@
 
 Repository started during the May 2019 Drought Net/IDE meeting.
 
-The repository was started for scripts that calculate the interannual cv of precipitation for each site, based on GHCN weather station data (when available) for each IDE site. It has expanded to contain various scripts that use GHCN data, compile user submitted weather data, as well as pulling in gridded precipitation data products (including CHIRPS).
+The repository was started for scripts that calculate the interannual cv of precipitation for each site, based on GHCN weather station data (when available) for each IDE site. It has expanded to contain various scripts that use GHCN data, compile user submitted weather data, as well as pulling in gridded precipitation data products (including CHIRPS and mswep).
 
 The initial conclusion from the May 2019 meeting was that interannual CV from the station data matched pretty well with CV from the interpolated global products (e.g. from the TPA tool) so this data may not need to be pursued too much further in the future. 
 
@@ -10,7 +10,7 @@ As of the April 2022 meeting the main purpose of the repository is to compile us
 
 # Brief description of Scripts:
 
-All scripts are found in the R_scripts folder.
+All R scripts are found in the R_scripts folder.
 
 Note about names--number prefixes in the script names provides the general order in which scripts need to be run. 
 
@@ -37,9 +37,17 @@ Uses the rnoaa package to automatically grab weather data from the nearest globa
 Used to pull daily GHCN data for the years of interest. Gets daily data for closest station (within 100 km w/ less than 500 m elevation difference) that has good data for the pre-treatment calendar year (and year before that) and first treatment yr and 2nd treatment year. If biomass was measured for additional years then the precip data was pulled for those years but it wasn't required to be "good".
 This script outputs a csv of daily precip data for all the sites where it existed. 
 
+## `shell_scripts/01_mswep_download.sh`
+
+Downloads the mswep gridded precipitation dataset (note--this dataset was shared with me (MH) on google drive from the data creators after submitting a very brief form)
+
 ## `02_process_submitted_weather.R`
 
 The main script that pulls together the weather data that the sites submitted
+
+## `02_mswep_extract_daily_ppt.R`
+
+Extract daily ppt data for each site from the gridded mswep data product. 
 
 ## `03_check_submitted_weather.R`
 
@@ -51,7 +59,7 @@ Takes the output of `03_check_submitted_weather.R` and replaces missing values w
 
 ## `05_precipitation reduction calculations.R`
 
-Uses submitted weather data (output of `04_worldclim_monthly_precip_substitution.R`), ghcn data (output of chirps precip data `01_GHCN_process_expt_years.R`) and CHIRPs data (output of `01_CHIRPS_climate-data-_download.R`), to calculate the amount of ppt received in both drought and control plots, for the 365 days prior to biomass harvest. 
+Uses submitted weather data (output of `04_worldclim_monthly_precip_substitution.R`), ghcn data (output of chirps precip data `01_GHCN_process_expt_years.R`) and CHIRPs data (output of `01_CHIRPS_climate-data-_download.R`), mswep data (output of `02_mswep_extract_daily_ppt.R`) to calculate the amount of ppt received in both drought and control plots, for the 365 days prior to biomass harvest. 
 The output is in long form (1 row for each site, plot, and year).  
 
 For the drought treatments the percentage reduction that shelters impose was used to calculate precip received by drought plots, so output contains annual precip for both control and drought. 
