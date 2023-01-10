@@ -22,9 +22,10 @@ source=gdrive:MSWEP_V280/Past/Daily
 
 # test download of just two files
 # rclone  sync --drive-shared-with-me "$source" "$dest" --include "{{200[8-9]365.nc}}"
-
-# download all files for 2001-2009
-rclone  copy --drive-shared-with-me "$source" "$dest" --include "{{200[1-9]\d\d\d.nc}}"
+# 1980-1999
+rclone  copy --drive-shared-with-me "$source" "$dest" --include "{{19[89][0-9]\d\d\d.nc}}"
+# download all files for 2000-2009
+rclone  copy --drive-shared-with-me "$source" "$dest" --include "{{200[0-9]\d\d\d.nc}}"
 
 # download all files from 2010-2019
 rclone  copy --drive-shared-with-me "$source" "$dest" --include "{{201[0-9]\d\d\d.nc}}"
@@ -35,3 +36,5 @@ rclone  copy --drive-shared-with-me "$source" "$dest" --include "{{202[0-9]\d\d\
 # download the most recent files (they are in a different folder)
 sourceNRT=gdrive:MSWEP_V280/NRT/Daily
 rclone  copy --drive-shared-with-me "$sourceNRT" "$dest" --include "{{202[0-9]\d\d\d.nc}}"
+
+

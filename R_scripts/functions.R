@@ -923,7 +923,9 @@ mean_ppt_window <- function(df, end_doy, window = 120) {
   stopifnot(
     c("date", "precip") %in% names(df),
     !is.na(df$precip), # for now requiring there to be no NAs
-    window <= 365 & window > 0
+    window <= 365 & window > 0,
+    length(end_doy) == 1,
+    end_doy %%1 == 0
   )
   
   if('site_code' %in% names(df) && length(unique(df$site_code)) != 1) {
@@ -943,7 +945,7 @@ mean_ppt_window <- function(df, end_doy, window = 120) {
     stop("there are date gaps in the input")
   }
   
-    begin_doy <- end_doy - window
+  begin_doy <- end_doy - window
   df2 <- df %>% 
     mutate(doy = lubridate::yday(.data$date),
            year = lubridate::year(.data$date))
