@@ -21,6 +21,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365). 
 
+<<<<<<< HEAD
 # days before can now also be a value < 365 such that if days before
 # is < 365, precip for a period shorter than a year will be returned
 # for example if days_before = 120 then the precip for the 120 days before
@@ -38,6 +39,12 @@ if (days_before%%365 == 0) {
   stop("'days_before' needs to be a multiple of 365 or < 365")
 }
 days_string <- paste0("_",days_before, "-", days_before - window, "days_")
+=======
+days_before <-     365 #730 #1095 #1460 #
+
+date_string <- "2023-01-02" # for use in output file names
+days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
+>>>>>>> fed553bb41911520528855c8ce275b7486964068
 # reading in precip data -----------------------------------------------------
 
 # GHCN data--getting newest file based on file name
