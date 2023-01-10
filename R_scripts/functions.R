@@ -470,6 +470,10 @@ calc_yearly_precip <- function(site_data, precip_data,
   # site_data--df with biomass dates, treatment dates etc.
   # precip_data--df with daily precip by site code
   # returns site_data with added control and drought precip cols among others
+  # NOte--this function has been adjusted (1/10/23) such that if days before
+  # is < 365, precip for a period shorter than a year will be returned
+  # for example if days_before = 120 then the precip for the 120 days before
+  # biomass harvest will be calculated
   
   needed_cols1 <- c("bioDat", "site_code", "trtDat", "X365day.trt", 
                     "IfNot365.WhenShelterRemove", "IfNot365.WhenShelterSet",
@@ -480,12 +484,16 @@ calc_yearly_precip <- function(site_data, precip_data,
     is.data.frame(site_data),
     is.data.frame(precip_data),
     all(needed_cols1 %in% names(site_data)),
-    all(needed_cols2 %in% names (precip_data)),
-    # days_before should a multiple of 365 
-    # (this isn't computationally necessary but if not the case
-    # suggests incorrect use of argument)
-    days_before%%365 == 0
+    all(needed_cols2 %in% names (precip_data))
   )
+  
+  if (days_before%%365 == 0) {
+    window <- 365
+  } else if(days_before > 0 & days_before < 365) {
+    window <- days_before
+  } else {
+    stop("'days_before' needs to be a multiple of 365 or < 365")
+  }
   
   for (i in 1:nrow(site_data)) {
    # print(i)
@@ -493,7 +501,9 @@ calc_yearly_precip <- function(site_data, precip_data,
     #print(row$site_code)
     site_ppt <- precip_data[precip_data$site_code == row$site_code,]
     start_date <- as.Date(row$bioDat-days_before)
-    end_date <- start_date + 365 # make end date 1 year after start date
+    end_date <- start_date + window # make end date 1 year after start date,
+    # unless days_before is less than 1 year, then just take the window
+    # of that length before the biomass date
     site_dates <- tibble(
       date = seq(start_date, end_date, by = 1)
     )
@@ -887,3 +897,99 @@ extract_mswep <- function(r, site) {
     mutate(date = str_replace(date, "^precip_", ""))
   out
 }
+
+#' calculating mean precipitation for an arbitrary window width
+#'
+#' @param df dataframe with date and precip columns 
+#' @param end_doy numeric--day of year that ends the precipitation window of interest
+#' @param window numeric--the width (number of days) you're interested before
+#' doy
+#'
+#' @return mean precipitation during the period of time (within of window) before
+#' end doy
+
+#' @examples
+#' df <- tibble(date = seq(from = ymd("2015-01-01"), to = ymd("2020-12-31"), by = 1),
+#'   precip = runif(length(date), 0, 5)) %>% 
+#'   # making more 0 precip days
+#'   mutate(precip = (runif(length(date)) > 0.9)*precip)
+#'  mean_ppt_window(df, end_doy = 130, window = 120)
+#'  df$precip = 1 # 
+#'  # here mean precip should be 120 (the width of the window)
+#'  mean_ppt_window(df, end_doy = 100, window = 120)
+mean_ppt_window <- function(df, end_doy, window = 120) {
+
+  # testing input data
+  stopifnot(
+    c("date", "precip") %in% names(df),
+    !is.na(df$precip), # for now requiring there to be no NAs
+    window <= 365 & window > 0
+  )
+  
+  if('site_code' %in% names(df) && length(unique(df$site_code)) != 1) {
+    stop("this function cannot take data from multiple sites at once")
+  }
+  df <- arrange(df, .data$date)
+  # removing excess columns (if they exist) so that don't run 
+  # into theoretically possible scoping problems below (i.e. if there
+  # were column names have the same names as some other objects 
+  # created in this function)
+  df <- df[, c("date", "precip")]
+  
+  # checking for date gaps
+  d <- diff(df$date)
+  
+  if(any(d > 1)) {
+    stop("there are date gaps in the input")
+  }
+  
+    begin_doy <- end_doy - window
+  df2 <- df %>% 
+    mutate(doy = lubridate::yday(.data$date),
+           year = lubridate::year(.data$date))
+  
+  # dates of the end of the windows
+  target_dates <- df2 %>% 
+    filter(.data$doy == end_doy) %>% 
+    pull(date) %>% 
+    unique() %>% 
+    sort()
+  
+  # for a given date calculating what the 'next' target date (corresponding to
+  # end_doy will be)
+  df3 <- df2 %>% 
+    ungroup() %>% 
+    mutate(next_target_date = map(.data$date, function(x) {
+      d <- target_dates - x
+      
+      d_pos <- d[d >= 0]
+      # length of d_pos will be 0 when a date is in the last year of data (and
+      # past end_doy)
+      if(length(d_pos) == 0) return(NA)
+      i <- which(d == min(d_pos))
+      
+      out <- target_dates[i]
+      out
+    })
+    ) %>% 
+    unnest("next_target_date") %>% 
+    filter(!is.na(.data$next_target_date))
+  
+  total_ppt <- df3 %>% 
+    mutate(days_to_target = as.numeric(.data$next_target_date - .data$date)) %>% 
+    filter(days_to_target <= window &  days_to_target > 0) %>% 
+    group_by(next_target_date) %>% 
+    summarise(total_ppt = sum(precip),
+              n = n()) %>% 
+    # filtering by n b/ in some cases in the first year there won't be
+    # a full amount of data in the time window (i.e would get an under sum
+    # of precip b/ only partial window)
+    filter(n == window) %>% 
+    pull(total_ppt)
+  
+  # mean precip occuring in the given window
+  out <- mean(total_ppt)
+  
+  out 
+}
+  
