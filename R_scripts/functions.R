@@ -995,3 +995,117 @@ mean_ppt_window <- function(df, end_doy, window = 120) {
   out 
 }
   
+
+# calculate MAP etc -------------------------------------------------------
+
+
+#' calculate mean monthly precipitation
+#'
+#' @param df dataframe with site_code, date and ppt columns
+#' @param min_date minimum date (string) to use for filtering
+#' @param max_date maximum date (string) to use for filtering
+#'
+#' @return dataframe with mean precipitation for each month of the 
+#' year 
+ppt_mean_monthly <- function(df, min_date, max_date) {
+  
+  if("precip" %in% names(df)) {
+    df <- rename(df, ppt = precip)
+  }
+  
+  stopifnot(
+    c('site_code', "ppt", "date") %in% names(df)
+  )
+  
+  df2 <- df %>% 
+    filter(.data$date >= min_date,
+           .data$date <= max_date) 
+  
+  # testing for non consecutive dates
+  d <- df2 %>% 
+    arrange(site_code, date) %>% 
+    group_by(site_code) %>% 
+    nest() %>% 
+    mutate(d = map(data, function(x) diff(x$date))) %>% 
+    pull(d) %>% 
+    unlist()
+  
+  if(any(d>1)) {
+    stop("non consecutive dates in input dataframe")
+  }    
+  
+  out <- df2 %>% 
+    mutate(month = lubridate::month(date),
+           year = lubridate::year(date)) %>% 
+    # order of grouping matters (b/ drop_last below)
+    group_by(site_code, month, year) %>% 
+    # monthly ppt
+    summarise(ppt = sum(ppt), .groups = "drop_last") %>% 
+    summarise(ppt = mean(ppt), .groups = 'drop') %>% 
+    mutate(data_period = paste(lubridate::year(min_date),
+                               lubridate::year(max_date),
+                               sep = "-"))
+  out
+}
+
+
+#' calculate MAP and other precipitation endices
+#'
+#' @param df dataframe with site_code, date and ppt columns
+#' @param min_date minimum date (string) to use for filtering
+#' @param max_date maximum date (string) to use for filtering
+#'
+#' @return dataframe with:
+#' MAP--mean annual ppt
+#' cv_ppt_intra (intra annual ppt cv--based on monthly ppt)
+#' cv_ppt_inter interannual cv of precipitation
+#' seasonality_index--an measure of intra-annual ppt variation (also
+#' based on monthly ppt)
+ppt_mean_annual <- function(df, min_date, max_date) {
+  
+  if("precip" %in% names(df)) {
+    df <- rename(df, ppt = precip)
+  }
+  
+  stopifnot(
+    c('site_code', "ppt", "date") %in% names(df)
+  )
+  
+  out <- df %>% 
+    filter(.data$date >= min_date,
+           .data$date <= max_date) %>% 
+    mutate(month = lubridate::month(date),
+           year = lubridate::year(date)) %>% 
+    # order of grouping matters (b/ drop_last below)
+    group_by(site_code, year, month) %>% 
+    # monthly ppt
+    summarise(ppt = sum(ppt), .groups = "drop_last",
+              n = n()) %>% 
+    # calculatings for the given year (across months), supposedly better
+    # then averaged across yrs (next step)
+    summarise(seasonality_index = seasonality_index(ppt),
+              # intra-annual ppt calculated for the given year
+              # (then averaged across years in the next step)
+              cv_ppt_intra = sd(ppt)/mean(ppt),
+              ppt = sum(ppt),# total ppt for the given year
+              n = sum(n),
+              .groups = "drop_last")
+  
+  if(any(out$n > 366 | out$n < 365)) {
+    stop("not every year as 365[6] dates")
+  }
+  
+  out <- out %>% 
+    summarize(
+      MAP = mean(ppt),
+      cv_ppt_intra = mean(cv_ppt_intra),
+      # inter annual cv of precipitation
+      cv_ppt_inter = sd(ppt)/mean(ppt),
+      seasonality_index = mean(seasonality_index)
+    ) %>% 
+    mutate(data_period = paste(lubridate::year(min_date),
+                               lubridate::year(max_date),
+                               sep = "-"))
+  out
+}
+
