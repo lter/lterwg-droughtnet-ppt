@@ -13,12 +13,13 @@
 
 library(tidyverse)
 source("R_scripts/functions.R") # where seasonality_index() defined
-path <- "~/Dropbox"
+source("R_scripts/dropbox_path.R")
 
 # read in lat/lon ---------------------------------------------------------
 
 site1 <- read_csv(file.path(
-  path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"))
+  path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"),
+  )
 
 # read in raster data -----------------------------------------------------
 
