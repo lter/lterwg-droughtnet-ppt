@@ -10,6 +10,8 @@
 # dependencies ------------------------------------------------------------
 
 library(tidyverse)
+theme_set(theme_classic())
+library(patchwork) # for combining plots together
 source("R_scripts/functions.R") # where seasonality_index() defined
 source("R_scripts/dropbox_path.R") # set path to dropbox in this file as needed
 
@@ -238,4 +240,60 @@ write_csv(mo2, file.path(
   path, "IDE/data_processed/climate",
   "climate_mean_monthly_by_site.csv" 
 ))
+
+
+# exploratory figures -----------------------------------------------------
+
+# comparing MAP between data sources
+map_wide <- ann1 %>% 
+  select(site_code, MAP, data_source) %>% 
+  mutate(data_source = paste0(data_source, "_MAP")) %>% 
+  pivot_wider(values_from = "MAP",
+               names_from =  "data_source")
+
+caption <- paste0("Figures created on ", lubridate::today(), 
+                  " by the 03_compute_climate_means.R script")
+
+# columns to plot
+cols <- names(map_wide) %>% str_subset("_MAP")
+
+# all combinations of columns to plot
+cols_comb <- gtools::combinations(n = length(cols),
+                      r = 2,
+                      v = cols,
+                      repeats.allowed = FALSE) 
+
+# note if new data sources are used the following 2 lines
+# won't be useful so can be commented out (this is being done
+# so that the order plots is the figure is easier to read)
+cols_comb2 <- cols_comb[c(2, 4, 6, 3, 5, 1) ,]
+cols_comb2[3, ] <- cols_comb2[3, c(2, 1)] # flipping order of x and y
+cols_comb <- cols_comb2
+
+colnames(cols_comb) <- c("y", "x")
+cols_comb <- as_tibble(cols_comb)
+
+
+# creating the plots
+
+map_range <- c(0, max(ann1$MAP, na.rm = TRUE)) # for axis limits
+plots_l <- pmap(cols_comb, function(y, x) {
+  print(x)
+  ggplot(map_wide, aes(x = .data[[x]], y = .data[[y]])) +
+    geom_abline(slope = 1, intercept = 0) +
+    geom_point(alpha = 0.5) +
+    coord_cartesian(xlim = map_range,
+                    ylim = map_range)
+})
+
+pdf(file.path(
+  path, "IDE/figures/climate/MAP_data-source-comparison.pdf"),
+  width = 7, height = 5
+)
+  wrap_plots(plots_l) +
+    plot_layout(nrow = 2) +
+    plot_annotation(caption = caption)
+
+dev.off()
+
 
