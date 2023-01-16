@@ -1086,7 +1086,7 @@ ppt_mean_annual <- function(df, min_date, max_date) {
     summarise(seasonality_index = seasonality_index(ppt),
               # intra-annual ppt calculated for the given year
               # (then averaged across years in the next step)
-              cv_ppt_intra = sd(ppt)/mean(ppt),
+              cv_ppt_intra = sd(ppt)/mean(ppt)*100,
               ppt = sum(ppt),# total ppt for the given year
               n = sum(n),
               .groups = "drop_last")
@@ -1100,7 +1100,7 @@ ppt_mean_annual <- function(df, min_date, max_date) {
       MAP = mean(ppt),
       cv_ppt_intra = mean(cv_ppt_intra),
       # inter annual cv of precipitation
-      cv_ppt_inter = sd(ppt)/mean(ppt),
+      cv_ppt_inter = sd(ppt)/mean(ppt)*100,
       seasonality_index = mean(seasonality_index)
     ) %>% 
     mutate(data_period = paste(lubridate::year(min_date),
