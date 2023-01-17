@@ -69,5 +69,6 @@ drt_sev
 drt_sev_falls.au <- tibble(
   site_code = "falls.au",
   year = c(2017, 2018, 2019),
-  drt_sev = c(0.227, -0.395, -0.491)
+  drt_sev = c(0.227, -0.395, -0.491),
+  MAP = 1328.513
 )
