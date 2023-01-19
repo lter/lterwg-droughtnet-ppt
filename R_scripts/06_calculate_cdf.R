@@ -36,7 +36,7 @@ path_ms <- file.path(path, 'IDE MS_Single year extreme')
 # days before biomass date, 730 would mean 730 to 365 days before
 # biomass treatment (should be a multiple of 365)
 # this is the same value set in the 05_precipitation reduction calculations.R script
-days_before <- 730 #365 #
+days_before <- 365 #730 #
 date_string <- "2022-09-11" # for use in output files
 days_string <- paste0("_",days_before, "-", days_before - 365, "days_")
 days_string2 <- paste0(days_before, "-", days_before - 365, "days")
@@ -154,10 +154,15 @@ cdf1 <- lapply(density, function(x){
 
 # grabbing newest file
 
-p1 <- newest_file_path(
-  file.path(path_oct, 'data/precip'),
-  paste0("anpp_clean_trt_ppt_no-perc", days_string, "\\d{4}-\\d+-\\d+.csv"))
-p1
+# usual code to use (updates to newest file available):
+# p1 <- newest_file_path(
+#   file.path(path_oct, 'data/precip'),
+#   paste0("anpp_clean_trt_ppt_no-perc", days_string, "\\d{4}-\\d+-\\d+.csv"))
+
+# temporary code to fix date to 2022-09-11 for science ms
+p1 <- file.path(path_oct, 'data/precip',
+                paste0("anpp_clean_trt_ppt_no-perc", 
+                       days_string, "2022-09-11.csv"))
 
 site_ppt <- read.csv(p1, as.is = TRUE, na.strings = c("NA", "NULL"))
 
@@ -172,6 +177,11 @@ site_ppt2 <- site_ppt %>%
 sites95 <- read_csv(file.path(path_ms,
                               "Data/msyr1_sites.csv")) 
 
+# fix for the falls.au site (don't want to use the ghcn data, b/
+# don't have matching map data--i.e. mountain mismatch issue)
+site_ppt2 <- site_ppt2 %>% 
+  mutate(ppt = ifelse(site_code == "falls.au", ppt_chirps, ppt),
+         ppt_source = ifelse(site_code == "falls.au", "chirps", ppt_source))
 
 # calculating percentiles given annual precip --------------------------------
 
