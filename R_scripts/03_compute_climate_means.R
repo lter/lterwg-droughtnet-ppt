@@ -12,6 +12,7 @@
 library(tidyverse)
 theme_set(theme_classic())
 library(patchwork) # for combining plots together
+library(terra)
 source("R_scripts/functions.R") # where seasonality_index() defined
 source("R_scripts/dropbox_path.R") # set path to dropbox in this file as needed
 
@@ -93,6 +94,20 @@ names(rast_paths_t) <- str_extract(rast_paths_t, "\\d{2}(?=.tif)")
 stopifnot(length(rast_paths_t) == 12) # should be 12 months
 
 rasts_t <- map(rast_paths_t, terra::rast)
+
+
+# * aridity index ---------------------------------------------------------
+# Global-AI_PET_v3 dataset from CGIAR-CSI
+# data downloaded from:  https://doi.org/10.6084/m9.figshare.7504448.v5
+# which is the data associated with this article:
+# https://doi.org/10.1038/s41597-022-01493-1
+# after downloading the data I only kep the ai .tif
+# not the et0 .tif (to save space)
+
+# mean annual arridity index
+r_ai1 <- rast(file.path(
+  path, "IDE/data_raw/climate/Global-AI_ET0_v3_annual/ai_v3_yr.tif"))
+
 
 # Monthly average data -------------------------------------
 
@@ -187,13 +202,23 @@ wc_ann <- wc_mo %>%
   mutate(data_source = "worldclim")
 
 
+# * aridity index ---------------------------------------------------------
+
+# as per documentation values need to be multiplied 
+# by 0.0001 to retrieve the values in the correct units.
+r_ai2 <- r_ai1*0.0001
+
+ai_yr <- site2[ , "site_code"]
+
+ai_yr$aridity_index <- terra::extract(r_ai2, site2[, c("longitud", "latitud")])[[2]]
+ai_yr$data_source <-  "Global-AI_PET_v3"
 # * combine ---------------------------------------------------------------
 
 ann1 <- site1 %>% 
   select(site_code, precip) %>%
   rename(MAP = precip) %>% 
   mutate(data_source = "submitted") %>% 
-  bind_rows(., wc_ann, mswep_ann, chirps_ann) %>% 
+  bind_rows(., wc_ann, mswep_ann, chirps_ann, ai_yr) %>% 
   arrange(site_code, data_source)
 
 # save files --------------------------------------------------------------
@@ -216,7 +241,8 @@ metadata <- c(
    "culculated as sum(abs(x - Ri/12))/Ri, where x is monthly ppt, and Ri", 
   "annual ppt\n",
   "mean of seasonality index was calculated across years",
-  "map--mean annual precipitation (mm)\n",
+  "map--mean annual precipitation (mm)",
+  "aridity_index--PET/MAP\n",
   "",
   "Description of columns for climate_mean_monthly_by_site.csv:",
   "ppt--mean precipitation (mm) recieved in the given month",
@@ -247,6 +273,7 @@ write_csv(mo2, file.path(
 # comparing MAP between data sources
 map_wide <- ann1 %>% 
   select(site_code, MAP, data_source) %>% 
+  filter(!is.na(MAP)) %>% 
   mutate(data_source = paste0(data_source, "_MAP")) %>% 
   pivot_wider(values_from = "MAP",
                names_from =  "data_source")
