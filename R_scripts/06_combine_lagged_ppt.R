@@ -69,6 +69,8 @@ ppt3 <- ppt2 %>%
                names_to = 'data_source',
                values_to = 'ppt') %>%  
   mutate(data_source = str_replace(data_source, "ppt_", ""),
+         # to match naming convention in ppt_used
+         data_source = ifelse(data_source == "sub", "submitted", data_source),
          # was the given data source (row) used for the main
          # analysis (i.e. where submitted or ghcn data was used
          # if available, otherwise chirps or mswep)
@@ -87,4 +89,7 @@ if(nrow(test) != nrow(ppt3)) {
 # object to be used in downstream scrips ----------------------------------
 
 ppt4 <- ppt3
-ppt4
+
+# to be used downstream
+ppt_comb1 <- ppt4 %>% 
+  ungroup()
