@@ -59,15 +59,18 @@ ppt2 <- ppt1 %>%
   group_by(site_code, year, trt, lag) %>% 
   filter(biomass_date == max(biomass_date)) %>% 
   select(site_code, year, trt, lag, ppt_source,
-         matches("^ppt_(?!num_)", perl = TRUE)) %>% 
+         matches("^ppt_", perl = TRUE), -ppt_num_wc_interp_sub) %>% 
   rename(ppt_used = ppt_source) %>% 
   distinct() 
 
 # creating rows of ppt for each data source
 ppt3 <- ppt2 %>% 
-  pivot_longer(matches("^ppt_(?!used)", perl = TRUE),
-               names_to = 'data_source',
-               values_to = 'ppt') %>%  
+  pivot_longer(matches("^ppt_(?!used)", perl = TRUE)) %>% 
+  mutate(data_source = str_extract(name, "[a-z]+$"),
+         name = ifelse(str_detect(name, "num_NA"),
+                           'num_NA',
+                           'ppt')) %>% 
+  pivot_wider() %>% 
   mutate(data_source = str_replace(data_source, "ppt_", ""),
          # to match naming convention in ppt_used
          data_source = ifelse(data_source == "sub", "submitted", data_source),
@@ -88,7 +91,9 @@ if(nrow(test) != nrow(ppt3)) {
 
 # object to be used in downstream scrips ----------------------------------
 
-ppt4 <- ppt3
+ppt4 <- ppt3 %>% 
+  # to avoid inadvertantly using bad data downstream
+  mutate(ppt = ifelse(num_NA >30, NA, ppt))
 
 # to be used downstream
 ppt_comb1 <- ppt4 %>% 
