@@ -16,6 +16,110 @@ diff_na <- function(x) {
   c(NA_real_, diff(x))
 }
 
+#' calculate length of consecutive increase integers
+#'
+#' @param x vector
+#'
+#' @return maximum number of consecutive numbers found in x
+#' @examples
+#' max_consecutive_length(c(1:5, 7, 8))
+#' max_consecutive_length(c(1, 3, 5))
+max_consecutive_length <- function(x) {
+  if(length(x) == 1) {
+    return(1)
+  }
+  
+  diffs <- diff(x)
+  if(any(diffs < 1)) {
+    stop('some non sequential values input')
+  }
+  rl <- rle(diffs)
+  # only interested in the lengths of runs where the diff
+  # is 1 (i.e. they're consecutive)
+  lengths <- rl$lengths[rl$values == 1]
+  if(length(lengths) == 0) {
+    return(1)
+  }
+  out <- max(lengths) + 1
+  out
+}
+
+
+#' extract longest consecutive sequence of numbers in a vector
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' extract_consecutive_seq(c(1:5, 7))
+#' extract_consecutive_seq(c(1, 3, 5))
+#' extract_consecutive_seq(c(1, 5, 10:20))
+extract_consecutive_seq <- function(x) {
+  x <- sort(x)
+  if(length(x) == 1) {
+    return(x)
+  }
+  
+  diffs <- diff(x) # length of diffs is one less than length of x
+
+  rl <- rle(diffs)
+  # only interested in the lengths of runs where the diff
+  # is 1 (i.e. they're consecutive)
+  lengths <- rl$lengths[rl$values == 1]
+  
+  if(length(lengths) == 0) {
+    max_l <- 0
+  } else {
+    max_l <- max(lengths)
+  }
+
+  length_index <- which(rl$values == 1 & rl$lengths == max_l)
+  
+  # if multiple sequences of same length, just return the first
+  # (good decision?)
+  if(length(length_index > 1)) {
+    length_index <- length_index[1]
+  }
+  # if no instance where 2 consecutive values are present,
+  # just return the first value
+  if(length(length_index) == 0) {
+    start <- 1
+    end <- 1
+  } else if (length_index == 1) {
+    start <- 1
+    end <- rl$lengths[length_index] +1
+  } else {
+    start <- sum(rl$lengths[1:(length_index - 1)]) +1
+    end <- start + rl$lengths[length_index]
+  }
+  out <- x[start:end]
+  out
+}
+
+#' max consecutive number of true values in a vector
+#'
+#' @param x logical vector
+#'
+#' @return numeric vector of length 1
+#' @examples
+#' max_consecutive_true(c(T, T, F ))
+#' max_consecutive_true(c(F, F))
+max_consecutive_true <- function(x) {
+  stopifnot(is.logical(x))
+  
+  if(!any(x)) {
+    return(0)
+  }
+  
+  rl <- rle(x)
+  
+  true_lengths <- rl$lengths[rl$values] # subset works b/ values are T/F
+
+  out <- max(true_lengths)
+  out
+}
 
 # take sum ----------------------------------------------------------------
 
