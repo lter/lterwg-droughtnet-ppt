@@ -29,7 +29,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 days_before <- 120 # 1460 # 365 # 730 # 1095 # 
 
-date_string <- "2023-01-10" # for use in output file names
+date_string <- "2023-03-30" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -174,8 +174,8 @@ appt2 <- appt2 %>%
 
 bio2 <- bio1 %>% 
   group_by(site_code, trt, block, plot, subplot, year) %>% 
-  summarize(first_treatment_date = min(first_treatment_date),
-            biomass_date = max(biomass_date)) %>% 
+  summarize(first_treatment_date = min("first_treatment_date"),
+            biomass_date = max("biomass_date")) %>% 
   # add in survey info
   left_join(survey1, by = "site_code")%>% 
   # filtering out brandjberg b/ it isn't used.
@@ -444,7 +444,7 @@ n_prev_missing1 <- sites2b %>%
 n_prev_missing2 <- n_prev_missing1 %>% 
   left_join(sites2b, by = c("site_code", "year")) %>% 
   group_by(site_code, year) %>% 
-  filter(bioDat == max(bioDat)) 
+  dplyr::filter(bioDat == max(bioDat)) 
 
 check <- n_prev_missing2 %>% 
   summarise(n = n()) %>% 
@@ -468,7 +468,7 @@ imputed_years <- n_prev_missing2 %>%
   })) %>% 
   pull(data2) %>% 
   bind_rows() %>% 
-  select(site_code, year, everything(), -n_prev_missing)
+  dplyr::select(site_code, year, everything(), -n_prev_missing)
 
 sites2 <- bind_rows(sites2b, imputed_years)
 
