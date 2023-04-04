@@ -27,9 +27,9 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # for example if days_before = 120 then the precip for the 120 days before
 # biomass harvest will be calculated
 
-days_before <- 120 # 1460 # 365 # 730 # 1095 # 
+days_before <- 365 # 120 # 1460  # 730 # 1095 # 
 
-date_string <- "2023-03-30" # for use in output file names
+date_string <- "2023-04-04" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -172,10 +172,19 @@ appt2 <- appt2 %>%
   summarize(annual_ppt = mean(annual_ppt))
 # extract biomass date ----------------------------------------------------
 
+# some versions of the file have a typo in one of the column names
+if ('first_treament_date' %in% names(bio1)) {
+  bio1 <- rename(bio1, first_treatment_date = first_treament_date)
+}
+
 bio2 <- bio1 %>% 
+  # some versions of the file have a trailing "\n" after the date string
+  mutate(first_treatment_date = str_replace(first_treatment_date, "\n", ""),
+         first_treatment_date = ymd(first_treatment_date),
+         biomass_date = ymd(biomass_date)) %>% 
   group_by(site_code, trt, block, plot, subplot, year) %>% 
-  summarize(first_treatment_date = min("first_treatment_date"),
-            biomass_date = max("biomass_date")) %>% 
+  summarize(first_treatment_date = min(first_treatment_date),
+            biomass_date = max(biomass_date)) %>% 
   # add in survey info
   left_join(survey1, by = "site_code")%>% 
   # filtering out brandjberg b/ it isn't used.
@@ -183,6 +192,9 @@ bio2 <- bio1 %>%
   # in 06_calculate_cdf.R
   filter(site_code != "brandjberg.dk") 
 
+if(any(is.na(bio2$biomass_date) | is.na(bio2$first_treatment_date))) {
+  stop("some dates didn't parse, fix")
+}
 
 # extract drought treatment -----------------------------------------------
 
@@ -398,8 +410,10 @@ sites_yr1 <- sites2a %>%
 # testing for duplicates
 test <- sites_yr1[, c("site_code", "year")][
   duplicated(sites_yr1[, c("site_code", "year")]), ]
+
+# this error is being thrown for sevforest.us, b/ perhaps underlying data issue
 if(nrow(test) > 0) {
-  stop('duplicate rows present, this can occur if for example there are
+  warning('duplicate rows present, this can occur if for example there are
        multiple dates of first treatment')
 }
 
@@ -726,10 +740,11 @@ test <- sites_full2 %>%
   filter(biomass_date == max(biomass_date)) %>% 
   summarize(n = n()) %>% 
   filter(n > 1) %>% 
-  pull(site_code)  
+  pull(site_code) %>% 
+  unique()
   
 if (length(test > 0)) {
-  stop('duplicated rows present in sites_full2')
+  warning('duplicated rows present in sites_full2, problems with \n', test)
 } 
 # I think this is a problem, using annual ppt is questionable at best
 # use a gridded product instead?
