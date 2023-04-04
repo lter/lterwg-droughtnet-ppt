@@ -36,7 +36,8 @@ names(r_paths) <- ydoy
 # * site locations -------------------------------------------------------
 
 site1 <- read_csv(
-  file.path(path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"),
+  # includes coordinates of all IDE sites, plus some new npkd sites
+  file.path(path, "IDE/data_processed/Site_Elev-Disturb-npkd.csv"),
   show_col_types = FALSE)
 
 
@@ -69,8 +70,8 @@ if(any(d !=1)) {
 
 # convert to spatvector
 site2 <- site1 %>% 
-  select(site_code, longitud, latitud) %>% 
-  vect(geom = c("longitud", "latitud"), crs = "EPSG:4326")
+  select(site_code, longitude, latitude) %>% 
+  vect(geom = c("longitude", "latitude"), crs = "EPSG:4326")
 
 # extract ppt by site -----------------------------------------------------
 
