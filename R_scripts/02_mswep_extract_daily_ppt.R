@@ -35,10 +35,15 @@ ydoy <- basename(r_paths) %>%
 names(r_paths) <- ydoy
 # * site locations -------------------------------------------------------
 
+# IDE and npdknet sites
 site1 <- read_csv(
   # includes coordinates of all IDE sites, plus some new npkd sites
   file.path(path, "IDE/data_processed/Site_Elev-Disturb-npkd.csv"),
   show_col_types = FALSE)
+
+# NutNet sites
+site_nn1 <- read_csv(file.path(path, "IDE/data_processed/NutNet/sites-2022-10-27.csv"),
+                     show_col_types = FALSE)
 
 
 # check file names --------------------------------------------------------
@@ -69,8 +74,17 @@ if(any(d !=1)) {
 # prepare data ------------------------------------------------------------
 
 # convert to spatvector
-site2 <- site1 %>% 
-  select(site_code, longitude, latitude) %>% 
+cols <- c("site_code", "longitude", "latitude")
+
+site_nn2 <- site_nn1 %>% 
+  # avoiding duplicates (this only happened for xilin.cn)
+  filter(!site_code %in% site1$site_code)
+
+site2 <- bind_rows(site1[, cols], site_nn2[, cols])
+ 
+stopifnot(all(!duplicated(site2$site_code))) # shouldn't be duplicates
+
+site2 <- site2 %>% 
   vect(geom = c("longitude", "latitude"), crs = "EPSG:4326")
 
 # extract ppt by site -----------------------------------------------------
