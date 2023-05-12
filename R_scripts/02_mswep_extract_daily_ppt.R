@@ -14,7 +14,7 @@ library(tidyverse)
 library(lubridate)
 source("R_scripts/dropbox_path.R")
 source("R_scripts/functions.R")
-
+source("R_scripts/functions_ppt_metrics.R")
 # params ------------------------------------------------------------------
 
 date_string <- "2022-11-20" # for use in output files
@@ -33,6 +33,7 @@ r_paths <- list.files("D:/IDE_climate_rasters/MSWEP_V280/Daily/",
 ydoy <- basename(r_paths) %>% 
   str_replace("\\.nc", "")
 names(r_paths) <- ydoy
+
 # * site locations -------------------------------------------------------
 
 # IDE and npdknet sites
