@@ -35,12 +35,18 @@ ydoy <- basename(r_paths) %>%
 names(r_paths) <- ydoy
 
 # * site locations -------------------------------------------------------
+# loading site location data (loading all files so don't miss any sites)
 
 # IDE and npdknet sites
 site1 <- read_csv(
   # includes coordinates of all IDE sites, plus some new npkd sites
   file.path(path, "IDE/data_processed/Site_Elev-Disturb-npkd.csv"),
   show_col_types = FALSE)
+
+site0 <- read_csv(
+  # includes coordinates of all IDE sites, plus some new npkd sites
+  file.path(path, "IDE/data_processed/Site_Elev-Disturb.csv"),
+  show_col_types = FALSE) 
 
 # NutNet sites
 site_nn1 <- read_csv(file.path(path, "IDE/data_processed/NutNet/sites-2022-10-27.csv"),
@@ -81,7 +87,15 @@ site_nn2 <- site_nn1 %>%
   # avoiding duplicates (this only happened for xilin.cn)
   filter(!site_code %in% site1$site_code)
 
-site2 <- bind_rows(site1[, cols], site_nn2[, cols])
+site0b <- site0 %>% 
+  rename(latitude = latitud,
+         longitude = longitud) %>% 
+  # avoiding duplicates 
+  filter(!site_code %in% site1$site_code,
+         !site_code %in% site_nn2$site_code)
+
+site2 <- bind_rows(site1[, cols], site_nn2[, cols]) %>% 
+  bind_rows(site0b[, cols])
  
 stopifnot(all(!duplicated(site2$site_code))) # shouldn't be duplicates
 
