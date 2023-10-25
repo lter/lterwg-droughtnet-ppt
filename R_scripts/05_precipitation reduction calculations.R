@@ -30,7 +30,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 days_before <-    1095   #365 #730 #120 # 1460 #
 
-date_string <- "2023-10-24" # for use in output file names
+date_string <- "2023-10-25" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -290,7 +290,7 @@ no_control <- anpp2 %>%
 # if site doesn't have "control" use control_infrastructure instead
 # run no_control again to test this was successful
 anpp2 <- anpp2 %>% 
-  mutate(trt = ifelse(site_code %in% no_control & trt == "Control_Infrastructure",
+  mutate(trt = ifelse(site_code %in% no_control & trt == "Control_infrastructure",
                       "Control",
                       trt))
 
