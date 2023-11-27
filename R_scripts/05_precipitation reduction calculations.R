@@ -234,6 +234,8 @@ if(any(is.na(siteDrt_B$drought_trt) &
 
 anpp2 <- bio2
 
+
+
 is_empty <- function(x) {
   out <- is.na(x) | x == ""
   out
@@ -362,6 +364,65 @@ anpp3$IfNot365.WhenShelterRemove[rem_date] <-
   ymd() %>% 
   paste(day(.), month(., label = TRUE)) %>% 
   str_extract("\\d+\\s[A-z]+$")
+
+
+
+#hard code in dates for sites/years with only cover data
+docker.16 <- data.frame(site_code = "docker.au",
+                     block = 1, 
+                     plot = 1:10,
+                     subplot = "A", 
+                     year = 2016, 
+                     trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                     bioDat = as.Date("2016-10-18"), 
+                     trtDat = as.Date("2016-10-17"), 
+                     X365day.trt = "Yes", 
+                     IfNot365.WhenShelterSet = NA,
+                     IfNot365.WhenShelterRemove = NA,
+                     drought_trt = 0.52)
+
+docker.17 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2017, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2017-10-19"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+docker.18 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2018, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2018-10-26"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+docker.19 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2019, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2019-10-29"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+
+anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19)
+
 
 
 
