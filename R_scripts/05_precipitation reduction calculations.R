@@ -28,7 +28,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # biomass harvest will be calculated
 
 
-days_before <-    1095   #365 #730 #120 # 1460 #
+days_before <-    365 #730 #120 # 1460 #1095   #
 
 date_string <- "2023-10-25" # for use in output file names
 
@@ -117,7 +117,8 @@ mswep2 <- mswep1 %>%
 
 # reading in site/anpp date data ---------------------------------------
 
-siteDrt_A <- read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
+siteDrt_A <- read.csv("C:/Users/ohler/Dropbox/IDE/data_processed/Site_Elev-Disturb.csv", 
+              #read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
                       as.is = TRUE, na.strings = c("","<NA>", "NA")) %>% 
   as_tibble()
 
