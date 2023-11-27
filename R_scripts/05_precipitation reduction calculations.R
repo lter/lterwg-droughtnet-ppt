@@ -28,9 +28,9 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # biomass harvest will be calculated
 
 
-days_before <-    365 #730 #120 # 1460 #1095   #
+days_before <-     1095   #365 #730 #120 #1460 #
 
-date_string <- "2023-10-25" # for use in output file names
+date_string <- "2023-11-27" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -368,61 +368,224 @@ anpp3$IfNot365.WhenShelterRemove[rem_date] <-
 
 
 #hard code in dates for sites/years with only cover data
-docker.16 <- data.frame(site_code = "docker.au",
-                     block = 1, 
-                     plot = 1:10,
-                     subplot = "A", 
-                     year = 2016, 
-                     trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                     bioDat = as.Date("2016-10-18"), 
-                     trtDat = as.Date("2016-10-17"), 
-                     X365day.trt = "Yes", 
-                     IfNot365.WhenShelterSet = NA,
-                     IfNot365.WhenShelterRemove = NA,
-                     drought_trt = 0.52)
+ docker.16 <- data.frame(site_code = "docker.au",
+                      block = 1, 
+                      plot = 1:10,
+                      subplot = "A", 
+                      year = 2016, 
+                      trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                      bioDat = as.Date("2016-10-18"), 
+                      trtDat = as.Date("2016-10-17"), 
+                      X365day.trt = "Yes", 
+                      IfNot365.WhenShelterSet = NA,
+                      IfNot365.WhenShelterRemove = NA,
+                      drought_trt = 0.52)
+ 
+ docker.17 <- data.frame(site_code = "docker.au",
+                         block = 1, 
+                         plot = 1:10,
+                         subplot = "A", 
+                         year = 2017, 
+                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                         bioDat = as.Date("2017-10-19"), 
+                         trtDat = as.Date("2016-10-17"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.52)
+ 
+ docker.18 <- data.frame(site_code = "docker.au",
+                         block = 1, 
+                         plot = 1:10,
+                         subplot = "A", 
+                         year = 2018, 
+                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                         bioDat = as.Date("2018-10-26"), 
+                         trtDat = as.Date("2016-10-17"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.52)
+ 
+ docker.19 <- data.frame(site_code = "docker.au",
+                         block = 1, 
+                         plot = 1:10,
+                         subplot = "A", 
+                         year = 2019, 
+                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                         bioDat = as.Date("2019-10-29"), 
+                         trtDat = as.Date("2016-10-17"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.52)
+ 
+ #bivensarm 2012-2020
+biven.2014 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2014, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                                 ),
+                         bioDat = as.Date("2014-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
 
-docker.17 <- data.frame(site_code = "docker.au",
-                        block = 1, 
-                        plot = 1:10,
-                        subplot = "A", 
-                        year = 2017, 
-                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                        bioDat = as.Date("2017-10-19"), 
-                        trtDat = as.Date("2016-10-17"), 
-                        X365day.trt = "Yes", 
-                        IfNot365.WhenShelterSet = NA,
-                        IfNot365.WhenShelterRemove = NA,
-                        drought_trt = 0.52)
+biven.2015 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2015, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2015-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
 
-docker.18 <- data.frame(site_code = "docker.au",
-                        block = 1, 
-                        plot = 1:10,
-                        subplot = "A", 
-                        year = 2018, 
-                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                        bioDat = as.Date("2018-10-26"), 
-                        trtDat = as.Date("2016-10-17"), 
-                        X365day.trt = "Yes", 
-                        IfNot365.WhenShelterSet = NA,
-                        IfNot365.WhenShelterRemove = NA,
-                        drought_trt = 0.52)
+biven.2016 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2016, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2016-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
 
-docker.19 <- data.frame(site_code = "docker.au",
-                        block = 1, 
-                        plot = 1:10,
-                        subplot = "A", 
-                        year = 2019, 
-                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                        bioDat = as.Date("2019-10-29"), 
-                        trtDat = as.Date("2016-10-17"), 
-                        X365day.trt = "Yes", 
-                        IfNot365.WhenShelterSet = NA,
-                        IfNot365.WhenShelterRemove = NA,
-                        drought_trt = 0.52)
+biven.2017 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2017, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2017-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
+
+biven.2018 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2018, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2018-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
+
+biven.2019 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2019, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2019-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
+
+biven.2020 <- data.frame(site_code = "bivensarm.au",
+                         block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
+                         plot = 1:40,
+                         subplot = "A", 
+                         year = 2020, 
+                         trt = c("Drought","Control","Drought","Control",
+                                 "Control","Drought", "Control", "Drought",
+                                 "Drought", "Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought",
+                                 "Drought","Control", "Drought", "Control",
+                                 "Control", "Drought", "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2020-07-01"), 
+                         trtDat = as.Date("2013-03-01"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.67)
 
 
-anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19)
 
+ anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020)
+ 
 
 
 
