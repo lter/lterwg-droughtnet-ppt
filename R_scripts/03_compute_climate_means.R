@@ -14,6 +14,7 @@ theme_set(theme_classic())
 library(patchwork) # for combining plots together
 library(terra)
 source("R_scripts/functions.R") # where seasonality_index() defined
+source("R_scripts/functions_ppt_metrics.R") # where seasonality_index() defined
 source("R_scripts/dropbox_path.R") # set path to dropbox in this file as needed
 
 
@@ -29,7 +30,7 @@ max_date = "2020-12-31"
 # * lat/lon ---------------------------------------------------------
 
 site1 <- read_csv(file.path(
-  path, "IDE MS_Single year extreme/Data/Site_Elev-Disturb.csv"),
+  path, "IDE/data_processed/Site_Elev-Disturb.csv"),
   show_col_types = FALSE)
 
 # * mswep -------------------------------------------------------------------
@@ -258,7 +259,7 @@ write_lines(metadata,  file.path(
 
 write_csv(ann1, file.path(
   path, "IDE/data_processed/climate",
-  "climate_mean_annual_by_site.csv" 
+  "climate_mean_annual_by_site_v3.csv" 
 ))
 
 
