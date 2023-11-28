@@ -217,6 +217,6 @@ ann3[is.na(rowSums(ann3 %>% select(where(is.numeric)))), ]
 
 # write output ------------------------------------------------------------
 
-write_csv(ann3, file.path(path, "IDE/data_processed/climate/climate_mean_annual_by_site_v2.csv"))
+write_csv(ann3, file.path(path, "IDE/data_processed/climate/climate_mean_annual_by_site_v3.csv"))
 
 
