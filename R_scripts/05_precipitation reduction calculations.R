@@ -30,7 +30,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 days_before <-     1460 #1095   #365 #730 #120 #
 
-date_string <- "2024-12-16" # for use in output file names
+date_string <- "2024-12-18" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -583,8 +583,43 @@ biven.2020 <- data.frame(site_code = "bivensarm.au",
                          drought_trt = 0.67)
 
 
+##chilcasdrt.ar
+chilcas.2016 <- data.frame(site_code = "chilcasdrt.ar",
+                         block = c(4, 4, 5, 5, 6, 6), 
+                         plot = c(34, 51, 38, 52, 41, 55),
+                         subplot = "A", 
+                         year = 2016, 
+                         trt = c("Control","Drought",
+                                 "Control","Drought",
+                                 "Control", "Drought"
+                         ),
+                         bioDat = as.Date("2016-11-24"), 
+                         trtDat = as.Date("2016-03-26"), 
+                         X365day.trt = "Yes", 
+                         IfNot365.WhenShelterSet = NA,
+                         IfNot365.WhenShelterRemove = NA,
+                         drought_trt = 0.50)
 
- anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020)
+chilcas.2020 <- data.frame(site_code = "chilcasdrt.ar",
+                           block = c(4, 4, 5, 5, 6, 6), 
+                           plot = c(34, 51, 38, 52, 41, 55),
+                           subplot = "A", 
+                           year = 2020, 
+                           trt = c("Control","Drought",
+                                   "Control","Drought",
+                                   "Control", "Drought"
+                           ),
+                           bioDat = as.Date("2020-07-12"), 
+                           trtDat = as.Date("2016-03-26"), 
+                           X365day.trt = "Yes", 
+                           IfNot365.WhenShelterSet = NA,
+                           IfNot365.WhenShelterRemove = NA,
+                           drought_trt = 0.50)
+
+
+
+
+ anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020)
  
 
 
