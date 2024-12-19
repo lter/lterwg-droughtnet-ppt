@@ -616,11 +616,69 @@ chilcas.2020 <- data.frame(site_code = "chilcasdrt.ar",
                            IfNot365.WhenShelterRemove = NA,
                            drought_trt = 0.50)
 
+##nnss.us
+nnss.2019 <- data.frame(site_code = "nnss.us",
+                           block = 1, 
+                           plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
+                           subplot = "A", 
+                           year = 2019, 
+                           trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                   "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                           ),
+                           bioDat = as.Date("2019-05-02"), 
+                           trtDat = as.Date("2019-06-08"), 
+                           X365day.trt = "Yes", 
+                           IfNot365.WhenShelterSet = NA,
+                           IfNot365.WhenShelterRemove = NA,
+                           drought_trt = 0.60)
+
+nnss.2020 <- data.frame(site_code = "nnss.us",
+                        block = 1, 
+                        plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
+                        subplot = "A", 
+                        year = 2020, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2020-05-20"), 
+                        trtDat = as.Date("2019-06-08"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
+
+nnss.2021 <- data.frame(site_code = "nnss.us",
+                        block = 1, 
+                        plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
+                        subplot = "A", 
+                        year = 2021, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2021-04-13"), 
+                        trtDat = as.Date("2019-06-08"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
+
+nnss.2022 <- data.frame(site_code = "nnss.us",
+                        block = 1, 
+                        plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
+                        subplot = "A", 
+                        year = 2022, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2022-04-15"), 
+                        trtDat = as.Date("2019-06-08"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
 
 
-
- anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020)
- 
+ anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020,nnss.2019,nnss.2020,nnss.2021, nnss.2022)
 
 
 
