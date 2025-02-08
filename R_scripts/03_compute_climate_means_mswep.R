@@ -28,6 +28,7 @@ source("R_scripts/functions.R")
 # https://www.ncei.noaa.gov/access/us-climate-normals/
 min_date = "1991-01-01" 
 max_date = "2020-12-31" # dates are inclusive
+output_figs <- FALSE # create and save figures?
 
 # excluding 1mm or less events for precipt intensity/variability calculations
 cutoff <- 1 
@@ -55,7 +56,7 @@ mswep2 <- mswep1 %>%
   filter( date >= min_date,
           date <= max_date) 
 
-ann0 <- mswep2 %>% 
+ann_by_year <- mswep2 %>% 
   mutate(year = lubridate::year(date)) %>% 
   group_by(site_code, year) %>% 
   summarize(ppt_max_event = max(precip),
@@ -71,8 +72,12 @@ ann0 <- mswep2 %>%
             # size of the 95th percentile event size (on days with precip)
             ppt_95th_percentile_size = ppt_percentile_size(precip, prob = 0.95,
                                                            cutoff = cutoff),
+            ap = sum(precip), # annual precipitation
             .groups = 'drop'
-  ) %>% 
+  ) 
+
+ann0 <- ann_by_year%>% 
+  select(-ap) %>% 
   group_by(site_code) %>% 
   select(-year) %>% 
   summarize(across(where(is.numeric), .fns = mean),
@@ -87,6 +92,40 @@ ann1 <- ppt_mean_annual(mswep1, min_date = min_date,
 
 ann2 <- left_join(ann0, ann1, by = "site_code")
 
+
+# calculate interannual correlations --------------------------------------
+# correlations over time between annual ppt metrics
+
+sitewise_cors1 <- ann_by_year %>% 
+  select(site_code, year, ap, ppt_mean_event, n_wet_days,
+         avg_dryspell_length) %>% 
+  group_by(site_code) %>% 
+  summarise(
+    ap_vs_ppt_mean_event = cor(ap, ppt_mean_event),
+    ap_vs_n_wet_days = cor(ap, n_wet_days),
+    ap_vs_avg_dryspell_length = cor(ap, avg_dryspell_length),
+    ppt_mean_event_vs_n_wet_days = cor(ppt_mean_event, n_wet_days),
+    ppt_mean_event_vs_avg_dryspell_length = cor(ppt_mean_event, avg_dryspell_length),
+    n_wet_days_vs_avg_dryspell_length = cor(n_wet_days, avg_dryspell_length),
+  )
+
+if (output_figs) {
+  
+  g <- sitewise_cors1 %>% 
+    pivot_longer(cols = -site_code) %>% 
+    ggplot(aes(x = value)) +
+    geom_histogram() +
+    facet_wrap(~name) +
+    labs(x = 'Temporal correlation',
+         subtitle = 'Correlations between annual precipitation (ap) and intra-annual precipitation variability metrics',
+         caption = 'Correlations calculated for each site using MSWEP data') +
+    theme_bw()
+  
+  png(file.path(path, "IDE/figures/climate/mswep_temporal-correlations_hist.png"),
+                 units = 'in', width = 10, height = 6, res = 600)
+  g
+  dev.off()
+}
 
 # create metadata file ----------------------------------------------------
 
@@ -130,5 +169,5 @@ write_lines(metadata,  file.path(
 # write output ------------------------------------------------------------
 
 write_csv(ann2, file.path(path, "IDE/data_processed/climate/mswep_mean_annual_by_site.csv"))
-
+write_csv(sitewise_cors1, file.path(path, "IDE/data_processed/climate/mswep_temporal-correlations_by_site.csv"))
 
