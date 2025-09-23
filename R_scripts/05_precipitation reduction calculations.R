@@ -28,9 +28,9 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # biomass harvest will be calculated
 
 
-days_before <-     1460 #1095   #365 #730 #120 #
+days_before <-    365 #730 #120 #1460 # 1095   #
 
-date_string <- "2024-12-18" # for use in output file names
+date_string <- "2025-09-23" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -118,7 +118,7 @@ mswep2 <- mswep1 %>%
 # reading in site/anpp date data ---------------------------------------
 
 siteDrt_A <- read.csv("C:/Users/ohler/Dropbox/IDE/data_processed/Site_Elev-Disturb.csv", 
-              #read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
+                      #read.csv(file.path(path_ms, "Data/Site_Elev-Disturb.csv"), 
                       as.is = TRUE, na.strings = c("","<NA>", "NA")) %>% 
   as_tibble()
 
@@ -322,17 +322,17 @@ on_off_dates <- tibble(site_code =
                          c("cedarsav.us", "cedarsav.us", "cedarsav.us", 
                            "cedartrait.us", "cedartrait.us", "cedartrait.us",
                            'sand.us', 'sand.us', 'sand.us'),
-       on = c("2017-04-27", "2018-05-05", "2019-04-30", 
-              "2017-04-27", "2018-05-05", "2019-05-2",
-              '2020-6-22', '2021-5-27', '2022-4-30'),
-       off = c("2017-09-21", "2018-09-25", "2019-09-25",
-               "2017-09-20","2018-09-11", "2019-09-24",
-               # Note the last date (2022-10-1) is my best
-               # guess based on past years (at the time of 
-               # writing this date is in the future--the place
-               # holder is so that code doesn't break donw)
-               '2020-10-3', '2021-9-26', '2022-10-1'),
-       year = year(on))
+                       on = c("2017-04-27", "2018-05-05", "2019-04-30", 
+                              "2017-04-27", "2018-05-05", "2019-05-2",
+                              '2020-6-22', '2021-5-27', '2022-4-30'),
+                       off = c("2017-09-21", "2018-09-25", "2019-09-25",
+                               "2017-09-20","2018-09-11", "2019-09-24",
+                               # Note the last date (2022-10-1) is my best
+                               # guess based on past years (at the time of 
+                               # writing this date is in the future--the place
+                               # holder is so that code doesn't break donw)
+                               '2020-10-3', '2021-9-26', '2022-10-1'),
+                       year = year(on))
 
 
 # cedarsav.us has notes in place of dates in 2016 (pre trmt)
@@ -368,60 +368,60 @@ anpp3$IfNot365.WhenShelterRemove[rem_date] <-
 
 
 #hard code in dates for sites/years with only cover data
- docker.16 <- data.frame(site_code = "docker.au",
-                      block = 1, 
-                      plot = 1:10,
-                      subplot = "A", 
-                      year = 2016, 
-                      trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                      bioDat = as.Date("2016-10-18"), 
-                      trtDat = as.Date("2016-10-17"), 
-                      X365day.trt = "Yes", 
-                      IfNot365.WhenShelterSet = NA,
-                      IfNot365.WhenShelterRemove = NA,
-                      drought_trt = 0.52)
- 
- docker.17 <- data.frame(site_code = "docker.au",
-                         block = 1, 
-                         plot = 1:10,
-                         subplot = "A", 
-                         year = 2017, 
-                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                         bioDat = as.Date("2017-10-19"), 
-                         trtDat = as.Date("2016-10-17"), 
-                         X365day.trt = "Yes", 
-                         IfNot365.WhenShelterSet = NA,
-                         IfNot365.WhenShelterRemove = NA,
-                         drought_trt = 0.52)
- 
- docker.18 <- data.frame(site_code = "docker.au",
-                         block = 1, 
-                         plot = 1:10,
-                         subplot = "A", 
-                         year = 2018, 
-                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                         bioDat = as.Date("2018-10-26"), 
-                         trtDat = as.Date("2016-10-17"), 
-                         X365day.trt = "Yes", 
-                         IfNot365.WhenShelterSet = NA,
-                         IfNot365.WhenShelterRemove = NA,
-                         drought_trt = 0.52)
- 
- docker.19 <- data.frame(site_code = "docker.au",
-                         block = 1, 
-                         plot = 1:10,
-                         subplot = "A", 
-                         year = 2019, 
-                         trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
-                         bioDat = as.Date("2019-10-29"), 
-                         trtDat = as.Date("2016-10-17"), 
-                         X365day.trt = "Yes", 
-                         IfNot365.WhenShelterSet = NA,
-                         IfNot365.WhenShelterRemove = NA,
-                         drought_trt = 0.52)
- 
- #bivensarm 2012-2020
-biven.2014 <- data.frame(site_code = "bivensarm.au",
+docker.16 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2016, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2016-10-18"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+docker.17 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2017, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2017-10-19"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+docker.18 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2018, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2018-10-26"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+docker.19 <- data.frame(site_code = "docker.au",
+                        block = 1, 
+                        plot = 1:10,
+                        subplot = "A", 
+                        year = 2019, 
+                        trt = c("Control","Control","Control","Control","Control","Drought","Drought","Drought","Drought","Drought"),
+                        bioDat = as.Date("2019-10-29"), 
+                        trtDat = as.Date("2016-10-17"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.52)
+
+#bivensarm 2012-2020
+biven.2014 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -436,7 +436,7 @@ biven.2014 <- data.frame(site_code = "bivensarm.au",
                                  "Control", "Drought", "Control", "Drought",
                                  "Drought","Control", "Drought", "Control",
                                  "Control", "Drought", "Control", "Drought"
-                                 ),
+                         ),
                          bioDat = as.Date("2014-07-01"), 
                          trtDat = as.Date("2013-03-01"), 
                          X365day.trt = "Yes", 
@@ -444,7 +444,7 @@ biven.2014 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2015 <- data.frame(site_code = "bivensarm.au",
+biven.2015 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -467,7 +467,7 @@ biven.2015 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2016 <- data.frame(site_code = "bivensarm.au",
+biven.2016 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -490,7 +490,7 @@ biven.2016 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2017 <- data.frame(site_code = "bivensarm.au",
+biven.2017 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -513,7 +513,7 @@ biven.2017 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2018 <- data.frame(site_code = "bivensarm.au",
+biven.2018 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -536,7 +536,7 @@ biven.2018 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2019 <- data.frame(site_code = "bivensarm.au",
+biven.2019 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -559,7 +559,7 @@ biven.2019 <- data.frame(site_code = "bivensarm.au",
                          IfNot365.WhenShelterRemove = NA,
                          drought_trt = 0.67)
 
-biven.2020 <- data.frame(site_code = "bivensarm.au",
+biven.2020 <- data.frame(site_code = "bivensarm.us",
                          block = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10), 
                          plot = 1:40,
                          subplot = "A", 
@@ -585,20 +585,20 @@ biven.2020 <- data.frame(site_code = "bivensarm.au",
 
 ##chilcasdrt.ar
 chilcas.2016 <- data.frame(site_code = "chilcasdrt.ar",
-                         block = c(4, 4, 5, 5, 6, 6), 
-                         plot = c(34, 51, 38, 52, 41, 55),
-                         subplot = "A", 
-                         year = 2016, 
-                         trt = c("Control","Drought",
-                                 "Control","Drought",
-                                 "Control", "Drought"
-                         ),
-                         bioDat = as.Date("2016-11-24"), 
-                         trtDat = as.Date("2016-03-26"), 
-                         X365day.trt = "Yes", 
-                         IfNot365.WhenShelterSet = NA,
-                         IfNot365.WhenShelterRemove = NA,
-                         drought_trt = 0.50)
+                           block = c(4, 4, 5, 5, 6, 6), 
+                           plot = c(34, 51, 38, 52, 41, 55),
+                           subplot = "A", 
+                           year = 2016, 
+                           trt = c("Control","Drought",
+                                   "Control","Drought",
+                                   "Control", "Drought"
+                           ),
+                           bioDat = as.Date("2016-11-24"), 
+                           trtDat = as.Date("2016-03-26"), 
+                           X365day.trt = "Yes", 
+                           IfNot365.WhenShelterSet = NA,
+                           IfNot365.WhenShelterRemove = NA,
+                           drought_trt = 0.50)
 
 chilcas.2020 <- data.frame(site_code = "chilcasdrt.ar",
                            block = c(4, 4, 5, 5, 6, 6), 
@@ -618,19 +618,19 @@ chilcas.2020 <- data.frame(site_code = "chilcasdrt.ar",
 
 ##nnss.us
 nnss.2019 <- data.frame(site_code = "nnss.us",
-                           block = 1, 
-                           plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
-                           subplot = "A", 
-                           year = 2019, 
-                           trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
-                                   "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
-                           ),
-                           bioDat = as.Date("2019-05-02"), 
-                           trtDat = as.Date("2019-06-08"), 
-                           X365day.trt = "Yes", 
-                           IfNot365.WhenShelterSet = NA,
-                           IfNot365.WhenShelterRemove = NA,
-                           drought_trt = 0.60)
+                        block = 1, 
+                        plot = c(101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120),
+                        subplot = "A", 
+                        year = 2019, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2019-05-02"), 
+                        trtDat = as.Date("2019-06-08"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
 
 nnss.2020 <- data.frame(site_code = "nnss.us",
                         block = 1, 
@@ -677,8 +677,44 @@ nnss.2022 <- data.frame(site_code = "nnss.us",
                         IfNot365.WhenShelterRemove = NA,
                         drought_trt = 0.60)
 
+#octc.us
+octc.2021 <- data.frame(site_code = "octc.us",
+                        block = 1, 
+                        plot = c(201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220),
+                        subplot = "A", 
+                        year = 2021, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2021-05-27"), 
+                        trtDat = as.Date("2019-05-04"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
 
- anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020,nnss.2019,nnss.2020,nnss.2021, nnss.2022)
+octc.2022 <- data.frame(site_code = "octc.us",
+                        block = 1, 
+                        plot = c(201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220),
+                        subplot = "A", 
+                        year = 2022, 
+                        trt = c("Control","Control","Control","Control","Control","Control","Control","Control","Control","Control",
+                                "Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought","Drought"
+                        ),
+                        bioDat = as.Date("2022-05-19"), 
+                        trtDat = as.Date("2019-05-04"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.60)
+
+
+
+
+
+
+
+anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020,nnss.2019,nnss.2020,nnss.2021, nnss.2022, octc.2021, octc.2022)
 
 
 
@@ -828,7 +864,7 @@ wthr2 <- wthr1 %>%
 # STOP: temporary fix! (year not date provided for bio date for pozos.ar) 
 sites2_forsubmitted <- sites2 %>%
   filter(site_code %in% wthr2$site_code,
-        !is.na(bioDat))
+         !is.na(bioDat))
 
 sites3_submitted <- calc_yearly_precip(site_data = sites2_forsubmitted,
                                        precip_data = wthr2,
@@ -840,8 +876,8 @@ sites2_forchirps <- sites2 %>%
   filter(site_code %in% chirps2$site_code)
 
 sites3_chirps <- calc_yearly_precip(site_data = sites2_forchirps,
-                                  precip_data = chirps2,
-                                  days_before = days_before)
+                                    precip_data = chirps2,
+                                    days_before = days_before)
 
 sites4_chirps <- sites3_chirps 
 
@@ -858,8 +894,8 @@ sites2_formswep <- sites2 %>%
   filter(site_code %in% mswep2$site_code)
 
 sites3_mswep <- calc_yearly_precip(site_data = sites2_formswep,
-                                    precip_data = mswep2,
-                                    days_before = days_before)
+                                   precip_data = mswep2,
+                                   days_before = days_before)
 
 sites4_mswep <- sites3_mswep
 
@@ -879,7 +915,7 @@ sites4 <- full_join(sites3_ghcn, sites3_submitted,
   full_join(sites4_mswep, by = names(sites1)) %>% 
   rowwise() %>% 
   mutate(fake_bioDat = mean(c(fake_bioDat_sub, fake_bioDat_ghcn, 
-                           fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
+                              fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
          fake_bioDat = as.logical(fake_bioDat)) %>% 
   ungroup() %>% 
   select(-matches("fake_bioDat_"))
@@ -900,7 +936,7 @@ pre_years_drt <- pre_years_ctrl %>%
 
 # adding in fake bioDat rows for both control and drought trmt
 anpp4 <- bind_rows(pre_years_ctrl, pre_years_drt, anpp3) 
-  
+
 
 sites6 <- anpp4 %>% 
   left_join(select(sites5, -fake_bioDat), 
@@ -910,11 +946,11 @@ sites6 <- anpp4 %>%
   mutate(ppt_ghcn = ifelse(trt == "Control", ppt_ambient_ghcn, 
                            ppt_drought_ghcn),
          ppt_sub = ifelse(trt == "Control", ppt_ambient_sub, 
-                           ppt_drought_sub),
+                          ppt_drought_sub),
          ppt_chirps = ifelse(trt == "Control", ppt_ambient_chirps, 
-                            ppt_drought_chirps),
+                             ppt_drought_chirps),
          ppt_mswep = ifelse(trt == "Control", ppt_ambient_mswep, 
-                             ppt_drought_mswep)) 
+                            ppt_drought_mswep)) 
 # should be 0:
 test <- sum(sites6$num_drought_days_ghcn != sites6$num_drought_days_sub, 
             na.rm = TRUE)
@@ -968,8 +1004,8 @@ sites_full1 <- sites7 %>%
                                              IfNot365.WhenShelterRemove.y,
                                              IfNot365.WhenShelterRemove.x),
          IfNot365.WhenShelterSet = ifelse(is.na(IfNot365.WhenShelterSet.x),
-                                             IfNot365.WhenShelterSet.y,
-                                             IfNot365.WhenShelterSet.x)) %>% 
+                                          IfNot365.WhenShelterSet.y,
+                                          IfNot365.WhenShelterSet.x)) %>% 
   select(-matches("\\.(x|y)$")) 
 
 test <- sites_full1 %>% 
@@ -986,8 +1022,8 @@ theme_set(theme_classic())
 
 pdf(file.path(path_oct,
               paste0("figures/precip/ghcn_vs_submitted_precip", days_string,
-                      date_string, ".pdf")
-             ))
+                     date_string, ".pdf")
+))
 
 # ghcn data for this site is bad
 sites7 %>% 
@@ -1053,7 +1089,7 @@ sites_full2 <- sites_full1 %>%
          annual_ppt_used = ifelse(is.na(ppt) & !is.na(annual_ppt), TRUE, FALSE),
          ppt = ifelse(annual_ppt_used, annual_ppt, ppt),
   )
-  
+
 test <- sites_full2 %>% 
   group_by(site_code, trt, plot, block, year) %>% 
   filter(biomass_date == max(biomass_date)) %>% 
@@ -1061,14 +1097,14 @@ test <- sites_full2 %>%
   filter(n > 1) %>% 
   pull(site_code) %>% 
   unique()
-  
+
 if (length(test > 0)) {
   warning('duplicated rows present in sites_full2, problems with \n', test)
 } 
 # I think this is a problem, using annual ppt is questionable at best
 # use a gridded product instead?
 sites_full2 %>% 
-    filter(annual_ppt_used) %>% 
+  filter(annual_ppt_used) %>% 
   pull(site_code) %>% 
   unique()
 
@@ -1081,7 +1117,7 @@ write_csv(sites_full3, file.path(
   path_oct, 
   paste0('data/precip/anpp_clean_trt_ppt_no-perc', days_string,
          date_string,'.csv')
-  ))
+))
 
 
 # checks ------------------------------------------------------------------
