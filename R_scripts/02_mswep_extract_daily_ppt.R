@@ -17,7 +17,7 @@ source("R_scripts/functions.R")
 source("R_scripts/functions_ppt_metrics.R")
 # params ------------------------------------------------------------------
 
-date_string <- "2025-01-30" # for use in output files
+date_string <- "2025-10-20" # for use in output files
 
 # read in data ------------------------------------------------------------
 
@@ -88,8 +88,9 @@ site_nn2 <- site_nn1 %>%
   filter(!site_code %in% site1$site_code)
 
 site0b <- site0 %>% 
-  rename(latitude = latitud,
+  dplyr::rename(latitude = latitud,
          longitude = longitud) %>% 
+  dplyr::mutate(latitude = as.numeric(latitude), longitude = as.numeric(longitude))%>%
   # avoiding duplicates 
   filter(!site_code %in% site1$site_code,
          !site_code %in% site_nn2$site_code)
