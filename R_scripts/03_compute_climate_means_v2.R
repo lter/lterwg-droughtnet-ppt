@@ -32,8 +32,9 @@ max_date = "2020-12-31"
 # IDE and npdknet sites
 site0 <- read_csv(
   # includes coordinates of all IDE sites, plus some new npkd sites
-  file.path(path, "IDE/data_processed/Site_Elev-Disturb-npkd.csv"),
-  show_col_types = FALSE)
+  file.path(path, "IDE/data_processed/Site_Elev-Disturb.csv"),
+  show_col_types = FALSE)%>%
+  mutate(latitude = latitud, longitude = longitud)
 
 # NutNet sites
 p_nn <- newest_file_path(
