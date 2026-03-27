@@ -114,7 +114,7 @@ avg_dryspell_length <- function(x, cutoff = 1) {
 ppt_percentile_size <- function(x, prob = 0.95, cutoff = 1) {
   check_ppt_input(x)
   x2 <- x[x > cutoff]
-  as.numeric(quantile(x2, probs = prob))
+  as.numeric(quantile(x2, probs = prob, na.rm = TRUE))
 }
 
 
