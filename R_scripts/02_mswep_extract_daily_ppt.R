@@ -17,14 +17,14 @@ source("R_scripts/functions.R")
 source("R_scripts/functions_ppt_metrics.R")
 # params ------------------------------------------------------------------
 
-date_string <- "2026-03-26" # for use in output files
+date_string <- "2026-03-27" # for use in output files
 
 # read in data ------------------------------------------------------------
 
 # * mswep -----------------------------------------------------------------
 
 # these files aren't on dropbox (b/ large)
-r_paths <- list.files("C:/Users/ohler/Dropbox/IDE_data_May 2018/mswep_data_BIGfiles/temp_name/Daily/",
+r_paths <- list.files("C:/Users/ohler/Dropbox/IDE_data_May 2018/mswep_data_BIGfiles/mswep_v3_Daily/",
                       pattern = ".*\\.nc",
                       full.names = TRUE) %>% 
   sort()

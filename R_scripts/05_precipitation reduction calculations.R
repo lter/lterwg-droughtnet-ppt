@@ -28,9 +28,9 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # biomass harvest will be calculated
 
 
-days_before <-   1460 #120  #365 #730  # 1095  # 
+days_before <-  1460 #120  # 365 # 730  #1095  # 
 
-date_string <- "2026-03-26" # for use in output file names
+date_string <- "2026-03-27" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
