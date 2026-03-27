@@ -30,7 +30,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 
 days_before <-   1460 #120  #365 #730  # 1095  # 
 
-date_string <- "2026-03-25" # for use in output file names
+date_string <- "2026-03-26" # for use in output file names
 
 if (days_before%%365 == 0) {
   window <- 365
@@ -208,7 +208,7 @@ siteDrt_B <- siteDrt_A %>%
 # Look at parsing failures
 siteDrt_A %>% 
   filter(is.na(siteDrt_B$drought_trt)) %>% 
-  select(site_code, drought_trt)
+  dplyr::select(site_code, drought_trt)
 
 # b/ didn't parse above
 siteDrt_B$drought_trt[siteDrt_B$site_code == "elizwood.us"] <- 0.5
@@ -221,7 +221,7 @@ siteDrt_B$drought_trt[siteDrt_B$site_code == "tovetorp.se"]
 # 
 siteDrt_A %>% 
   filter(is.na(siteDrt_B$drought_trt)) %>% 
-  select(site_code, drought_trt)
+  dplyr::select(site_code, drought_trt)
 
 # We're only using control data for brandjberg.dk and stubai.at
 # so ok if they're NA
@@ -257,7 +257,7 @@ anpp2$dummy_date[!is_mdy] <- ymd(anpp2$first_treatment_date[!is_mdy]) %>%
 
 # in the end results will be joined back in
 anpp2 <- anpp2 %>% 
-  select(-first_treatment_date) %>% 
+  dplyr::select(-first_treatment_date) %>% 
   rename(first_treatment_date = dummy_date) %>% 
   mutate(biomass_date = ifelse(
     str_detect(biomass_date, "\\d{1,2}/\\d{1,2}/\\d{4}"),
@@ -305,7 +305,7 @@ anpp3 <- siteDrt_B %>%
   #mutate(trt = str_replace(trt, "Control_Infrastructure", "Control"))
   filter(trt %in% c("Drought", "Control")) %>% 
   # key columns and data columns needed by calc_yearly_precip function
-  select(site_code, block, plot, subplot, year, trt, biomass_date, first_treatment_date, 
+  dplyr::select(site_code, block, plot, subplot, year, trt, biomass_date, first_treatment_date, 
          X365day.trt, IfNot365.WhenShelterRemove, IfNot365.WhenShelterSet,
          drought_trt) %>% 
   # renaming for function
@@ -344,7 +344,7 @@ anpp3 <- anpp3 %>%
     # remove/set dates aren't meaningful before the first treatment date
     IfNot365.WhenShelterSet = ifelse(bioDat < trtDat, NA, IfNot365.WhenShelterSet),
     IfNot365.WhenShelterRemove = ifelse(bioDat < trtDat, NA, IfNot365.WhenShelterRemove)) %>% 
-  select(-on, -off)
+  dplyr::select(-on, -off)
 
 # reformatting some dates so that they can be used by the function 
 set_date <- str_detect(anpp3$IfNot365.WhenShelterSet, "\\d{4}-\\d+-\\d+")
@@ -733,7 +733,7 @@ precip1 <- precip %>%
 # removing duplicate date/site combos so runs quicker
 
 sites1 <- anpp3 %>% 
-  select(site_code, year, bioDat, trtDat, X365day.trt,  matches("IfNot365"),
+  dplyr::select(site_code, year, bioDat, trtDat, X365day.trt,  matches("IfNot365"),
          drought_trt) %>% 
   .[!duplicated(.), ]
 
@@ -797,7 +797,7 @@ sites2b <- bind_rows(pre_years, sites2a)
 # missing prior to that year
 n_prev_missing1 <- sites2b %>% 
   ungroup() %>% 
-  select(site_code, year) %>% 
+  dplyr::select(site_code, year) %>% 
   arrange(site_code, year) %>% 
   filter(!duplicated(.)) %>% 
   group_by(site_code) %>% 
@@ -808,7 +808,7 @@ n_prev_missing1 <- sites2b %>%
   # this doesn't currently account for the fact
   # that could have multiple consecutive yrs missing
   mutate(n_prev_missing = diffs_yr - 1) %>% 
-  select(-n, -diffs_yr)
+  dplyr::select(-n, -diffs_yr)
 
 n_prev_missing2 <- n_prev_missing1 %>% 
   left_join(sites2b, by = c("site_code", "year")) %>% 
@@ -918,10 +918,10 @@ sites4 <- full_join(sites3_ghcn, sites3_submitted,
                               fake_bioDat_chirps, fake_bioDat_mswep), na.rm = TRUE),
          fake_bioDat = as.logical(fake_bioDat)) %>% 
   ungroup() %>% 
-  select(-matches("fake_bioDat_"))
+  dplyr::select(-matches("fake_bioDat_"))
 
 sites5 <- sites4 %>% 
-  select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps,
+  dplyr::select(-ppt_num_wc_interp_ghcn, -ppt_num_wc_interp_chirps,
          -ppt_num_wc_interp_mswep)
 
 # merge back to main anpp file --------------------------------------------
@@ -939,7 +939,7 @@ anpp4 <- bind_rows(pre_years_ctrl, pre_years_drt, anpp3)
 
 
 sites6 <- anpp4 %>% 
-  left_join(select(sites5, -fake_bioDat), 
+  left_join(dplyr::select(sites5, -fake_bioDat), 
             by = c("site_code", "year", "bioDat", "trtDat", 
                    "X365day.trt", "IfNot365.WhenShelterRemove", 
                    "IfNot365.WhenShelterSet", "drought_trt")) %>% 
@@ -966,7 +966,7 @@ sites7 <- sites6 %>%
   mutate(num_drought_days = ifelse(is.na(num_drought_days_sub), 
                                    num_drought_days_ghcn, 
                                    num_drought_days_sub)) %>% 
-  select(-num_drought_days_sub, -num_drought_days_ghcn, 
+  dplyr::select(-num_drought_days_sub, -num_drought_days_ghcn, 
          -matches("_(drought)|(ambient)_"), num_drought_days) %>%
   rowwise() %>% 
   mutate(
@@ -1006,7 +1006,7 @@ sites_full1 <- sites7 %>%
          IfNot365.WhenShelterSet = ifelse(is.na(IfNot365.WhenShelterSet.x),
                                           IfNot365.WhenShelterSet.y,
                                           IfNot365.WhenShelterSet.x)) %>% 
-  select(-matches("\\.(x|y)$")) 
+  dplyr::select(-matches("\\.(x|y)$")) 
 
 test <- sites_full1 %>% 
   filter(is.na(fake_bioDat) & !is.na(ppt))
@@ -1109,7 +1109,7 @@ sites_full2 %>%
   unique()
 
 sites_full3 <- sites_full2 %>% 
-  select(all_of(names(sites_full1)), annual_ppt_used)
+  dplyr::select(all_of(names(sites_full1)), annual_ppt_used)
 
 # saving CSV --------------------------------------------------------------
 
