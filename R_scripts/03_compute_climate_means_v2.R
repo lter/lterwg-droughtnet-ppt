@@ -153,8 +153,8 @@ mswep2 <- mswep1 %>%
 ann0 <- mswep2 %>% 
   mutate(year = lubridate::year(date)) %>% 
   group_by(site_code, year) %>% 
-  summarize(ppt_max_event = max(precip),
-            ppt_mean_event = mean(precip[precip > cutoff]),
+  summarize(ppt_max_event = max(precip, na.rm = TRUE),
+            ppt_mean_event = mean(precip[precip > cutoff], na.rm = TRUE),
             # number of biggest event days in which half of precip fell
             days_half_ppt = days_half_ppt(precip),
             # measure of variability in event sizes (similar to CV)

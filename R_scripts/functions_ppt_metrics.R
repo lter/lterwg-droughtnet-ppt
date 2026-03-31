@@ -69,7 +69,7 @@ n_wet_days <- function(x, cutoff = 1) {
   
   check_ppt_input(x)
   
-  sum(x > cutoff)
+  sum(x > cutoff, na.rm = TRUE)
 }
 
 # next: create functions to calculate alpha and SI as per Jeff Dukes' research
@@ -95,7 +95,7 @@ avg_dryspell_length <- function(x, cutoff = 1) {
   is_dry <- x < cutoff
   rle <- rle(is_dry)
   dry_lengths <- rle$lengths[rle$values] # selecting only dry lengths
-  mean(dry_lengths) # mean length of dry periods
+  mean(dry_lengths, na.rm = TRUE) # mean length of dry periods
 }
 
 
@@ -141,7 +141,7 @@ d_variability <- function (var, cutoff = 1, k=0){
   var<-var[!is.na(var)]
   if(length(var)<3){return(NA)}
   if(sd(var)==0){return(0)}
-  if (min(var)<0){var <- var + abs(min(var)) + 0.01*(max(var)-min(var))}
+  if (min(var, na.rm = TRUE)<0){var <- var + abs(min(var, na.rm = TRUE)) + 0.01*(max(var, na.rm = TRUE)-min(var, na.rm = TRUE))}
   if (length(var)<2){return(NA)}else{
     var <- var + k
     aux <- numeric(length(var)-1)
@@ -190,9 +190,9 @@ ppt_mean_annual <- function(df, min_date, max_date) {
     summarise(seasonality_index = seasonality_index(ppt),
               # intra-annual ppt calculated for the given year
               # (then averaged across years in the next step)
-              cv_ppt_intra = sd(ppt)/mean(ppt)*100,
-              ppt = sum(ppt),# total ppt for the given year
-              n = sum(n),
+              cv_ppt_intra = sd(ppt, na.rm = TRUE)/mean(ppt, na.rm = TRUE)*100,
+              ppt = sum(ppt, na.rm = TRUE),# total ppt for the given year
+              n = sum(n, na.rm = TRUE),
               .groups = "drop_last")
   
   if(any(out$n > 366 | out$n < 365)) {
@@ -201,12 +201,12 @@ ppt_mean_annual <- function(df, min_date, max_date) {
   
   out <- out %>% 
     summarize(
-      MAP = mean(ppt),
-      cv_ppt_intra = mean(cv_ppt_intra),
+      MAP = mean(ppt, na.rm = TRUE),
+      cv_ppt_intra = mean(cv_ppt_intra, na.rm = TRUE),
       # inter annual cv of precipitation
-      cv_ppt_inter = sd(ppt)/mean(ppt)*100,
+      cv_ppt_inter = sd(ppt, na.rm = TRUE)/mean(ppt, na.rm = TRUE)*100,
       yearly_ppt_d = d_variability(ppt, cutoff = 0),
-      seasonality_index = mean(seasonality_index)
+      seasonality_index = mean(seasonality_index, na.rm = TRUE)
     ) %>% 
     mutate(data_period = paste(lubridate::year(min_date),
                                lubridate::year(max_date),
