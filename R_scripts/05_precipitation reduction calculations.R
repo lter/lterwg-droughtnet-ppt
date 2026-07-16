@@ -28,7 +28,7 @@ path_ms <-  file.path(path, "IDE MS_Single year extreme")
 # biomass harvest will be calculated
 
 
-days_before <-  1460 #120  # 365 # 730  #1095  # 
+days_before <-   1460 #120  # 365 # 730  #1095  #
 
 date_string <- "2026-03-27" # for use in output file names
 
@@ -709,12 +709,31 @@ octc.2022 <- data.frame(site_code = "octc.us",
                         drought_trt = 0.60)
 
 
+#Ayora (not needed if biomass date pulls through)
+
+#Ukulinga (not needed if biomass date pulls through)
+
+
+#Wildflower 2024
+wildflower.2024 <- data.frame(site_code = "wildflower.us",
+                        block = c(1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6), 
+                        plot = c(10302,10502,10702,20509,20606,20607,30706,30804,31207,41103,41501,41703,51705,52002,52003,61506,61607,62212),
+                        subplot = c("A","A","C","D","C","C","D","B","B","C","C","B","C","D","C","D","D","B"), 
+                        year = 2024, 
+                        trt = c("Drought","Control_infrastructure","Control","Control_infrastructure","Drought","Control","Drought","Control_infrastructure","Control","Control",
+                                "Control_infrastructure","Drought","Control","Drought","Control_infrastructure","Control","Control_infrastructure","Drought"
+                        ),
+                        bioDat = as.Date("2024-12-06"), 
+                        trtDat = as.Date("2023-08-01"), 
+                        X365day.trt = "Yes", 
+                        IfNot365.WhenShelterSet = NA,
+                        IfNot365.WhenShelterRemove = NA,
+                        drought_trt = 0.65)
 
 
 
 
-
-anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020,nnss.2019,nnss.2020,nnss.2021, nnss.2022, octc.2021, octc.2022)
+anpp3 <- bind_rows(anpp3, docker.16, docker.17, docker.18, docker.19, biven.2014, biven.2015, biven.2016, biven.2017, biven.2018, biven.2019, biven.2020, chilcas.2016, chilcas.2020,nnss.2019,nnss.2020,nnss.2021, nnss.2022, octc.2021, octc.2022, wildflower.2024)
 
 
 
